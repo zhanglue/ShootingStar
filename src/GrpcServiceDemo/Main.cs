@@ -1,17 +1,15 @@
-using GrpcServiceDemo.Services;
+using GrpcDemo.Services;
 
 class Program
 {
     static void Main()
     {
-        Console.WriteLine("################################################################################");
-        Console.WriteLine("# Configurations:");
+        Console.WriteLine("#### CONFIGURATIONS ############################################################");
 
         var args = new ArgumentParser();
         args.Show();
 
-        Console.WriteLine("\n################################################################################");
-        Console.WriteLine("# Start service:");
+        Console.WriteLine("\n#### START SERVICE #############################################################");
 
         var builder = WebApplication.CreateBuilder(Environment.GetCommandLineArgs());
         builder.Services.AddGrpc();

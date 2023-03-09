@@ -1,17 +1,15 @@
 using Grpc.Net.Client;
-using GrpcClientDemo;
+using GrpcDemo;
 
 class Program
 {
     static async Task Main()
     {
-        Console.WriteLine("################################################################################");
-        Console.WriteLine("# Configurations:");
+        Console.WriteLine("#### CONFIGURATIONS ############################################################");
         var args = new ArgumentParser();
         args.Show();
 
-        Console.WriteLine("\n################################################################################");
-        Console.WriteLine("# Call remote:");
+        Console.WriteLine("\n#### CALL REMOTE ###############################################################");
 
         string remoteAddress = String.Format("{0}://{1}:{2}", args.IsUsingUntrustedCertificate ? "http" : "https", args.Ip, args.Port.ToString());
         Console.WriteLine("Remote address: " + remoteAddress);
