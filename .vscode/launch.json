@@ -1,0 +1,47 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+        {
+            "name": "grpc_service_demo",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build_grpc_service_demo",
+            "program": "${workspaceFolder}/src/GrpcServiceDemo/bin/Debug/net6.0/GrpcServiceDemo.dll",
+            "args": [
+                "--with-http"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {}
+        },
+        {
+            "name": "grpc_client_demo",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build_grpc_client_demo",
+            "program": "${workspaceFolder}/src/GrpcClientDemo/bin/Debug/net6.0/GrpcClientDemo.dll",
+            "args": [
+                "--untrusted-ca"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "serverReadyAction": {},
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {}
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}
