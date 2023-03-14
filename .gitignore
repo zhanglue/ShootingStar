@@ -72,6 +72,7 @@ ScaffoldingReadMe.txt
 StyleCopReport.xml
 
 # Files built by Visual Studio
+*/obj/*
 *_i.c
 *_p.c
 *_h.h
@@ -452,3 +453,10 @@ $RECYCLE.BIN/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+*.suo
+*.user
+_ReSharper.*
+bin
+obj
+packages
