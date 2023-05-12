@@ -32,7 +32,6 @@
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "serverReadyAction": {},
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },

@@ -1,3 +1,5 @@
+# ShootingStar
+
 Dignity comes from power.
 
 Endure or punch back, when you be treated with double standards.
