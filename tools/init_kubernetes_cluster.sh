@@ -12,10 +12,10 @@ PATH_YAML_K8ADM_INIT="${PATH_K8_DATA_ROOT}/kubeadm_init.yaml"
 VERSION_APT_TRANSPORT_HTTPS='2.0.9'
 VERSION_CONTAINERD_IO='1.6.21-1'
 VERSION_CURL='7.68.0-1ubuntu2.18'
-VERSION_KUBEADM='1.27.1'
-VERSION_KUBECTL='1.27.1'
-VERSION_KUBELET='1.27.1'
-VERSION_KUBERNETES='1.26.0'
+VERSION_KUBEADM='1.27.1-00'
+VERSION_KUBECTL='1.27.1-00'
+VERSION_KUBELET='1.27.1-00'
+VERSION_KUBERNETES='1.27.1'
 YAML_URL_DASHBORD='https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml'
 YAML_URL_WEAVE='https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml'
 YAML_STR_CREATE_SERVICE_ACCOUNT='''apiVersion: v1
@@ -51,6 +51,7 @@ clean_up()
 {
     echo "clean up ..."
     which kubeadm > ${OUTPUT_FOR_OTHERS} && kubeadm reset -f > ${OUTPUT_FOR_OTHERS}
+    sleep 5
     [[ -e "${HOME}/.kube" ]] && rm -rf "${HOME}/.kube"
     echo "clean up done"
 }
@@ -81,7 +82,7 @@ apt_install()
         kubeadm=${VERSION_KUBEADM} \
         kubectl=${VERSION_KUBECTL} \
         kubelet=${VERSION_KUBELET} \
-        > ${OUTPUT_FOR_OTHERS} 2&>1
+        > ${OUTPUT_FOR_OTHERS} 2>&1
 
     echo "apt hold ..."
     apt-mark hold apt-transport-https curl containerd.io > ${OUTPUT_FOR_OTHERS}
@@ -113,20 +114,66 @@ set_configs()
 kubeadm_init()
 {
     echo "kubeadm init --config ${PATH_YAML_K8ADM_INIT}"
-    kubeadm init --config ${PATH_YAML_K8ADM_INIT}
+    kubeadm config images pull
+    sleep 5
+    sudo kubeadm init --config ${PATH_YAML_K8ADM_INIT} || exit
 
     mkdir -p ${HOME}/.kube
     cp /etc/kubernetes/admin.conf ${HOME}/.kube/config
     chown $(id -u):$(id -g) ${HOME}/.kube/config
-}
 
-kubectl_create_applications()
-{
     echo -e "\nkubectl apply -f ${YAML_URL_WEAVE}"
     kubectl apply -f ${YAML_URL_WEAVE}
+}
 
+show_k8_pods()
+{
+    echo -e "\n\nsudo kubectl get pods -A"
+
+    kubectl get pods -A
+
+    echo -e "\n\n\n"
+
+    echo "Execute following in the worker nodes and join the master node:"
+    exeStr="sudo apt update"
+    exeStr="${exeStr} && sudo apt install -y"
+    exeStr="${exeStr} apt-transport-https=${VERSION_APT_TRANSPORT_HTTPS}"
+    exeStr="${exeStr} curl=${VERSION_CURL}"
+    exeStr="${exeStr} containerd.io=${VERSION_CONTAINERD_IO}"
+    exeStr="${exeStr} kubeadm=${VERSION_KUBEADM}"
+    exeStr="${exeStr} kubectl=${VERSION_KUBECTL}"
+    exeStr="${exeStr} kubelet=${VERSION_KUBELET}"
+    exeStr="${exeStr} && sudo kubeadm reset -f && sudo rm -rf ~/.kube/config"
+    exeStr="${exeStr} && sudo modprobe br_netfilter"
+    exeStr="${exeStr} && sudo bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'"
+    exeStr="${exeStr} && sudo $(kubeadm token create --print-join-command)"
+    echo $exeStr
+}
+
+clean_up_and_init()
+{
+    clean_up
+    prepare_for_installing
+    apt_install
+    set_configs
+    kubeadm_init
+    show_k8_pods
+}
+
+skip_clean()
+{
+    prepare_for_installing
+    apt_install
+    set_configs
+    kubeadm_init
+    show_k8_pods
+}
+
+continue_apply_other_applications()
+{
     echo -e "\nkubectl apply -f ${YAML_URL_DASHBORD}"
     kubectl apply -f ${YAML_URL_DASHBORD}
+    sleep 5
     kubectl proxy --address='0.0.0.0' --port=8001 --accept-hosts='.*' &
     kubectl port-forward -n kubernetes-dashboard --address 0.0.0.0 service/kubernetes-dashboard 8080:443 &
 
@@ -144,18 +191,25 @@ kubectl_create_applications()
     # kubectl -n kubernetes-dashboard delete clusterrolebinding admin-user
 }
 
-show_k8_pods()
-{
-    echo -e "\n\n\nkubectl get pods -A"
+executeAs='clean_up_and_init'
+while (( $# != 0 ))
+do
+    curArg="$1"
+    shift
 
-    kubectl get pods -A
-}
+    case "${curArg}" in
+        --clean )
+            executeAs="clean_up"
+            ;;
+        --skip-clean )
+            executeAs="skip_clean"
+            ;;
+        -c | --continue )
+            executeAs="continue_apply_other_applications"
+            ;;
+        * )
+            ;;
+    esac
+done
 
-clean_up
-prepare_for_installing
-apt_install
-set_configs
-kubeadm_init
-kubectl_create_applications
-
-show_k8_pods
+$executeAs
