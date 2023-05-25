@@ -2,9 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "type": "process",
             "label": "build_grpc_service_demo",
             "command": "dotnet",
-            "type": "process",
             "args": [
                 "build",
                 "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj",
@@ -14,9 +14,83 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "type": "docker-build",
+            "label": "build_img_grpc_service_demo_debug",
+            "dockerBuild": {
+                "tag": "grpc-service-demo-image:debug",
+                "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile.Development",
+                "context": "${workspaceFolder}",
+                "pull": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
+            }
+        },
+        {
+            "type": "docker-build",
+            "label": "build_img_grpc_service_demo",
+            "dockerBuild": {
+                "tag": "grpc-service-demo-image:lastest",
+                "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile",
+                "context": "${workspaceFolder}",
+                "pull": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
+            }
+        },
+        {
+            "type": "docker-run",
+            "label": "docker_run_grpc_service_demo_debug",
+            "dependsOn": [
+                "build_grpc_service_demo_docker_debug"
+            ],
+            "dockerRun": {
+                "image": "grpc-service-demo-image:debug",
+                "command": "--with-http",
+                "containerName": "GrpcServiceDemo",
+                "ports": [
+                    {
+                        "containerPort": 7263,
+                        "hostPort": 7263,
+                        "protocol": "tcp"
+                    }
+                ],
+                "remove": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj",
+                "enableDebugging": true
+            }
+        },
+        {
+            "type": "docker-run",
+            "label": "docker_run_grpc_service_demo",
+            "dependsOn": [
+                "build_grpc_service_demo_docker"
+            ],
+            "dockerRun": {
+                "image": "grpc-service-demo-image:lastest",
+                "command": "--with-http",
+                "containerName": "GrpcServiceDemo",
+                "ports": [
+                    {
+                        "containerPort": 7263,
+                        "hostPort": 7263,
+                        "protocol": "tcp"
+                    }
+                ],
+                "remove": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj",
+                "enableDebugging": true
+            }
+        },
+        {
+            "type": "process",
             "label": "build_grpc_client_demo",
             "command": "dotnet",
-            "type": "process",
             "args": [
                 "build",
                 "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj",
@@ -26,9 +100,9 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "publish",
-            "command": "dotnet",
             "type": "process",
+            "label": "dotnet-publish",
+            "command": "dotnet",
             "args": [
                 "publish",
                 "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj",
@@ -38,9 +112,9 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "watch",
-            "command": "dotnet",
             "type": "process",
+            "label": "dotnet-watch",
+            "command": "dotnet",
             "args": [
                 "watch",
                 "run",
