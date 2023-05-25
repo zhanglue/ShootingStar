@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.53.0" />
+    <PackageReference Include="Microsoft.NET.Build.Containers" Version="7.0.302" />
   </ItemGroup>
 
 </Project>
