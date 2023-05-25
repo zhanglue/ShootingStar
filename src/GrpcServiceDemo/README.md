@@ -12,10 +12,20 @@ dotnet run [-- [--with-http]]
 
 ### Release image
 
-Build docker image by dockerfile:
+Build docker image by dockerfile for development:
 
 ```docker
-docker build -t grpc-service-demo-image -f Dockerfile .
+
+```docker
+docker build -t grpc-service-demo-image:debug -f Dockerfile.Development ../../
+```
+
+Build docker image by dockerfile for release:
+
+```docker
+
+```docker
+docker build -t grpc-service-demo-image -f Dockerfile ../../
 ```
 
 For release as a debug image:
@@ -53,7 +63,7 @@ dotnet publish ./GrpcServiceDemo.csproj \
 Run for debug:
 
 ```docker
-docker run --rm -it -p 7263:7263 --volume=/root/work/ShootingStar/src:/SSS  --entrypoint "bash" --name GrpcServiceDemo grpc-service-demo-image
+docker run --rm -it -p 7263:7263 --volume=/root/work/ShootingStar/:/ShootingStar --entrypoint "bash" --name GrpcServiceDemo grpc-service-demo-image
 ```
 
 Run normally:
