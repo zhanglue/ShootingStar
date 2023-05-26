@@ -43,11 +43,11 @@
             "type": "docker-run",
             "label": "docker_run_grpc_service_demo_debug",
             "dependsOn": [
-                "build_grpc_service_demo_docker_debug"
+                "build_img_grpc_service_demo_debug"
             ],
             "dockerRun": {
                 "image": "grpc-service-demo-image:debug",
-                "command": "--with-http",
+                "command": "-- --with-http",
                 "containerName": "GrpcServiceDemo",
                 "ports": [
                     {
@@ -67,11 +67,11 @@
             "type": "docker-run",
             "label": "docker_run_grpc_service_demo",
             "dependsOn": [
-                "build_grpc_service_demo_docker"
+                "build_img_grpc_service_demo"
             ],
             "dockerRun": {
                 "image": "grpc-service-demo-image:lastest",
-                "command": "--with-http",
+                "command": "-- --with-http",
                 "containerName": "GrpcServiceDemo",
                 "ports": [
                     {
