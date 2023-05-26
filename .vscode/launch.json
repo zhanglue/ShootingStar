@@ -38,17 +38,6 @@
             "sourceFileMap": {}
         },
         {
-            "type": "docker",
-            "name": "grpc_service_demo_docker",
-            "request": "launch",
-            "preLaunchTask": "debug_grpc_service_demo_docker",
-            "containerName": "GrpcServiceDemo",
-            "platform": "netCore",
-            "netCore": {
-                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
-            }
-        },
-        {
             "type": "coreclr",
             "name": "Attach to process",
             "request": "attach"
