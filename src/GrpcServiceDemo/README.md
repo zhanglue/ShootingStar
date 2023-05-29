@@ -17,7 +17,7 @@ Build docker image by dockerfile for development:
 ```docker
 
 ```docker
-docker build -t grpc-service-demo-image:debug -f Dockerfile.Development ../../
+docker build -t k8spractice.azurecr.io/grpc_service_demo:debug -f ./Dockerfile ../../
 ```
 
 Build docker image by dockerfile for release:
@@ -25,7 +25,7 @@ Build docker image by dockerfile for release:
 ```docker
 
 ```docker
-docker build -t grpc-service-demo-image -f Dockerfile ../../
+docker build -t k8spractice.azurecr.io/grpc_service_demo:latest -f ./Dockerfile ../../
 ```
 
 For release as a debug image:

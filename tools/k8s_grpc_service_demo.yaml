@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: grpc-demo
+  name: grpc-service-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grpc-service-demo
+  template:
+    metadata:
+      labels:
+        app: grpc-service-demo
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: grpc-service-demo
+        image: k8spractice.azurecr.io/grpc_service_demo:latest
+        args:
+        - --with-http
+        ports:
+        - containerPort: 7263
+          name: grpc-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: grpc-demo
+  name: grpc-service-demo
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 7263
+  selector:
+    app: grpc-service-demo
