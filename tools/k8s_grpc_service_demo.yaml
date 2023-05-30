@@ -18,6 +18,13 @@ spec:
       containers:
       - name: grpc-service-demo
         image: k8spractice.azurecr.io/grpc_service_demo:latest
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
         args:
         - --with-http
         ports:
