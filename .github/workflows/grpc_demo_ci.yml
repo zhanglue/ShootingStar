@@ -1,0 +1,11 @@
+name: GRPC Demo CI
+on:
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the image of GrpcServiceDemo.
+      run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_service_demo:$(date +%y%m%d_%H%M%S)
