@@ -23,4 +23,5 @@ spec:
         args: 
         - --ip
         - grpc-service-demo.grpc-demo.svc.cluster.local
-        - --untrusted-ca
+        - --IsUsingUntrustedCertificate
+        - --with-http

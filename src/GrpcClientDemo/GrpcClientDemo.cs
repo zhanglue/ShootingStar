@@ -11,7 +11,7 @@ class Program
 
         Console.WriteLine("\n#### CALL REMOTE ###############################################################");
 
-        string remoteAddress = String.Format("{0}://{1}:{2}", args.IsUsingUntrustedCertificate ? "http" : "https", args.Ip, args.Port.ToString());
+        string remoteAddress = String.Format("{0}://{1}:{2}", args.WithHttp ? "http" : "https", args.Ip, args.Port.ToString());
         Console.WriteLine("Remote address: " + remoteAddress);
 
         var httpHandler = new HttpClientHandler();
@@ -31,6 +31,9 @@ class Program
 
 class ArgumentParser
 {
+    private readonly string[] localhosts = {"localhost", "127.0.0.1"};
+    private bool isUsingUntrustedCertificate = false;
+
     public ArgumentParser()
     {
         string[] arguments = Environment.GetCommandLineArgs();
@@ -48,11 +51,7 @@ class ArgumentParser
                 continue;
             }
 
-            if (argv == "--untrusted-ca")
-            {
-                IsUsingUntrustedCertificate = true;
-            }
-            else if (argv == "--ip")
+            if (argv == "--ip")
             {
                 argc--;
                 if (argc == 0)
@@ -72,6 +71,14 @@ class ArgumentParser
 
                 Port = int.Parse(arguments[arguments.Length - argc]);
             }
+            else if (argv == "--with-http")
+            {
+                WithHttp = true;
+            }
+            else if (argv == "--untrusted-ca")
+            {
+                isUsingUntrustedCertificate = true;
+            }
 
             argc--;
         }
@@ -81,12 +88,18 @@ class ArgumentParser
 
     public int Port { get; } = 7263;
 
-    public bool IsUsingUntrustedCertificate { get; } = false;
+    public bool WithHttp { get; } = false;
+
+    public bool IsUsingUntrustedCertificate
+    {
+        get => isUsingUntrustedCertificate || localhosts.Contains(Ip);
+    }
 
     public void Show()
     {
         Console.WriteLine("IP           : " + Ip);
         Console.WriteLine("Port         : " + Port);
+        Console.WriteLine("With HTTP    : " + WithHttp);
         Console.WriteLine("Untrusted CA : " + IsUsingUntrustedCertificate);
     }
 }
