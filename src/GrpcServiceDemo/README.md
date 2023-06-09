@@ -31,18 +31,27 @@ Such as following:
 ```
 
 1. The URL in config file specified the schema (HTTP or HTTPS) and the port number at the same time.
+
    It will conflict if define the endpoints both in the appsettings.json file and the code.
+
    So, we just define the endpoints in the code for more flexible.
 
 2. As usual, it is not necessary to define the endpoints both of protocols Http1 and Http2.
+
    Define the endpoint of Http1 is enough for RESTful APIs, while define the endpoint of Http2 is sufficient for gRPC APIs.
+
    It is a little bit of weird to define the endpoints both of protocols Http1 and Http2,
+
    while it means that the service will expose both RESTful APIs and gRPC APIs at the same time.
+
    The protocols is not required for the endpoints, it will be set to Http1AndHttp2 by ```EndpointsDefaults.Protocols```.
+
    In this case, the HTTPS is force to be enabled, and the HTTP is disabled.
 
 3. The certificate is not required for the HTTP endpoints.
+
    It is possible to use various certificates for different HTTPS endpoints by specifying the details in endpoint.
+
    If not specify the certificate for the endpoint, the default certificate will be used.
 
 ## How to run in local
@@ -61,16 +70,28 @@ dotnet run . [-- [--with-http] [--redirect-to-https] [--cert-path <path>] [--cer
 
 ```--with-http``` and ```--redirect-to-https``` are mutually exclusive.
 
-**Example I**
-```dotnet run . -- --with-http```
+### Example I
+
+```dotnetcli
+dotnet run . -- --with-http
+```
+
 It exposes ```http://localhost:7262``` for RESTful APIs and ```http://localhost:7263``` for gRPC APIs, certificate is **NOT REQUIRED**.
 
-**Example II**
-```dotnet run . -- --cert-path PATH_TO_CERT --cert-password PASSWD```
+### Example II
+
+```dotnetcli
+dotnet run . -- --cert-path PATH_TO_CERT --cert-password PASSWD
+```
+
 It exposes ```http://localhost:7262``` and ```https://localhost:7263```, certificate is **REQUIRED**.
 
-**Example III**
-```dotnet run  -- --redirect-to-https```
+### Example III
+
+```dotnetcli
+dotnet run  -- --redirect-to-https
+```
+
 It exposes ```https://localhost:7262``` and ```https://localhost:7263```, certificate is **REQUIRED**.
 
 ## How to run as a docker container
@@ -80,14 +101,10 @@ It exposes ```https://localhost:7262``` and ```https://localhost:7263```, certif
 Build docker image by dockerfile for development:
 
 ```docker
-
-```docker
 docker build -t shootingstar.azurecr.io/grpc_service_demo:debug -f ./Dockerfile ../../
 ```
 
 Build docker image by dockerfile for release:
-
-```docker
 
 ```docker
 docker build -t shootingstar.azurecr.io/grpc_service_demo:latest -f ./Dockerfile ../../
