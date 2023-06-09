@@ -28,7 +28,7 @@
             "preLaunchTask": "build_grpc_client_demo",
             "program": "${workspaceFolder}/src/GrpcClientDemo/bin/Debug/net7.0/GrpcClientDemo.dll",
             "args": [
-                "--untrusted-ca"
+                "--with-http"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
