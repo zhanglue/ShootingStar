@@ -1,5 +1,4 @@
 using Grpc.Core;
-using GrpcDemo;
 
 namespace GrpcDemo.Services;
 
@@ -13,6 +12,13 @@ public class GreeterService : Greeter.GreeterBase
 
     public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
     {
+        _logger.LogInformation($"Client authenticated: {context.AuthContext.IsPeerAuthenticated}");
+        if (context.AuthContext.IsPeerAuthenticated)
+        {
+            _logger.LogInformation($"Auth property name: {context.AuthContext.PeerIdentityPropertyName}");
+            _logger.LogInformation($"Auth property value: {context.AuthContext.Properties.FirstOrDefault()?.Value}");
+        }
+
         return Task.FromResult(new HelloReply
         {
             Message = "Hello " + request.Name

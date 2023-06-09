@@ -8,17 +8,28 @@ class Program
         Console.WriteLine("#### CONFIGURATIONS ############################################################");
         var args = new ArgumentParser();
         args.Show();
+        if (!args.Validate())
+        {
+            Console.WriteLine("Validate arguments failed.");
+            return;
+        }
 
         Console.WriteLine("\n#### CALL REMOTE ###############################################################");
 
-        string remoteAddress = String.Format("{0}://{1}:{2}", args.IsUsingUntrustedCertificate ? "http" : "https", args.Ip, args.Port.ToString());
+        string remoteAddress = String.Format("{0}://{1}:{2}", args.WithHttp ? "http" : "https", args.Ip, args.Port.ToString());
         Console.WriteLine("Remote address: " + remoteAddress);
 
-        var httpHandler = new HttpClientHandler();
-        if (args.IsUsingUntrustedCertificate)
+        var httpHandler = new System.Net.Http.HttpClientHandler();
+        if (!args.WithHttp)
         {
-            httpHandler.ServerCertificateCustomValidationCallback =
-                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            if (args.IsUsingUntrustedCertificate)
+            {
+                httpHandler.ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            }
+
+            var certificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(args.CertPath, args.CertPassword);
+            httpHandler.ClientCertificates.Add(certificate);
         }
 
         var channel = GrpcChannel.ForAddress(remoteAddress, new GrpcChannelOptions { HttpHandler = httpHandler });
@@ -31,6 +42,9 @@ class Program
 
 class ArgumentParser
 {
+    private readonly string[] localhosts = {"localhost", "127.0.0.1"};
+    private bool isUsingUntrustedCertificate = false;
+
     public ArgumentParser()
     {
         string[] arguments = Environment.GetCommandLineArgs();
@@ -48,11 +62,7 @@ class ArgumentParser
                 continue;
             }
 
-            if (argv == "--untrusted-ca")
-            {
-                IsUsingUntrustedCertificate = true;
-            }
-            else if (argv == "--ip")
+            if (argv == "--ip")
             {
                 argc--;
                 if (argc == 0)
@@ -72,6 +82,38 @@ class ArgumentParser
 
                 Port = int.Parse(arguments[arguments.Length - argc]);
             }
+            else if (argv == "--with-http")
+            {
+                WithHttp = true;
+            }
+            else if (argv == "--untrusted-ca")
+            {
+                isUsingUntrustedCertificate = true;
+            }
+            else if (argv == "--cert-path")
+            {
+                argc--;
+                if (argc == 0)
+                {
+                    throw new Exception("Specify certificate path after --cert-path.");
+                }
+
+                CertPath = arguments[arguments.Length - argc];
+            }
+            else if (argv == "--cert-password")
+            {
+                argc--;
+                if (argc == 0)
+                {
+                    throw new Exception("Specify certificate password after --cert-password.");
+                }
+
+                CertPassword = arguments[arguments.Length - argc];
+            }
+            else
+            {
+                throw new Exception("Unknown argument: " + argv);
+            }
 
             argc--;
         }
@@ -81,12 +123,54 @@ class ArgumentParser
 
     public int Port { get; } = 7263;
 
-    public bool IsUsingUntrustedCertificate { get; } = false;
+    public bool WithHttp { get; } = false;
+
+    public bool IsUsingUntrustedCertificate
+    {
+        // For further investigation is it proper to make localhost CA trusted.
+        // get => isUsingUntrustedCertificate || localhosts.Contains(Ip);
+
+        get => isUsingUntrustedCertificate;
+    }
+
+    public string CertPath { get; } = "NOT_SET";
+
+    public string CertPassword { get; } = "";
+
+    public bool Validate()
+    {
+        if (Port < 0 || Port > 65535)
+        {
+            Console.WriteLine("Port must be between 0 and 65535.");
+            return false;
+        }
+
+        if (!WithHttp)
+        {
+            if (!System.IO.File.Exists(CertPath))
+            {
+                Console.WriteLine("Certificate file does not exist.");
+                return false;
+            }
+
+            if (String.IsNullOrEmpty(CertPassword))
+            {
+                Console.WriteLine("Certificate password is empty.");
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     public void Show()
     {
-        Console.WriteLine("IP           : " + Ip);
-        Console.WriteLine("Port         : " + Port);
-        Console.WriteLine("Untrusted CA : " + IsUsingUntrustedCertificate);
+        Console.WriteLine("IP            : " + Ip);
+        Console.WriteLine("Port          : " + Port);
+        Console.WriteLine("With HTTP     : " + WithHttp);
+        Console.WriteLine("Untrusted CA  : " + IsUsingUntrustedCertificate);
+        Console.WriteLine("Cert path     : " + CertPath);
+        Console.WriteLine("Cert password : " + (string.IsNullOrEmpty(CertPassword) ? "N/A" : "******"));
+        Console.WriteLine("");
     }
 }
