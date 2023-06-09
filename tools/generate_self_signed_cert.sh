@@ -42,20 +42,61 @@ if [[ -z ${SELF_SIGNED_HTTPS_CERT_PASSWORD} ]]; then
     exit 1
 fi
 
-
 echo "################################################################################"
 echo "Generate a self-signed certificate for ${CertName} in ${CertPath}."
-echo "################################################################################"
+echo -e "\n################################################################################"
 
 [[ -e $CertPath ]] && rm -rf $CertPath
 mkdir -p $CertPath
 
-openssl req -x509 \
-    -newkey rsa:4096 -sha256 -days 3650 \
-    -subj "/CN=localhost" -extensions v3_ca -extensions v3_req -passin env:SELF_SIGNED_HTTPS_CERT_PASSWORD \
-    -keyout "${CertPath}/${CertName}.key" -out "${CertPath}/${CertName}.crt" -passout env:SELF_SIGNED_HTTPS_CERT_PASSWORD
+echo """[req]
+default_bits       = 2048
+default_keyfile    = localhost.key
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+x509_extensions    = v3_ca
+
+[req_distinguished_name]
+commonName         = Common Name aka CN
+commonName_default = localhost
+commonName_max     = 64
+
+[req_ext]
+subjectAltName = @alt_names
+
+[v3_ca]
+subjectAltName = @alt_names
+basicConstraints = critical, CA:false
+keyUsage = keyCertSign, cRLSign, digitalSignature,keyEncipherment
+
+[alt_names]
+DNS.1   = localhost
+DNS.2   = 127.0.0.1
+""" > "${CertPath}/${CertName}.conf"
+
+openssl req \
+    -x509 -days 3650 -newkey rsa:2048 -subj "/CN=localhost" \
+    -passout env:SELF_SIGNED_HTTPS_CERT_PASSWORD \
+    -config "${CertPath}/${CertName}.conf" \
+    -keyout "${CertPath}/${CertName}.key" \
+    -out "${CertPath}/${CertName}.crt"
 
 openssl pkcs12 \
-    -inkey "${CertPath}/${CertName}.key" -in "${CertPath}/${CertName}.crt" -passin env:SELF_SIGNED_HTTPS_CERT_PASSWORD \
-    -export -out "${CertPath}/${CertName}.pfx" -passout env:SELF_SIGNED_HTTPS_CERT_PASSWORD
-    
+    -passin env:SELF_SIGNED_HTTPS_CERT_PASSWORD \
+    -inkey "${CertPath}/${CertName}.key" \
+    -in "${CertPath}/${CertName}.crt" \
+    -passout env:SELF_SIGNED_HTTPS_CERT_PASSWORD \
+    -export -out "${CertPath}/${CertName}.pfx"
+
+[[ -e '/usr/local/share/ca-certificates' ]] || sudo mkdir -p '/usr/local/share/ca-certificates'
+[[ -e "/usr/local/share/ca-certificates/${CertName}.crt" ]] && sudo rm -f "/usr/local/share/ca-certificates/${CertName}.crt"
+[[ -e "/etc/ssl/certs/${CertName}.pem" ]] && sudo rm -f "/etc/ssl/certs/${CertName}.pem"
+
+sudo cp "${CertPath}/${CertName}.crt" '/usr/local/share/ca-certificates'
+sudo update-ca-certificates
+
+echo -e "\n################################################################################"
+echo -n "Verify the certificate: "
+sudo openssl verify ${CertPath}/${CertName}.crt
+
+echo ""

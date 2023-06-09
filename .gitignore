@@ -242,6 +242,7 @@ ClientBin/
 *.pfx
 *.crt
 *.key
+**/certs/localhost.conf
 *.publishsettings
 orleans.codegen.cs
 
