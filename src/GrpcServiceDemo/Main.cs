@@ -1,82 +1,73 @@
 using GrpcDemo.Services;
-using System.Net;
+using Microsoft.AspNetCore.Authentication.Certificate;
+using System.Security.Claims;
+
+using ClientCertificateMode = Microsoft.AspNetCore.Server.Kestrel.Https.ClientCertificateMode;
+using HttpProtocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols;
+using HttpStatusCode = System.Net.HttpStatusCode;
+using X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2;
 
 class Program
 {
     static void Main()
     {
         Console.WriteLine("#### CONFIGURATIONS ############################################################");
-
         var args = new ArgumentParser();
         args.Show();
+        if (!args.Validate())
+        {
+            Console.WriteLine("Error: validate arguments failed.");
+            return;
+        }
 
         Console.WriteLine("\n#### START SERVICE #############################################################");
-
         var builder = WebApplication.CreateBuilder(Environment.GetCommandLineArgs());
+        if (!ConfigureWebAppBuilder(builder, args))
+        {
+            Console.WriteLine("Error: failed to configure the web application builder.");
+            return;
+        }
+
+        var app = builder.Build();
+        if (!BuildWebApp(app, args))
+        {
+            Console.WriteLine("Error: failed to build the web application.");
+            return;
+        }
+        app.Run();
+    }
+
+    static private bool ConfigureWebAppBuilder(WebApplicationBuilder builder, ArgumentParser args)
+    {
         builder.WebHost.ConfigureKestrel(options =>
         {
+            options.ConfigureHttpsDefaults(o =>
+            {
+                // Setup the default certificate before option.UseHttps().
+                o.ServerCertificate = new X509Certificate2(args.CertPath, args.CertPassword);
+                o.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+            });
+
             // For some RESTful APIs of plain text.
             options.ListenAnyIP(
                 7262, o =>
                 {
-                    o.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1;
-                    if (!args.WithHttp)
-                    {
-                        o.UseHttps();
-                    }
+                    o.Protocols = HttpProtocols.Http1;
                 });
+
             // For gRPC APIs.
             options.ListenAnyIP(
                 7263, o =>
                 {
-                    o.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http2;
-                    if (!args.WithHttp || args.ForceHttps)
+                    o.Protocols = HttpProtocols.Http2;
+                    if (!args.WithHttp || args.RedirectToHttps)
                     {
                         o.UseHttps();
                     }
                 });
         });
 
-        // The endpoints could be defined in the appsettings.json file, too.
-        // Such as following:
-        // "Kestrel": {
-        //   "Endpoints": {
-        //     "ForRESTful": {
-        //         "Url": "http://localhost:7262",
-        //         "Protocols": "Http1"
-        //     },
-        //     "ForGRPC": {
-        //         "Url": "https://localhost:7263",
-        //         "Protocols": "Http2"
-        //     }
-        //   },
-        //  "EndpointDefaults": {
-        //     "Protocols": "Http1AndHttp2"
-        //   },
-        //  "Certificates": {
-        //     "Default": {
-        //       "Path": "localhost.pfx",
-        //       "Password": "123456",
-        //       "AllowInvalid": "false"
-        //     }
-        //   }
-        // }
-        // 1.   The URL specified the schema (HTTP or HTTPS) and the port number at the same time.
-        //      It will conflict if define the endpoints both in the appsettings.json file and the code.
-        //      So, we just define the endpoints in the code for more flexible.
-        // 2.   As usual:
-        // 2.1  It is not necessary to define the endpoints both of protocols Http1 and Http2.
-        //      Define the endpoint of Http1 is enough for RESTful APIs, while define the endpoint of Http2 is enough for gRPC APIs.
-        //      It is a little bit of weird to define the endpoints both of protocols Http1 and Http2,
-        //      while it means that the service will expose both RESTful APIs and gRPC APIs.
-        //      The protocols is not required for the endpoints, it will be set to Http1AndHttp2 by EndpointsDefaults.Protocols.
-        //      In this case, the HTTPS is force to be enabled, and the HTTP is disabled.
-        // 2.2  The certificate is not required for the HTTP endpoints.
-        //      It is possible to use various certificates for different HTTPS endpoints by specifying the details in endpoint.
-        //      If not specify the certificate for the endpoint, the default certificate will be used.
-
-        builder.Services.AddGrpc();
-        if (args.ForceHttps)
+        if (args.RedirectToHttps)
         {
             builder.Services.AddHttpsRedirection(options =>
             {
@@ -85,17 +76,70 @@ class Program
             });
         }
 
-        var app = builder.Build();
-        if (args.ForceHttps)
+        if (!args.WithHttp || args.RedirectToHttps)
+        {
+            builder.Services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
+                .AddCertificate(options =>
+                {
+                    options.AllowedCertificateTypes = CertificateTypes.All;
+                    options.Events = new CertificateAuthenticationEvents
+                    {
+                        OnCertificateValidated = context =>
+                        {
+                            var claims = new[]
+                            {
+                                new Claim(
+                                    ClaimTypes.Name,
+                                    context.ClientCertificate.Subject,
+                                    ClaimValueTypes.String,
+                                    context.Options.ClaimsIssuer)
+                            };
+
+                            Console.WriteLine($"Client certificate thumbprint: {context.ClientCertificate.Thumbprint}");
+                            Console.WriteLine($"Client certificate subject: {context.ClientCertificate.Subject}");
+
+                            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
+                            context.Success();
+
+                            return Task.CompletedTask;
+                        },
+                        OnAuthenticationFailed = context =>
+                        {
+                            context.NoResult();
+                            context.Response.StatusCode = 403;
+                            context.Response.ContentType = "text/plain";
+                            context.Response.WriteAsync(context.Exception.ToString()).Wait();
+                            return Task.CompletedTask;
+                        },
+                    };
+                })
+                .AddCertificateCache();
+        }
+
+        builder.Services.AddGrpc();
+
+        return true;
+    }
+
+    static private bool BuildWebApp(Microsoft.AspNetCore.Builder.WebApplication app, ArgumentParser args)
+    {
+        if (!args.WithHttp || args.RedirectToHttps)
+        {
+            app.UseAuthentication();
+        }
+
+        if (args.RedirectToHttps)
         {
             app.UseHttpsRedirection();
         }
+
         // Add a simple RESTful API for demo.
-        app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
+        app.MapGet("/", () => "Hello World! The service is running.");
+
         // Add gRPC APIs.
         app.MapGrpcService<GreeterService>();
 
-        app.Run();
+        return true;
     }
 }
 
@@ -115,17 +159,39 @@ class ArgumentParser
             {
                 skippedFirstDot = true;
                 argc--;
-                continue;
             }
 
             if (argv == "--with-http")
             {
                 WithHttp = true;
             }
-
-            if (argv == "--force-https")
+            else if (argv == "--redirect-to-https")
             {
-                ForceHttps = true;
+                RedirectToHttps = true;
+            }
+            else if (argv == "--cert-path")
+            {
+                argc--;
+                if (argc == 0)
+                {
+                    throw new Exception("Specify certificate path after --cert-path.");
+                }
+
+                CertPath = arguments[arguments.Length - argc];
+            }
+            else if (argv == "--cert-password")
+            {
+                argc--;
+                if (argc == 0)
+                {
+                    throw new Exception("Specify certificate password after --cert-password.");
+                }
+
+                CertPassword = arguments[arguments.Length - argc];
+            }
+            else
+            {
+                throw new Exception("Unknown argument: " + argv);
             }
 
             argc--;
@@ -134,11 +200,44 @@ class ArgumentParser
 
     public bool WithHttp { get; } = false;
 
-    public bool ForceHttps { get; } = false;
+    public bool RedirectToHttps { get; } = false;
+
+    public string CertPath { get; } = "NOT_SET";
+
+    public string CertPassword { get; } = "";
+
+    public bool Validate()
+    {
+        if (WithHttp && RedirectToHttps)
+        {
+            Console.WriteLine("With HTTP and redirect to HTTPS cannot be set at the same time.");
+            return false;
+        }
+
+        if (!WithHttp || RedirectToHttps)
+        {
+            if (!System.IO.File.Exists(CertPath))
+            {
+                Console.WriteLine("Certificate file does not exist.");
+                return false;
+            }
+
+            if (String.IsNullOrEmpty(CertPassword))
+            {
+                Console.WriteLine("Certificate password is empty.");
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     public void Show()
     {
-        Console.WriteLine("With HTTP        : " + WithHttp);
-        Console.WriteLine("Force with HTTPS : " + ForceHttps);
+        Console.WriteLine("With HTTP         : " + WithHttp);
+        Console.WriteLine("Redirect to HTTPS : " + RedirectToHttps);
+        Console.WriteLine("Cert path         : " + CertPath);
+        Console.WriteLine("Cert password     : " + (string.IsNullOrEmpty(CertPassword) ? "N/A" : "******"));
+        Console.WriteLine("");
     }
 }

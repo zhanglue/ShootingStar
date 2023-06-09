@@ -119,6 +119,24 @@ class ArgumentParser
         }
     }
 
+    public string Ip { get; } = "localhost";
+
+    public int Port { get; } = 7263;
+
+    public bool WithHttp { get; } = false;
+
+    public bool IsUsingUntrustedCertificate
+    {
+        // For further investigation is it proper to make localhost CA trusted.
+        // get => isUsingUntrustedCertificate || localhosts.Contains(Ip);
+
+        get => isUsingUntrustedCertificate;
+    }
+
+    public string CertPath { get; } = "NOT_SET";
+
+    public string CertPassword { get; } = "";
+
     public bool Validate()
     {
         if (Port < 0 || Port > 65535)
@@ -144,24 +162,6 @@ class ArgumentParser
 
         return true;
     }
-
-    public string Ip { get; } = "localhost";
-
-    public int Port { get; } = 7263;
-
-    public bool WithHttp { get; } = false;
-
-    public bool IsUsingUntrustedCertificate
-    {
-        // For further investigation is it proper to make localhost CA trusted.
-        // get => isUsingUntrustedCertificate || localhosts.Contains(Ip);
-
-        get => isUsingUntrustedCertificate;
-    }
-
-    public string CertPath { get; } = "NOT_SET";
-
-    public string CertPassword { get; } = "";
 
     public void Show()
     {
