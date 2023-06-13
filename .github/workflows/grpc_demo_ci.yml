@@ -48,15 +48,12 @@ jobs:
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Delete all pods in namespace grpc-demo.
-      run: kubectl delete pods --all --namespace grpc-demo
-
     - name: Deploy GrpcServiceDemo to Kubernetes.
       uses: Azure/k8s-deploy@v4.10
       with:
          action: deploy
          strategy: basic
-         namespace: grpc-demo
+         namespace: grpc-demo-pr-${{ github.run_number }}
          manifests: manifests/k8s_grpc_service_demo.yaml
          images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret
@@ -107,15 +104,12 @@ jobs:
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Delete all jobs in namespace grpc-demo.
-      run: kubectl delete jobs --all --namespace grpc-demo
-
     - name: Create Kubernetes job of GrpcClientDemo.
       uses: Azure/k8s-deploy@v4.10
       with:
          action: deploy
          strategy: basic
-         namespace: grpc-demo
+         namespace: grpc-demo-pr-${{ github.run_number }}
          manifests: manifests/k8s_grpc_client_demo.yaml
          images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret

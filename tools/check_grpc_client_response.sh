@@ -10,7 +10,9 @@ echo "##########################################################################
 echo "Pod namespace     : ${pod_namespace}"
 echo "Pod prefix        : ${pod_prefix}"
 echo "Expected response : ${expected_response}"
+echo ""
 
+echo "################################################################################"
 pod_cnt=$(kubectl get pods --namespace ${pod_namespace} 2>/dev/null | grep -- ${pod_prefix} | wc -l)
 if [[ $pod_cnt == 0 ]]; then
     echo "No grpc-client-demo pod found."
@@ -35,6 +37,7 @@ echo "Expected response: ${expected_response}"
 echo "Actual response: ${actual_response}"
 
 echo ""
+echo "################################################################################"
 if [[ ${actual_response} != ${expected_response} ]]; then
     echo "!!!FAILED!!!"
     exit 3
