@@ -22,6 +22,11 @@ jobs:
     - name: Push image to Azure Container Registry.
       run: docker push shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
 
+    - name: Login as ShootingStarSP.
+      uses: azure/login@v1.4.7
+      with:
+        creds: ${{ secrets.K8S_CREDENTIALS }}
+
     - name: Set up kubectl.
       uses: Azure/setup-kubectl@v3.2
       with:
@@ -30,7 +35,6 @@ jobs:
     - name: Set up Kubernetes context.
       uses: Azure/aks-set-context@v3.2
       with:
-         creds: '${{ secrets.K8S_CREDENTIALS }}'
          resource-group: ShootingStarRG
          cluster-name: ShootingStarK8s
 
