@@ -6,6 +6,47 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout the source code.
+      uses: actions/checkout@v3
+
     - name: Build the image of GrpcServiceDemo.
-      run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_service_demo:$(date +%y%m%d_%H%M%S)
+      run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+
+    - name: Login to Azure Container Registry.
+      uses: Azure/docker-login@v1
+      with:
+         login-server: shootingstar.azurecr.io
+         username: ${{ secrets.ACR_USERNAME }}
+         password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Push image to Azure Container Registry.
+      run: docker push shootingstar.azurecr.io/k8sdemo:${{ github.run_number }}
+
+    - name: Set up kubectl.
+      uses: Azure/setup-kubectl@v2.0
+      with:
+        version: 1.26.3
+
+    - uses: Azure/aks-set-context@v1
+      with:
+         creds: '${{ secrets.K8S_CREDENTIALS }}'
+         resource-group: ShootingStarRG
+         cluster-name: ShootingStarK8s
+
+    - name: Create Kubernetes secret.
+      uses: Azure/k8s-create-secret@v1.1
+      with:
+         secret-name: k8s-shootingstar-secret
+         container-registry-url: shootingstar.azurecr.io
+         container-registry-username: ${{ secrets.ACR_USERNAME }}
+         container-registry-password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Deploy GRPCServiceDemo to Kubernetes.
+      uses: Azure/k8s-deploy@v4
+      with:
+         action: deploy
+         manifests: |
+            manifests/k8s_namespace_grpc_demo.yaml
+            manifests/k8s_grpc_service_demo.yaml
+         images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+         imagepullsecrets: k8s-shootingstar-secret
