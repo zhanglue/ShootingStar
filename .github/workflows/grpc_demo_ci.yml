@@ -109,7 +109,7 @@ jobs:
          strategy: basic
          namespace: grpc-demo
          manifests: manifests/k8s_grpc_client_demo.yaml
-         images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+         images: shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret
 
     - name: Call GrpcServiceDemo.
