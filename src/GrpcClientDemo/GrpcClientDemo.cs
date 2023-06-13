@@ -14,7 +14,7 @@ class Program
             return;
         }
 
-        Console.WriteLine("\n#### CALL REMOTE ###############################################################");
+        Console.WriteLine("#### CALL REMOTE ###############################################################");
 
         string remoteAddress = String.Format("{0}://{1}:{2}", args.WithHttp ? "http" : "https", args.Ip, args.Port.ToString());
         Console.WriteLine("Remote address: " + remoteAddress);

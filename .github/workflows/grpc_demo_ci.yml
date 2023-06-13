@@ -102,15 +102,18 @@ jobs:
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Deploy GrpcClientDemo to Kubernetes.
-      uses: Azure/k8s-deploy@v4.10
-      with:
-         action: deploy
-         strategy: basic
-         namespace: grpc-demo
-         manifests: manifests/k8s_grpc_client_demo.yaml
-         images: shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
-         imagepullsecrets: k8s-shootingstar-secret
+    - name: Create Kubernetes job of GrpcClientDemo.
+      run: |
+        kubectl delete -f ./manifests/k8s_grpc_client_demo.yaml --namespace=grpc-demo
+        kubectl create job grpc-client-demo --image=shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }} --namespace=grpc-demo
+#       uses: Azure/k8s-deploy@v4.10
+#       with:
+#          action: deploy
+#          strategy: basic
+#          namespace: grpc-demo
+#          manifests: manifests/k8s_grpc_client_demo.yaml
+#          images: shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
+#          imagepullsecrets: k8s-shootingstar-secret
 
     - name: Call GrpcServiceDemo.
       run: |
