@@ -60,6 +60,7 @@ jobs:
       with:
          action: deploy
          strategy: basic
+         namespace: ${{ env.K8S_NAMESPACE }}
          manifests: manifests/k8s_grpc_service_demo.yaml
          images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret
