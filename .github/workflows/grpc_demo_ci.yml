@@ -4,7 +4,7 @@ on:
     branches: [ "main" ]
 jobs:
   build_and_deploy_grpc_service_demo:
-    name: build & deploy GrpcServiceDemo
+    name: build & deploy
     runs-on: ubuntu-latest
     steps:
     - name: Checkout the source code.
@@ -59,7 +59,7 @@ jobs:
          imagepullsecrets: k8s-shootingstar-secret
 
   test_gprc_service_demo_with_grpc_client_demo:
-    name: test GrpcServiceDemo by GrpcClientDemo
+    name: test by K8S job
     runs-on: ubuntu-latest
     needs: build_and_deploy_grpc_service_demo
     steps:
@@ -104,19 +104,9 @@ jobs:
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Create Kubernetes job of GrpcClientDemo.
+    - name: Test by Kubernetes job of GrpcClientDemo.
       run: |
         kubectl delete -f ./manifests/k8s_grpc_client_demo.yaml --namespace=grpc-demo
         kubectl create job grpc-client-demo --image=shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }} --namespace=grpc-demo
-#       uses: Azure/k8s-deploy@v4.10
-#       with:
-#          action: deploy
-#          strategy: basic
-#          namespace: grpc-demo
-#          manifests: manifests/k8s_grpc_client_demo.yaml
-#          images: shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
-#          imagepullsecrets: k8s-shootingstar-secret
-
-    - name: Call GrpcServiceDemo.
-      run: |
+        sleep 10s
         bash ./tools/check_grpc_client_response.sh 'grpc-demo' 'grpc-client-demo' 'Greeting: Hello World'
