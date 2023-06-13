@@ -20,17 +20,6 @@ class Program
         Console.WriteLine("Remote address: " + remoteAddress);
 
         var httpHandler = new System.Net.Http.HttpClientHandler();
-        if (!args.WithHttp)
-        {
-            if (args.IsUsingUntrustedCertificate)
-            {
-                httpHandler.ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-            }
-
-            var certificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(args.CertPath, args.CertPassword);
-            httpHandler.ClientCertificates.Add(certificate);
-        }
 
         var channel = GrpcChannel.ForAddress(remoteAddress, new GrpcChannelOptions { HttpHandler = httpHandler });
         var client = new Greeter.GreeterClient(channel);
