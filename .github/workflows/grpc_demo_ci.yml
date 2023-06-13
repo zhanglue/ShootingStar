@@ -6,21 +6,21 @@ jobs:
   GRPCServiceDemo:
     runs-on: ubuntu-latest
     steps:
-    # - name: Checkout the source code.
-    #   uses: actions/checkout@v3
+    - name: Checkout the source code.
+      uses: actions/checkout@v3
 
-    # - name: Build the image of GrpcServiceDemo.
-    #   run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+    - name: Build the image of GrpcServiceDemo.
+      run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
 
-    # - name: Login to Azure Container Registry.
-    #   uses: Azure/docker-login@v1
-    #   with:
-    #      login-server: shootingstar.azurecr.io
-    #      username: ${{ secrets.ACR_USERNAME }}
-    #      password: ${{ secrets.ACR_PASSWORD }}
+    - name: Login to Azure Container Registry.
+      uses: Azure/docker-login@v1
+      with:
+         login-server: shootingstar.azurecr.io
+         username: ${{ secrets.ACR_USERNAME }}
+         password: ${{ secrets.ACR_PASSWORD }}
 
-    # - name: Push image to Azure Container Registry.
-    #   run: docker push shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+    - name: Push image to Azure Container Registry.
+      run: docker push shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
 
     - name: Login as ShootingStarSP.
       uses: azure/login@v1.4.7
