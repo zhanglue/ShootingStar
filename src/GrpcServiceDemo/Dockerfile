@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build-env
 WORKDIR /ShootingStar
 
 # Copy everything
@@ -11,7 +11,7 @@ RUN dotnet restore
 RUN dotnet publish -c Release --self-contained -r linux-x64 -o /compile_results
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/nightly/runtime-deps:7.0-jammy-chiseled
+FROM mcr.microsoft.com/dotnet/nightly/runtime-deps:8.0-jammy-chiseled
 WORKDIR /GrpcServiceDemo
 COPY --from=build-env /compile_results/* /GrpcServiceDemo/
 ENV DOTNET_EnableDiagnostics=0
