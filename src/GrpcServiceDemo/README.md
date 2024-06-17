@@ -116,7 +116,7 @@ For release as a debug image:
 dotnet publish ./GrpcServiceDemo.csproj \
     --configuration Debug \
     -p:PublishProfile=DefaultContainer \
-    -p:ContainerBaseImage=mcr.microsoft.com/dotnet/sdk:7.0 \
+    -p:ContainerBaseImage=mcr.microsoft.com/dotnet/sdk:8.0 \
     -p:ContainerRuntimeIdentifier=linux-x64 \
     -p:ContainerImageName=grpc-service-demo-image \
     -p:ContainerImageTags=latest \
@@ -130,7 +130,7 @@ dotnet publish ./GrpcServiceDemo.csproj \
     --self-contained \
     --configuration Release \
     -p:PublishProfile=DefaultContainer \
-    -p:ContainerBaseImage=mcr.microsoft.com/dotnet/nightly/runtime-deps:7.0-jammy-chiseled \
+    -p:ContainerBaseImage=mcr.microsoft.com/dotnet/runtime-deps:8.0.6-bookworm-slim
     -p:ContainerRuntimeIdentifier=linux-x64 \
     -p:ContainerImageName=grpc-service-demo-image \
     -p:ContainerImageTags=latest \

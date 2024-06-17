@@ -41,19 +41,19 @@ jobs:
          resource-group: ShootingStarRG
          cluster-name: ShootingStarK8s
 
+    - name: Create Kubernetes namespace for current PR.
+      run: |
+        kubectl create namespace ${{ env.K8S_NAMESPACE }}
+        sed -i 's/grpc-demo/${{ env.K8S_NAMESPACE }}/g' manifests/k8s_grpc_service_demo.yaml
+
     - name: Create Kubernetes secret.
       uses: Azure/k8s-create-secret@v4.0
       with:
          secret-name: k8s-shootingstar-secret
-         namespace: grpc-demo
+         namespace: ${{ env.K8S_NAMESPACE }}
          container-registry-url: shootingstar.azurecr.io
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
-
-    - name: Create Kubernetes namespace for current PR.
-      run: |
-        kubectl create namespace ${{ env.K8S_NAMESPACE}}
-        sed -i 's/grpc-demo/${{ env.K8S_NAMESPACE }}/g' manifests/k8s_grpc_service_demo.yaml
 
     - name: Deploy GrpcServiceDemo to Kubernetes.
       uses: Azure/k8s-deploy@v4.10
@@ -106,7 +106,7 @@ jobs:
       uses: Azure/k8s-create-secret@v4.0
       with:
          secret-name: k8s-shootingstar-secret
-         namespace: grpc-demo
+         namespace: ${{ env.K8S_NAMESPACE }}
          container-registry-url: shootingstar.azurecr.io
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
@@ -122,10 +122,10 @@ jobs:
          strategy: basic
          namespace: ${{ env.K8S_NAMESPACE }}
          manifests: manifests/k8s_grpc_client_demo.yaml
-         images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+         images: shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret
 
     - name: Test by Kubernetes job of GrpcClientDemo.
       run: |
-        sleep 5s
-        bash ./tools/check_grpc_client_response.sh 'grpc-demo' 'grpc-client-demo' 'Greeting: Hello World'
+        sleep 15s
+        bash ./tools/check_grpc_client_response.sh "${{ env.K8S_NAMESPACE }}" 'grpc-client-demo' 'Greeting: Hello World'
