@@ -127,5 +127,5 @@ jobs:
 
     - name: Test by Kubernetes job of GrpcClientDemo.
       run: |
-        sleep 5s
+        sleep 15s
         bash ./tools/check_grpc_client_response.sh "${{ env.K8S_NAMESPACE }}" 'grpc-client-demo' 'Greeting: Hello World'
