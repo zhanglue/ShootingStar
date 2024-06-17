@@ -3,7 +3,8 @@ on:
   pull_request:
     branches: [ "main" ]
 env:
-  K8S_NAMESPACE: grpc-demo-pr-${{ github.run_number }}
+  #  K8S_NAMESPACE: grpc-demo-pr-${{ github.run_number }}
+  K8S_NAMESPACE: grpc-demo
 jobs:
   build_and_deploy_grpc_service_demo:
     name: build & deploy
