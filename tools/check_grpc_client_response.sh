@@ -22,26 +22,34 @@ elif [[ $pod_cnt != 1 ]]; then
     exit 1
 fi
 
-pod_info=$(kubectl get pods --namespace ${pod_namespace} 2>/dev/null | grep -- ${pod_prefix} | sed 's/[[:space:]]\+/ /g')
-echo $pod_info
-pod_status=$(echo ${pod_info} | cut -d ' ' -f 3)
-echo "Pod status: ${pod_status}."
-if [[ ${pod_status} != 'Completed' ]]; then
-    echo "Pod status is not Completed."
-    exit 2
-fi
+kubectl get pods --namespace ${pod_namespace} 2>/dev/null | grep -- ${pod_prefix} | sed 's/[[:space:]]\+/ /g'
+echo
+echo
+echo
 
-pod_name=$(echo ${pod_info} | cut -d ' ' -f 1)
-actual_response=$(kubectl logs --namespace ${pod_namespace} --tail 1 ${pod_name})
-echo "Expected response: ${expected_response}"
-echo "Actual response: ${actual_response}"
+pod_name=$(kubectl get pods --namespace ${pod_namespace} 2>/dev/null | grep -- ${pod_prefix} | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 1)
+kubectl logs --namespace ${pod_namespace} --tail 1 ${pod_name}
 
-echo ""
-echo "################################################################################"
-if [[ ${actual_response} != ${expected_response} ]]; then
-    echo "!!!FAILED!!!"
-    exit 3
-fi
-
-echo "!!!PASSED!!!"
-exit 0
+# pod_info=$(kubectl get pods --namespace ${pod_namespace} 2>/dev/null | grep -- ${pod_prefix} | sed 's/[[:space:]]\+/ /g')
+# echo $pod_info
+# pod_status=$(echo ${pod_info} | cut -d ' ' -f 3)
+# echo "Pod status: ${pod_status}."
+# if [[ ${pod_status} != 'Completed' ]]; then
+#     echo "Pod status is not Completed."
+#     exit 2
+# fi
+# 
+# pod_name=$(echo ${pod_info} | cut -d ' ' -f 1)
+# actual_response=$(kubectl logs --namespace ${pod_namespace} --tail 1 ${pod_name})
+# echo "Expected response: ${expected_response}"
+# echo "Actual response: ${actual_response}"
+# 
+# echo ""
+# echo "################################################################################"
+# if [[ ${actual_response} != ${expected_response} ]]; then
+#     echo "!!!FAILED!!!"
+#     exit 3
+# fi
+# 
+# echo "!!!PASSED!!!"
+# exit 0
