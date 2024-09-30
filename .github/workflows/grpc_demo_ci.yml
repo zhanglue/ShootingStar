@@ -33,7 +33,7 @@ jobs:
     - name: Set up kubectl.
       uses: Azure/setup-kubectl@v4
       with:
-        version: v1.26.3
+        version: v1.30.2
 
     - name: Set up Kubernetes context.
       uses: Azure/aks-set-context@v4
@@ -94,7 +94,7 @@ jobs:
     - name: Set up kubectl.
       uses: Azure/setup-kubectl@v4
       with:
-        version: v1.26.3
+        version: v1.30.2
 
     - name: Set up Kubernetes context.
       uses: Azure/aks-set-context@v4
