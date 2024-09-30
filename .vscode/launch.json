@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build_grpc_service_demo",
-            "program": "${workspaceFolder}/src/GrpcServiceDemo/bin/Debug/net7.0/GrpcServiceDemo.dll",
+            "program": "${workspaceFolder}/src/GrpcServiceDemo/bin/Debug/net8.0/GrpcServiceDemo.dll",
             "args": [
                 "--with-http"
             ],
@@ -26,7 +26,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build_grpc_client_demo",
-            "program": "${workspaceFolder}/src/GrpcClientDemo/bin/Debug/net7.0/GrpcClientDemo.dll",
+            "program": "${workspaceFolder}/src/GrpcClientDemo/bin/Debug/net8.0/GrpcClientDemo.dll",
             "args": [
                 "--with-http"
             ],
