@@ -39,8 +39,8 @@ fi
 
 pod_name=$(echo ${pod_info} | cut -d ' ' -f 1)
 actual_response=$(kubectl logs --namespace ${pod_namespace} --tail 1 ${pod_name})
-echo "Expected response: ${expected_response}"
-echo "Actual response: ${actual_response}"
+echo "Expected response : ${expected_response}"
+echo "Actual response   : ${actual_response}"
 
 echo ""
 echo "################################################################################"
