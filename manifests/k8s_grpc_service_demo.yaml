@@ -17,7 +17,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
       - name: grpc-service-demo
-        image: shootingstar.azurecr.io/grpc_service_demo:latest
+        image: shootingstar.azurecr.io/grpc-service-demo:latest
         resources:
           requests:
             memory: 256Mi

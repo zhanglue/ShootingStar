@@ -101,13 +101,13 @@ It exposes ```https://localhost:7262``` and ```https://localhost:7263```, certif
 Build docker image by dockerfile for development:
 
 ```docker
-docker build -t shootingstar.azurecr.io/grpc_service_demo:debug -f ./Dockerfile ../../
+docker build -t shootingstar.azurecr.io/grpc-service-demo:debug -f ./Dockerfile ../../
 ```
 
 Build docker image by dockerfile for release:
 
 ```docker
-docker build -t shootingstar.azurecr.io/grpc_service_demo:latest -f ./Dockerfile ../../
+docker build -t shootingstar.azurecr.io/grpc-service-demo:latest -f ./Dockerfile ../../
 ```
 
 For release as a debug image:

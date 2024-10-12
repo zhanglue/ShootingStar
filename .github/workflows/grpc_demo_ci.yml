@@ -13,7 +13,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Build the image of GrpcServiceDemo.
-      run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+      run: docker build . --file ./src/GrpcServiceDemo/Dockerfile --tag shootingstar.azurecr.io/grpc-service-demo:${{ github.run_number }}
 
     - name: Login to Azure Container Registry.
       uses: Azure/docker-login@v2
@@ -23,7 +23,7 @@ jobs:
          password: ${{ secrets.ACR_PASSWORD }}
 
     - name: Push image to Azure Container Registry.
-      run: docker push shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+      run: docker push shootingstar.azurecr.io/grpc-service-demo:${{ github.run_number }}
 
     - name: Login as ShootingStarSP.
       uses: Azure/login@v2
@@ -62,7 +62,7 @@ jobs:
          strategy: basic
          namespace: ${{ env.K8S_NAMESPACE }}
          manifests: manifests/k8s_grpc_service_demo.yaml
-         images: shootingstar.azurecr.io/grpc_service_demo:${{ github.run_number }}
+         images: shootingstar.azurecr.io/grpc-service-demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret
 
   test_gprc_service_demo_with_grpc_client_demo:
@@ -74,7 +74,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Build the image of GrpcClientDemo.
-      run: docker build . --file ./src/GrpcClientDemo/Dockerfile --tag shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
+      run: docker build . --file ./src/GrpcClientDemo/Dockerfile --tag shootingstar.azurecr.io/grpc-client-demo:${{ github.run_number }}
 
     - name: Login to Azure Container Registry.
       uses: Azure/docker-login@v2
@@ -84,7 +84,7 @@ jobs:
          password: ${{ secrets.ACR_PASSWORD }}
 
     - name: Push image to Azure Container Registry.
-      run: docker push shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
+      run: docker push shootingstar.azurecr.io/grpc-client-demo:${{ github.run_number }}
 
     - name: Login as ShootingStarSP.
       uses: Azure/login@v2
@@ -122,7 +122,7 @@ jobs:
          strategy: basic
          namespace: ${{ env.K8S_NAMESPACE }}
          manifests: manifests/k8s_grpc_client_demo.yaml
-         images: shootingstar.azurecr.io/grpc_client_demo:${{ github.run_number }}
+         images: shootingstar.azurecr.io/grpc-client-demo:${{ github.run_number }}
          imagepullsecrets: k8s-shootingstar-secret
 
     - name: Test by Kubernetes job of GrpcClientDemo.

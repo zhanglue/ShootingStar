@@ -12,7 +12,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: grpc-client-demo
-        image: shootingstar.azurecr.io/grpc_client_demo:latest
+        image: shootingstar.azurecr.io/grpc-client-demo:latest
         resources:
           requests:
             memory: 256Mi
