@@ -14,10 +14,22 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "type": "process",
+            "label": "build_grpc_client_demo",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
             "type": "docker-build",
             "label": "build_img_grpc_service_demo_debug",
             "dockerBuild": {
-                "tag": "grpc-service-demo-image:debug",
+                "tag": "grpc-service-demo:debug",
                 "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile.Development",
                 "context": "${workspaceFolder}",
                 "pull": true
@@ -30,7 +42,7 @@
             "type": "docker-build",
             "label": "build_img_grpc_service_demo",
             "dockerBuild": {
-                "tag": "grpc-service-demo-image:lastest",
+                "tag": "grpc-service-demo:lastest",
                 "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile",
                 "context": "${workspaceFolder}",
                 "pull": true
@@ -46,7 +58,7 @@
                 "build_img_grpc_service_demo_debug"
             ],
             "dockerRun": {
-                "image": "grpc-service-demo-image:debug",
+                "image": "grpc-service-demo:debug",
                 "command": "-- --with-http",
                 "containerName": "GrpcServiceDemo",
                 "ports": [
@@ -70,7 +82,7 @@
                 "build_img_grpc_service_demo"
             ],
             "dockerRun": {
-                "image": "grpc-service-demo-image:lastest",
+                "image": "grpc-service-demo:lastest",
                 "command": "-- --with-http",
                 "containerName": "GrpcServiceDemo",
                 "ports": [
@@ -86,42 +98,6 @@
                 "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj",
                 "enableDebugging": true
             }
-        },
-        {
-            "type": "process",
-            "label": "build_grpc_client_demo",
-            "command": "dotnet",
-            "args": [
-                "build",
-                "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "type": "process",
-            "label": "dotnet-publish",
-            "command": "dotnet",
-            "args": [
-                "publish",
-                "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "type": "process",
-            "label": "dotnet-watch",
-            "command": "dotnet",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj"
-            ],
-            "problemMatcher": "$msCompile"
         }
     ]
 }

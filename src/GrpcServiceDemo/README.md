@@ -118,7 +118,7 @@ dotnet publish ./GrpcServiceDemo.csproj \
     -p:PublishProfile=DefaultContainer \
     -p:ContainerBaseImage=mcr.microsoft.com/dotnet/sdk:8.0 \
     -p:ContainerRuntimeIdentifier=linux-x64 \
-    -p:ContainerImageName=grpc-service-demo-image \
+    -p:ContainerImageName=grpc-service-demo \
     -p:ContainerImageTags=latest \
     -p:ContainerWorkingDirectory=/GrpcServiceDemo
 ```
@@ -132,7 +132,7 @@ dotnet publish ./GrpcServiceDemo.csproj \
     -p:PublishProfile=DefaultContainer \
     -p:ContainerBaseImage=mcr.microsoft.com/dotnet/runtime-deps:8.0.6-bookworm-slim
     -p:ContainerRuntimeIdentifier=linux-x64 \
-    -p:ContainerImageName=grpc-service-demo-image \
+    -p:ContainerImageName=grpc-service-demo \
     -p:ContainerImageTags=latest \
     -p:InvariantGlobalization=true \
     -p:PublishSingleFile=true \
@@ -145,11 +145,11 @@ dotnet publish ./GrpcServiceDemo.csproj \
 Run for debug:
 
 ```docker
-docker run --rm -it -p 7263:7263 --volume=/root/work/ShootingStar/:/ShootingStar --entrypoint "bash" --name GrpcServiceDemo grpc-service-demo-image
+docker run --rm -it -p 7263:7263 --volume=/root/work/ShootingStar/:/ShootingStar --entrypoint "bash" --name GrpcServiceDemo grpc-service-demo
 ```
 
 Run normally:
 
 ```docker
-docker run --rm -dp 7263:7263 --name GrpcServiceDemo grpc-service-demo-image [--with-http]
+docker run --rm -dp 7263:7263 --name GrpcServiceDemo grpc-service-demo [--with-http]
 ```
