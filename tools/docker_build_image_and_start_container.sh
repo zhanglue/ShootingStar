@@ -2,14 +2,7 @@
 
 # It is a script translated from the task in VS Code task.json.
 
-# Color codes:
-COLOR_RED='\033[0;31m'
-COLOR_GREEN='\033[0;32m'
-COLOR_YELLOW='\033[0;33m'
-COLOR_BLUE='\033[0;34m'
-COLOR_MAGENTA='\033[0;35m'
-COLOR_END='\033[0m'
-
+# global variables
 REPO_ROOT_PATH=$(git rev-parse --show-toplevel)
 FLAG_BUILD_ONLY='false'
 FLAG_FORECE_REBUILD='false'
@@ -24,6 +17,27 @@ DOCKER_CONTAINER_RUN_CMD=''
 DOCKER_CONTAINER_NAME=''
 DOCKER_CONTAINER_PORT=''
 
+
+# Color codes:
+COLOR_RED='\033[0;31m'
+COLOR_GREEN='\033[0;32m'
+COLOR_YELLOW='\033[0;33m'
+COLOR_BLUE='\033[0;34m'
+COLOR_MAGENTA='\033[0;35m'
+COLOR_END='\033[0m'
+
+echo_info() {
+    echo -e "${COLOR_GREEN}$*${COLOR_END}"
+}
+
+echo_warning() {
+    echo -e "${COLOR_YELLOW}$*${COLOR_END}"
+}
+
+echo_error() {
+    echo -e "${COLOR_RED}$*${COLOR_END}"
+}
+
 _check_docker_is_available() {
     docker info > /dev/null 2>&1
     if [[ $? != 0 ]]; then
@@ -33,31 +47,31 @@ _check_docker_is_available() {
 }
 
 _build_docker_image() {
-    echo -e "${COLOR_GREEN}Build docker image ${IMAGE_NAME}:${IMAGE_TAG}...${COLOR_END}"
-    echo -e "${COLOR_YELLOW}docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f ${DOCKERFILE_PATH} ${REPO_ROOT_PATH}${COLOR_END}"
+    echo_info "Build docker image ${IMAGE_NAME}:${IMAGE_TAG}..."
+    echo_warning "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f ${DOCKERFILE_PATH} ${REPO_ROOT_PATH}"
 
     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f ${DOCKERFILE_PATH} ${REPO_ROOT_PATH}
 
     if [[ $? != 0 ]]; then
-        echo -e "${COLOR_RED}Failed to build Docker image ${IMAGE_NAME}:${IMAGE_TAG}.${COLOR_END}"
+        echo_error "Failed to build Docker image ${IMAGE_NAME}:${IMAGE_TAG}."
         exit 3
     fi
 
-    echo -e "${COLOR_GREEN}Docker image ${IMAGE_NAME}:${IMAGE_TAG} built successfully.${COLOR_END}"
+    echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} built successfully."
 }
 
 _remove_docker_image() {
-    echo -e "${COLOR_GREEN}Removing existing Docker image ${IMAGE_NAME}:${IMAGE_TAG}...${COLOR_END}"
-    echo -e "${COLOR_YELLOW}docker rmi ${IMAGE_NAME}:${IMAGE_TAG}${COLOR_END}"
+    echo_info "Removing existing Docker image ${IMAGE_NAME}:${IMAGE_TAG}..."
+    echo_warning "docker rmi ${IMAGE_NAME}:${IMAGE_TAG}"
 
     docker rmi ${IMAGE_NAME}:${IMAGE_TAG}
 
     if [[ $? != 0 ]]; then
-        echo -e "${COLOR_RED}Failed to remove existing Docker image ${IMAGE_NAME}:${IMAGE_TAG}.${COLOR_END}"
+        echo_error "Failed to remove existing Docker image ${IMAGE_NAME}:${IMAGE_TAG}."
         exit 4
     fi
 
-    echo -e "${COLOR_GREEN}Docker image ${IMAGE_NAME}:${IMAGE_TAG} removed successfully.${COLOR_END}"
+    echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} removed successfully."
 }
 
 _stop_existing_docker_container_by_image() {
@@ -68,11 +82,11 @@ _stop_existing_docker_container_by_image() {
 
     try_count=5
     while [[ $try_count > 0 ]]; do
-        echo -e "${COLOR_GREEN}Stopping existing Docker container with image ${IMAGE_NAME}:${IMAGE_TAG}...${COLOR_END}"
+        echo_info "Stopping existing Docker container with image ${IMAGE_NAME}:${IMAGE_TAG}..."
 
         container_id=$(docker container list --all | grep -- "${IMAGE_NAME}:${IMAGE_TAG}" | head -n 1 | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 1)
 
-        echo -e "${COLOR_YELLOW}docker container stop ${container_id}${COLOR_END}"
+        echo_warning "docker container stop ${container_id}"
         docker container stop ${container_id}
 
         if [[ $? == 0 ]]; then
@@ -89,22 +103,22 @@ _stop_existing_docker_container_by_image() {
 
     done
 
-    echo -e "${COLOR_GREEN}Docker container stopped successfully.${COLOR_END}"
+    echo_info "Docker container stopped successfully."
 }
 
 _check_if_image_exists_or_build() {
     result=$(docker images --all | sed 's/[[:space:]]\+/ /g' | grep -- "${IMAGE_NAME} ${IMAGE_TAG}" | wc -l)
     if [[ $result > 0 ]]; then
         if [[ $FLAG_FORECE_REBUILD == "false" ]]; then
-            echo -e "${COLOR_GREEN}Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists and skip to rebuild.${COLOR_END}"
+            echo_info"Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists and skip to rebuild."
             return
         else
-            echo -e "${COLOR_GREEN}Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists, remove it first.${COLOR_END}"
+            echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists, remove it first."
             _stop_existing_docker_container_by_image
             _remove_docker_image
         fi
     else
-        echo -e "${COLOR_GREEN}No existing Docker image ${IMAGE_NAME}:${IMAGE_TAG} found.${COLOR_END}"
+        echo_info "No existing Docker image ${IMAGE_NAME}:${IMAGE_TAG} found."
     fi
 
     _build_docker_image
@@ -122,8 +136,8 @@ _stop_existing_docker_container_by_name() {
 
     try_count=3
     while [[ $try_count > 0 ]]; do
-        echo -e "${COLOR_GREEN}Stopping existing Docker container ${DOCKER_CONTAINER_NAME}...${COLOR_END}"
-        echo -e "${COLOR_YELLOW}docker container stop ${DOCKER_CONTAINER_NAME}${COLOR_END}"
+        echo_info "Stopping existing Docker container ${DOCKER_CONTAINER_NAME}..."
+        echo_warning "docker container stop ${DOCKER_CONTAINER_NAME}"
 
         docker container stop ${DOCKER_CONTAINER_NAME}
 
@@ -141,19 +155,18 @@ _stop_existing_docker_container_by_name() {
 
     done
 
-    echo -e "${COLOR_GREEN}Docker container stopped successfully.${COLOR_END}"
+    echo_info "Docker container stopped successfully."
 }
 
 _start_docker_container() {
-    echo -e "${COLOR_GREEN}Starting Docker container ${IMAGE_NAME}:${IMAGE_TAG} with command...${COLOR_END}"
-    echo -e "${COLOR_YELLOW}${DOCKER_CONTAINER_RUN_CMD}${COLOR_END}"
+    echo_info "Starting Docker container ${IMAGE_NAME}:${IMAGE_TAG} with command..."
+    echo_warning "${DOCKER_CONTAINER_RUN_CMD}"
     ${DOCKER_CONTAINER_RUN_CMD}
-    # docker container run --detach --rm --name ${DOCKER_CONTAINER_NAME} --publish "7263:7263/tcp" ${IMAGE_NAME}:${IMAGE_TAG} ${ARGS}
     if [[ $? != 0 ]]; then
-        echo -e "${COLOR_RED}Failed to start docker container with image ${IMAGE_NAME}:${IMAGE_TAG}.${COLOR_END}"
+        echo_error "Failed to start docker container with image ${IMAGE_NAME}:${IMAGE_TAG}."
         exit 4
     fi
-    echo -e "${COLOR_GREEN}Docker container started successfully.${COLOR_END}"
+    echo_info "Docker container started successfully."
 }
 
 _main_flow() {
