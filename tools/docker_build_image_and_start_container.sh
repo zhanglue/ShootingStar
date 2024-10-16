@@ -2,10 +2,10 @@
 
 # It is a script translated from the task in VS Code task.json.
 
-. common.sh
+REPO_ROOT_PATH=$(git rev-parse --show-toplevel)
+. ${REPO_ROOT_PATH}/tools/common.sh
 
 # global variables
-REPO_ROOT_PATH=$(git rev-parse --show-toplevel)
 FLAG_BUILD_ONLY='false'
 FLAG_FORECE_REBUILD='false'
 FLAG_IS_PROD='false'
