@@ -2,8 +2,10 @@
 
 # It is a script translated from the task in VS Code task.json.
 
-# global variables
 REPO_ROOT_PATH=$(git rev-parse --show-toplevel)
+. ${REPO_ROOT_PATH}/tools/common.sh
+
+# global variables
 FLAG_BUILD_ONLY='false'
 FLAG_FORECE_REBUILD='false'
 FLAG_IS_PROD='false'
@@ -16,27 +18,6 @@ IMAGE_TAG=''
 DOCKER_CONTAINER_RUN_CMD=''
 DOCKER_CONTAINER_NAME=''
 DOCKER_CONTAINER_PORT=''
-
-
-# Color codes:
-COLOR_RED='\033[0;31m'
-COLOR_GREEN='\033[0;32m'
-COLOR_YELLOW='\033[0;33m'
-COLOR_BLUE='\033[0;34m'
-COLOR_MAGENTA='\033[0;35m'
-COLOR_END='\033[0m'
-
-echo_info() {
-    echo -e "${COLOR_GREEN}$*${COLOR_END}"
-}
-
-echo_warning() {
-    echo -e "${COLOR_YELLOW}$*${COLOR_END}"
-}
-
-echo_error() {
-    echo -e "${COLOR_RED}$*${COLOR_END}"
-}
 
 _check_docker_is_available() {
     docker info > /dev/null 2>&1
