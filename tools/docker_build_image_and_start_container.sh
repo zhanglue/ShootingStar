@@ -110,7 +110,7 @@ _check_if_image_exists_or_build() {
     result=$(docker images --all | sed 's/[[:space:]]\+/ /g' | grep -- "${IMAGE_NAME} ${IMAGE_TAG}" | wc -l)
     if [[ $result > 0 ]]; then
         if [[ $FLAG_FORECE_REBUILD == "false" ]]; then
-            echo_info"Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists and skip to rebuild."
+            echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists and skip to rebuild."
             return
         else
             echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists, remove it first."
