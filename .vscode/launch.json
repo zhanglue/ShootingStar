@@ -36,11 +36,6 @@
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
             "sourceFileMap": {}
-        },
-        {
-            "type": "coreclr",
-            "name": "Attach to process",
-            "request": "attach"
         }
     ]
 }

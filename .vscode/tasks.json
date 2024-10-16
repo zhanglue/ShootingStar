@@ -2,8 +2,8 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "type": "process",
             "label": "build_grpc_service_demo",
+            "type": "process",
             "command": "dotnet",
             "args": [
                 "build",
@@ -14,82 +14,8 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "type": "docker-build",
-            "label": "build_img_grpc_service_demo_debug",
-            "dockerBuild": {
-                "tag": "grpc-service-demo-image:debug",
-                "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile.Development",
-                "context": "${workspaceFolder}",
-                "pull": true
-            },
-            "netCore": {
-                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
-            }
-        },
-        {
-            "type": "docker-build",
-            "label": "build_img_grpc_service_demo",
-            "dockerBuild": {
-                "tag": "grpc-service-demo-image:lastest",
-                "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile",
-                "context": "${workspaceFolder}",
-                "pull": true
-            },
-            "netCore": {
-                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
-            }
-        },
-        {
-            "type": "docker-run",
-            "label": "docker_run_grpc_service_demo_debug",
-            "dependsOn": [
-                "build_img_grpc_service_demo_debug"
-            ],
-            "dockerRun": {
-                "image": "grpc-service-demo-image:debug",
-                "command": "-- --with-http",
-                "containerName": "GrpcServiceDemo",
-                "ports": [
-                    {
-                        "containerPort": 7263,
-                        "hostPort": 7263,
-                        "protocol": "tcp"
-                    }
-                ],
-                "remove": true
-            },
-            "netCore": {
-                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj",
-                "enableDebugging": true
-            }
-        },
-        {
-            "type": "docker-run",
-            "label": "docker_run_grpc_service_demo",
-            "dependsOn": [
-                "build_img_grpc_service_demo"
-            ],
-            "dockerRun": {
-                "image": "grpc-service-demo-image:lastest",
-                "command": "-- --with-http",
-                "containerName": "GrpcServiceDemo",
-                "ports": [
-                    {
-                        "containerPort": 7263,
-                        "hostPort": 7263,
-                        "protocol": "tcp"
-                    }
-                ],
-                "remove": true
-            },
-            "netCore": {
-                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj",
-                "enableDebugging": true
-            }
-        },
-        {
-            "type": "process",
             "label": "build_grpc_client_demo",
+            "type": "process",
             "command": "dotnet",
             "args": [
                 "build",
@@ -100,28 +26,83 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "type": "process",
-            "label": "dotnet-publish",
-            "command": "dotnet",
-            "args": [
-                "publish",
-                "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
+            "label": "docker_build_grpc_service_demo_debug",
+            "type": "docker-build",
+            "dockerBuild": {
+                "tag": "grpc-service-demo:debug",
+                "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile.Development",
+                "context": "${workspaceFolder}",
+                "pull": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
+            }
         },
         {
-            "type": "process",
-            "label": "dotnet-watch",
-            "command": "dotnet",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "${workspaceFolder}/src/GrpcClientDemo/GrpcClientDemo.csproj"
+            "label": "docker_build_grpc_service_demo_latest",
+            "type": "docker-build",
+            "dockerBuild": {
+                "tag": "grpc-service-demo:latest",
+                "dockerfile": "${workspaceFolder}/src/GrpcServiceDemo/Dockerfile",
+                "context": "${workspaceFolder}",
+                "pull": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/src/GrpcServiceDemo/GrpcServiceDemo.csproj"
+            }
+        },
+        {
+            "label": "docker_stop_grpc_service_demo",
+            "type": "shell",
+            "command": "docker stop GrpcServiceDemo && echo 'GrpcServiceDemo has been stopped.' || echo 'GrpcServiceDemo container not found'",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "docker_run_grpc_service_demo_debug",
+            "type": "shell",
+            "dependsOn": [
+                "docker_build_grpc_service_demo_debug",
+                "docker_stop_grpc_service_demo"
             ],
-            "problemMatcher": "$msCompile"
+            "command": "docker",
+            "args": [
+                "container",
+                "run", 
+                "--detach",
+                "--rm",
+                "--name",
+                "GrpcServiceDemo",
+                "--publish",
+                "7263:7263",
+                "grpc-service-demo:debug",
+                "--with-http"
+            ],
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "docker_run_grpc_service_demo_latest",
+            "type": "shell",
+            "dependsOn": [
+                "docker_build_grpc_service_demo_latest",
+                "docker_stop_grpc_service_demo"
+            ],
+            "command": "docker",
+            "args": [
+                "container",
+                "run", 
+                "--detach",
+                "--rm",
+                "--name",
+                "GrpcServiceDemo",
+                "--publish",
+                "7263:7263",
+                "grpc-service-demo:latest",
+                "--with-http"
+            ],
+            "group": "none",
+            "problemMatcher": []
         }
     ]
 }
