@@ -1,7 +1,20 @@
 #!/bin/bash
 
-# This script will clean up all the kubernetes resources created by the github actions.
+# This script will clean up all the docker image and kubernetes resources created by the github actions.
 
+# check azure login status
+az account show
+read -p "Is the azure login status correct? (y/N)" confirm
+if [[ ! ${confirm} =~ ^[Yy]$ ]]; then
+    echo "Please login to azure first."
+    exit 1
+fi
+
+
+# clean up docker images
+
+
+# clean up kubernetes resources
 pod_namespace_prefix=${1:-grpc-demo}
 
 count_of_namespaces=$(kubectl get namespaces | grep ^${pod_namespace_prefix} | wc -l)
