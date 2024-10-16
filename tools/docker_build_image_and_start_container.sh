@@ -90,8 +90,11 @@ _stop_existing_docker_container_by_image() {
 _check_if_image_exists_or_build() {
     result=$(docker images --all | sed 's/[[:space:]]\+/ /g' | grep -- "${IMAGE_NAME} ${IMAGE_TAG}" | wc -l)
     if [[ $result > 0 ]]; then
-        if [[ $FLAG_FORECE_REBUILD == "false" ]]; then
+        if [[ $FLAG_FORECE_REBUILD == 'false' ]]; then
             echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists and skip to rebuild."
+            if [[ $FLAG_BUILD_ONLY == 'true' ]]; then
+                exit 0
+            fi
             return
         else
             echo_info "Docker image ${IMAGE_NAME}:${IMAGE_TAG} already exists, remove it first."
@@ -104,7 +107,7 @@ _check_if_image_exists_or_build() {
 
     _build_docker_image
 
-    if [[ $FLAG_BUILD_ONLY == true ]]; then
+    if [[ $FLAG_BUILD_ONLY == 'true' ]]; then
         exit 0
     fi
 }
@@ -196,15 +199,12 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --prod)
             FLAG_IS_PROD="true"
-            shift
             ;;
         -b | --build)
             FLAG_BUILD_ONLY="true"
-            shift
             ;;
         -f | --force-rebuild)
             FLAG_FORECE_REBUILD="true"
-            shift
             ;;
         *)
             ARGS="${ARGS} $1"
