@@ -43,7 +43,6 @@ fi
 
 echo "################################################################################"
 echo_info "All kubernetes namespace to delete:"
-echo_warning "kubectl get namespaces | grep ^${pod_namespace_prefix} | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 1"
 kubectl get namespaces | grep ^${pod_namespace_prefix} | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 1
 echo ""
 
