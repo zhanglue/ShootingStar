@@ -59,10 +59,15 @@ Such as following:
 ```dotnetcli
 dotnet run . [-- [--with-http] [--redirect-to-https] [--cert-path <path>] [--cert-password <password>]]
 ```
+
 ```--with-http``` is an optional flag, which means both RESTful APIs and gRPC APIs will be exposed as HTTP.
+
 ```--redirect-to-https``` is an optional flag, which means that the requests to the HTTP port will be redirected to the HTTPS port.
+
 ```--cert-path``` is an optional flag, which means the path of the certificate file.
+
 ```--cert-password``` is an optional flag, which means the password of the certificate file.
+
 ```--with-http``` and ```--redirect-to-https``` are mutually exclusive.
 
 ### Example I
