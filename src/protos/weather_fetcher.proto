@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package weather;
+
+import "src/protos/weather_data.proto";
+
+service WeatherFetcher {
+  rpc GetWeather (WeatherRequest) returns (WeatherResponse);
+}
+
+message WeatherRequest {
+  string city = 1;
+}
+
+message WeatherResponse {
+  WeatherData data = 1;
+}
