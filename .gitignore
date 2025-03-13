@@ -463,3 +463,11 @@ _ReSharper.*
 bin
 obj
 packages
+
+# Bazel build directories
+/bazel-*
+/bazel-bin/
+/bazel-out/
+/bazel-testlogs/
+
+*.swp

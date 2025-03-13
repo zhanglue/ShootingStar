@@ -1,0 +1,12 @@
+package(default_visibility = ["//src/clients:__pkg__"])
+
+cc_binary(
+    name = "weather_fetcher_client",
+    srcs = ["weather_fetcher_client.cpp"],
+    deps = [
+        "//protos:weather_fetcher_cc",
+        "//protos:weather_fetcher_cc_grpc",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_protocolbuffers_protobuf//:protobuf",
+    ],
+)

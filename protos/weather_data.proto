@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package weather_flow;
+
+message WeatherData {
+  enum WeatherCondition {
+    UNKNOWN = 0;
+    SUNNY = 1;
+    CLOUDY = 2;
+    RAINY = 3;
+    SNOWY = 4;
+  }
+
+  WeatherCondition condition = 1;
+  float temperature = 2;
+}
