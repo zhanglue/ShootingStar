@@ -1,0 +1,36 @@
+package(default_visibility = ["//src/weather_fetcher:__pkg__"])
+
+cc_library(
+    name = "weather_fetcher_service",
+    srcs = [
+        "weather_fetcher_service.cpp",
+    ],
+    hdrs = [
+        "weather_fetcher_service.h",
+    ],
+    deps = [
+        "//protos:weather_data_cc",
+        "//protos:weather_fetcher_cc",
+        "//protos:weather_fetcher_cc_grpc",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpc++_reflection",
+        "@com_github_abseil_abseil_cpp//absl/flags:flag",
+        "@com_github_abseil_abseil_cpp//absl/flags:parse",
+        "@com_github_abseil_abseil_cpp//absl/strings:str_format",
+    ],
+)
+
+cc_binary(
+    name = "weather_fetcher_server",
+    srcs = [
+        "main.cpp",
+    ],
+    deps = [
+        ":weather_fetcher_service",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpc++_reflection",
+        "@com_github_abseil_abseil_cpp//absl/flags:flag",
+        "@com_github_abseil_abseil_cpp//absl/flags:parse",
+        "@com_github_abseil_abseil_cpp//absl/strings:str_format",
+    ],
+)
