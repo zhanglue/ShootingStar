@@ -469,3 +469,5 @@ packages
 /bazel-bin/
 /bazel-out/
 /bazel-testlogs/
+
+*.swp
