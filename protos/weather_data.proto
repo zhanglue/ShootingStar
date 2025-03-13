@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package weather;
+package weather_flow;
 
 message WeatherData {
   enum WeatherCondition {
