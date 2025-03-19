@@ -1,0 +1,18 @@
+# Add following lines to system bazelrc:
+# startup --output_user_root=c:/b
+# startup --output_user_root=~/.b
+ 
+common --enable_platform_specific_config
+
+build:linux   --cxxopt='-std=c++20'
+build:linux   --host_cxxopt='-std=c++20'
+
+build:macos   --cxxopt='-std=c++20'
+build:macos   --host_cxxopt='-std=c+20'
+
+build:windows --compiler='msvc-cl'
+build:windows --cxxopt='/std:c++20'
+build:windows --host_cxxopt='/std:c++20'
+build:windows --define=protobuf_allow_msvc=true
+build:windows --features=compiler_param_file
+build:windows --host_features=compiler_param_file
