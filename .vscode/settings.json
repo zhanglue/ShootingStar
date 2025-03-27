@@ -93,5 +93,6 @@
         "shootingstar",
         "spractice",
         "userosscache"
-    ]
+    ],
+    "cmake.ignoreCMakeListsMissing": true
 }
