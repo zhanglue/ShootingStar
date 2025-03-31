@@ -1,0 +1,47 @@
+FROM ubuntu:24.04
+
+# Set non-interactive mode to avoid prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set Timezone to Asia/Shanghai (Geographic area: 5, Time zone: 69)
+RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    echo "tzdata tzdata/Areas select Asia" | debconf-set-selections && \
+    echo "tzdata tzdata/Zones/Asia select Shanghai" | debconf-set-selections && \
+    apt update && \
+    apt install -y tzdata && \
+    dpkg-reconfigure --frontend noninteractive tzdata
+
+# Create necessary directories
+RUN mkdir /b && \
+    mkdir /TrySomething && \
+    cd /TrySomething && \
+    \
+    # Update system packages and install dependencies
+    apt update && apt upgrade -y && \
+    apt install -y apt-transport-https curl gnupg wget lsb-release software-properties-common && \
+    \
+    # Add Bazel repository and key
+    curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel-archive-keyring.gpg && \
+    mv bazel-archive-keyring.gpg /usr/share/keyrings && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list && \
+    \
+    # Install Bazel
+    apt update && apt upgrade -y && apt install -y bazel && \
+    bazel --version && \
+    echo 'startup --output_base=/b' >> /root/.bazelrc && \
+    \
+    # Download and install LLVM 20
+    wget https://apt.llvm.org/llvm.sh && \
+    chmod 744 llvm.sh && \
+    ./llvm.sh 20 && \
+    \
+    # Create symbolic links for Clang
+    ln -s /usr/bin/clang-20 /usr/bin/clang && \
+    ln -s /usr/bin/clang++-20 /usr/bin/clang++
+
+WORKDIR /
+
+# Default shell
+CMD ["/bin/bash"]
+
