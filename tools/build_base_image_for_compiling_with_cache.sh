@@ -9,8 +9,8 @@ DOCKER_CMD='docker'
 DOCKERFILE_PATH_BASE="${REPO_ROOT_PATH}/ci_cd/docker_files/base_image_for_compiling"
 DOCKERFILE_PATH_BASE_WITH_CACHE="${REPO_ROOT_PATH}/ci_cd/docker_files/base_image_for_compiling_with_cache"
 BASE_IMAGE_NAME="shooting-star-base"
-IMAGE_TAG_COMPILE_BASE="compile_base"
-IMAGE_TAG_COMPILE_BASE_WITH_CACHE="compile_base_cached"
+IMAGE_TAG_COMPILE_BASE="compile-base"
+IMAGE_TAG_COMPILE_BASE_WITH_CACHE="compile-base-cached"
 CONTAINER_NAME="shooting-star-img-building"
 
 _build_docker_image() {
