@@ -20,3 +20,12 @@ echo_warning() {
 echo_error() {
     echo -e "${COLOR_RED}$*${COLOR_END}"
 }
+
+_check_docker_is_available() {
+    docker info > /dev/null 2>&1
+    if [[ $? != 0 ]]; then
+        echo -e "${COLOR_RED}Docker is not installed or the deamon is not running.${COLOR_END}"
+        exit 2
+    fi
+}
+
