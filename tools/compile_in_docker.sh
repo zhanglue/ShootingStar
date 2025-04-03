@@ -1,0 +1,61 @@
+#!/bin/bash
+
+REPO_ROOT_PATH=$(git rev-parse --show-toplevel)
+. ${REPO_ROOT_PATH}/tools/common.sh
+
+FLAG_REBUILD_BASE_IMAGE='false'
+
+BASE_IMAGE_NAME="shooting-star-base"
+BASE_IMAGE_TAG="compile-base-cached"
+CONTAINER_NAME="shooting-star-compiling"
+
+_start_docker_container_to_compile() {
+    image_name=${BASE_IMAGE_NAME}
+    image_tag=${BASE_IMAGE_TAG}
+
+    echo_info "Starting Docker container ${image_name}:${image_tag} with command..."
+    # container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar ; bazel build $@ ; echo AAA ; cp -r bazel-bin/src binaries/")
+    # container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar ; chmod 744 a.sh; ./a.sh ")
+    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar ; bazel build //src/clients:weather_fetcher_client //src/weather_fetcher:weather_fetcher_server ; echo AAA ; cp -r bazel-bin/src binaries/")
+    echo "${container_run_cmd[@]}"
+    "${container_run_cmd[@]}"
+    if [[ $? != 0 ]]; then
+        echo_error "Failed to start docker container with image ${IMAGE_NAME}:${IMAGE_TAG}."
+        exit 4
+    fi
+    echo_info "Docker container started successfully."
+}
+
+_main_flow() {
+    builtin cd ${REPO_ROOT_PATH}
+    _check_docker_is_available
+
+    # Check base image.
+    _is_image_existing ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+    if [[ $? == 0 ]]; then
+        echo_error "Prepare base image of ${BASE_IMAGE_NAME}:${IMAGE_TAG_COMPILE_BASE} first."
+        exit 1
+    fi
+
+    rm ./bazel*
+    rm -rf ./binaries
+    mkdir ./binaries
+    _stop_existing_docker_container_by_name ${CONTAINER_NAME}
+    _remove_container ${CONTAINER_NAME}
+    _start_docker_container_to_compile "//src/clients:weather_fetcher_client" "//src/weather_fetcher:weather_fetcher_server"
+}
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --docker-cmd)
+            shift
+            DOCKER_CMD=$1
+            ;;
+        *)
+            ARGS="${ARGS} $1"
+            ;;
+    esac
+    shift
+done
+
+_main_flow
