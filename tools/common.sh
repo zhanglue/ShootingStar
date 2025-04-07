@@ -178,6 +178,6 @@ _commit_container() {
         exit 6
     fi
 
-    echo_info "Docker container ${container_name} committed to image ${image_name}:${image_tag} successfully."
+    echo_info "Docker container ${container_name} committed as ${image_name}:${image_tag} successfully."
 }
 
