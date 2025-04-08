@@ -44,7 +44,7 @@ _main_flow() {
     echo
     _remove_container ${CONTAINER_NAME}
     echo
-    _start_docker_container_to_compile "//src/clients:weather_fetcher_client" "//src/weather_fetcher:weather_fetcher_server"
+    _start_docker_container_to_compile
     echo
     _remove_container ${CONTAINER_NAME}
 }
