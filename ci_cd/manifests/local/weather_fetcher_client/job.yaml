@@ -13,6 +13,7 @@ spec:
       containers:
       - name: weather-fetcher-client
         image: weather-fetcher-client:latest
+        imagePullPolicy: Never
         resources:
           requests:
             memory: 256Mi
