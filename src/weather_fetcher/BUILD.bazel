@@ -23,7 +23,7 @@ cc_library(
 )
 
 cc_binary(
-    name = "weather_fetcher_server",
+    name = "weather_fetcher",
     srcs = [
         "main.cpp",
     ],

@@ -1,9 +1,0 @@
-FROM ubuntu:24.04
-
-COPY binaries/src/weather_fetcher/weather_fetcher_server /app/weather_fetcher_server
-
-WORKDIR /app
-
-EXPOSE 50051
-
-ENTRYPOINT ["/app/weather_fetcher_server"]
