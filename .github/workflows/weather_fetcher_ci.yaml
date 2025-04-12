@@ -162,7 +162,7 @@ jobs:
         echo "Logs of weather-fetcher-client:"
         cat weather-fetcher-client.log
         condition=$(cat weather-fetcher-client.log | grep 'condition')
-        [[ $condition != 'condition: SNOWY' ]] || exit 1
+        [[ $condition == 'condition: SNOWY' ]] || exit 1
         temperature=$(cat weather-fetcher-client.log | grep 'temperature')
-        [[ $temperature != '22' ]] || exit 2
+        [[ $temperature == '22' ]] || exit 2
         echo "!!!PASSED!!!"

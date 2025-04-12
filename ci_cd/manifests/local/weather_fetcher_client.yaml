@@ -1,8 +1,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  namespace: shooting-star
   name: weather-fetcher-client
+  namespace: shooting-star
 spec:
   template:
     metadata:
