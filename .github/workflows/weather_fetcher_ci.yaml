@@ -65,7 +65,7 @@ jobs:
       uses: Azure/k8s-create-secret@v5
       with:
          secret-name: k8s-shootingstar-secret
-         namespace: ${K8S_NAMESPACE}
+         namespace: ${{ env.K8S_NAMESPACE }}
          container-registry-url: shootingstar.azurecr.io
          container-registry-username: ${{ secrets.ACR_USERNAME }}
          container-registry-password: ${{ secrets.ACR_PASSWORD }}
@@ -81,9 +81,9 @@ jobs:
       with:
          action: deploy
          strategy: basic
-         namespace: ${K8S_NAMESPACE}
+         namespace: ${{ env.K8S_NAMESPACE }}
          manifests: ci_cd/manifests/azure_ci/weather_fetcher.yaml
-         images: ${WEATHER_FETCHER_IMG_NAME}:${WEATHER_FETCHER_IMG_TAG}
+         images: ${{ env.WEATHER_FETCHER_IMG_NAME }}:${{ env.WEATHER_FETCHER_IMG_TAG }}
          imagepullsecrets: k8s-shootingstar-secret
 
 #   test_gprc_service_demo_with_grpc_client_demo:
