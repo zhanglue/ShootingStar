@@ -93,10 +93,12 @@ jobs:
     - name: Checkout the source code.
       uses: actions/checkout@v4
 
-    - name: Login as ShootingStarSP.
-      uses: Azure/login@v2
+    - name: Login to Azure Container Registry.
+      uses: Azure/docker-login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+         login-server: shootingstar.azurecr.io
+         username: ${{ secrets.ACR_USERNAME }}
+         password: ${{ secrets.ACR_PASSWORD }}
 
     - name: Compile the source code of WeatherFetcher client.
       run: |
@@ -111,15 +113,13 @@ jobs:
           --file ./ci_cd/docker_files/weather_fetcher_client \
           --tag ${WEATHER_FETCHER_CLI_IMG_NAME}:${WEATHER_FETCHER_CLI_IMG_TAG}
 
-    - name: Login to Azure Container Registry.
-      uses: Azure/docker-login@v2
-      with:
-         login-server: shootingstar.azurecr.io
-         username: ${{ secrets.ACR_USERNAME }}
-         password: ${{ secrets.ACR_PASSWORD }}
-
     - name: Push the image to Azure Container Registry.
       run: docker push ${WEATHER_FETCHER_CLI_IMG_NAME}:${WEATHER_FETCHER_CLI_IMG_TAG}
+
+    - name: Login as ShootingStarSP.
+      uses: Azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Set up kubectl.
       uses: Azure/setup-kubectl@v4
