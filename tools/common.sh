@@ -27,7 +27,7 @@ echo_error() {
 
 DOCKER_CMD='docker'
 
-_check_docker_is_available() {
+check_docker_is_available() {
     ${DOCKER_CMD} info > /dev/null 2>&1
     if [[ $? != 0 ]]; then
         echo -e "${COLOR_RED}Docker is not installed or the deamon is not running.${COLOR_END}"
@@ -35,7 +35,7 @@ _check_docker_is_available() {
     fi
 }
 
-_build_docker_image() {
+build_docker_image() {
     dockerfile_path=$1
     image_name=$2
     image_tag=$3
@@ -52,7 +52,23 @@ _build_docker_image() {
     echo_info "docker image ${image_name}:${image_tag} built successfully."
 }
 
-_remove_docker_image() {
+pull_docker_image() {
+    image_name=$1
+    image_tag=$2
+    echo_info "Pulling Docker image ${image_name}:${image_tag}..."
+    echo_warning "${DOCKER_CMD} pull ${image_name}:${image_tag}"
+
+    ${DOCKER_CMD} pull ${image_name}:${image_tag}
+
+    if [[ $? != 0 ]]; then
+        echo_error "Failed to pull Docker image ${image_name}:${image_tag}."
+        exit 3
+    fi
+
+    echo_info "Docker image ${image_name}:${image_tag} pulled successfully."
+}
+
+remove_docker_image() {
     image_name=$1
     image_tag=$2
     echo_info "Removing existing Docker image ${image_name}:${image_tag}..."
@@ -68,7 +84,7 @@ _remove_docker_image() {
     echo_info "Docker image ${image_name}:${image_tag} removed successfully."
 }
 
-_is_image_existing() {
+is_image_existing() {
     image_name=$1
     image_tag=$2
 
@@ -80,7 +96,7 @@ _is_image_existing() {
     return 1
 }
 
-_stop_existing_docker_container_by_image() {
+stop_existing_docker_container_by_image() {
     image_name=$1
     image_tag=$2
     result=$(${DOCKER_CMD} container list --all | grep -- "${image_name}:${image_tag}" | wc -l)
@@ -114,7 +130,7 @@ _stop_existing_docker_container_by_image() {
     echo_info "Docker container stopped successfully."
 }
 
-_stop_existing_docker_container_by_name() {
+stop_existing_docker_container_by_name() {
     container_name=$1
     result=$(${DOCKER_CMD} container list --all | grep -- "${container_name}" | wc -l)
     if [[ $result == 0 ]]; then
@@ -145,7 +161,7 @@ _stop_existing_docker_container_by_name() {
     echo_info "Docker container stopped successfully."
 }
 
-_remove_container() {
+remove_container() {
     container_name=$1
     result=$(${DOCKER_CMD} container list --all | grep -- "${container_name}" | wc -l)
     if [[ $result == 0 ]]; then
@@ -164,7 +180,7 @@ _remove_container() {
     echo_info "Docker container ${container_name} removed successfully."
 }
 
-_commit_container() {
+commit_container() {
     container_name=$1
     image_name=$2
     image_tag=$3

@@ -29,41 +29,41 @@ _start_docker_container() {
 
 _main_flow() {
     builtin cd ${REPO_ROOT_PATH}
-    _check_docker_is_available
+    check_docker_is_available
 
     # Build base image.
-    _is_image_existing ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+    is_image_existing ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
     if [[ $? == 1 ]]; then
         echo_info "Docker image ${BASE_IMAGE_NAME}:${IMAGE_TAG_COMPILE_BASE} already exists."
         if [[ ${FLAG_REBUILD_BASE_IMAGE} == 'true' ]]; then
             echo
-            _stop_existing_docker_container_by_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+            stop_existing_docker_container_by_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
             echo
-            _remove_docker_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+            remove_docker_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
             echo
-            _build_docker_image ${DOCKERFILE_PATH_BASE} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+            build_docker_image ${DOCKERFILE_PATH_BASE} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
         else
             echo_info "Skip building Docker image ${BASE_IMAGE_NAME}:${IMAGE_TAG_COMPILE_BASE}."
         fi
     else
-        _build_docker_image ${DOCKERFILE_PATH_BASE} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+        build_docker_image ${DOCKERFILE_PATH_BASE} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
     fi
 
     # Build base image with cache.
     echo
-    _stop_existing_docker_container_by_name ${CONTAINER_NAME}
+    stop_existing_docker_container_by_name ${CONTAINER_NAME}
     echo
-    _remove_container ${CONTAINER_NAME}
-    _is_image_existing ${BASE_IMAGE_NAME_WITH_CACHE} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
+    remove_container ${CONTAINER_NAME}
+    is_image_existing ${BASE_IMAGE_NAME_WITH_CACHE} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
     if [[ $? == 1 ]]; then
         echo
         echo_info "Docker image ${BASE_IMAGE_NAME_WITH_CACHE}:${IMAGE_TAG_COMPILE_BASE_WITH_CACHE} already exists."
-        _remove_docker_image ${BASE_IMAGE_NAME_WITH_CACHE} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
+        remove_docker_image ${BASE_IMAGE_NAME_WITH_CACHE} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
     fi
     echo
     _start_docker_container ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
     echo
-    _commit_container ${CONTAINER_NAME} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
+    commit_container ${CONTAINER_NAME} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
 }
 
 while [[ "$#" -gt 0 ]]; do

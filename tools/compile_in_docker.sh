@@ -27,26 +27,30 @@ _start_docker_container_to_compile() {
 
 _main_flow() {
     builtin cd ${REPO_ROOT_PATH}
-    _check_docker_is_available
+    check_docker_is_available
 
     # Check base image.
     _is_image_existing ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
     if [[ $? == 0 ]]; then
-        echo
-        echo_error "Prepare base image of ${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG} first."
-        exit 1
+        pull_docker_image ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
+
+        if [[ $? == 0 ]]; then
+            echo
+            echo_error "Prepare base image of ${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG} first."
+            exit 1
+        fi
     fi
 
     rm ./bazel*
     [[ ! -d ./binaries ]] && mkdir ./binaries
     echo
-    _stop_existing_docker_container_by_name ${CONTAINER_NAME}
+    stop_existing_docker_container_by_name ${CONTAINER_NAME}
     echo
-    _remove_container ${CONTAINER_NAME}
+    remove_container ${CONTAINER_NAME}
     echo
     _start_docker_container_to_compile
     echo
-    _remove_container ${CONTAINER_NAME}
+    remove_container ${CONTAINER_NAME}
 }
 
 while [[ "$#" -gt 0 ]]; do
