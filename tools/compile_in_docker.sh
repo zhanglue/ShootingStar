@@ -34,7 +34,7 @@ _main_flow() {
     if [[ $? == 0 ]]; then
         pull_docker_image ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
 
-        if [[ $? == 0 ]]; then
+        if [[ $? != 0 ]]; then
             echo
             echo_error "Prepare base image of ${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG} first."
             exit 1
