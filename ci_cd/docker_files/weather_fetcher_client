@@ -1,0 +1,7 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/clients/weather_fetcher_client /app/weather_fetcher_client
+
+WORKDIR /app
+
+ENTRYPOINT ["/app/weather_fetcher_client"]

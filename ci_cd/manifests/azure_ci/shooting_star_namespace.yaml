@@ -1,0 +1,4 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shooting-star-pr-__PLACE_HOLDER_FOR_PR_NUMBER__

@@ -6,9 +6,16 @@ common --enable_platform_specific_config
 
 build:linux   --cxxopt='-std=c++20'
 build:linux   --host_cxxopt='-std=c++20'
+build:linux   --action_env=CC=/usr/bin/clang
+build:linux   --action_env=CXX=/usr/bin/clang++
 
+# For macOS, install the latest Xcode via app store and llvm via brew first.
+# Confirm the path of clang with: brew --prefix llvm
+# Update the PATH to use the clang from llvm.
 build:macos   --cxxopt='-std=c++20'
-build:macos   --host_cxxopt='-std=c+20'
+build:macos   --host_cxxopt='-std=c++20'
+build:macos   --action_env=CC=/opt/homebrew/opt/llvm/bin/clang
+build:macos   --action_env=CXX=/opt/homebrew/opt/llvm/bin/clang++
 
 build:windows --compiler='msvc-cl'
 build:windows --cxxopt='/std:c++20'

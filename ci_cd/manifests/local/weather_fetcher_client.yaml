@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: weather-fetcher-client
+  namespace: shooting-star
+spec:
+  template:
+    metadata:
+      labels:
+        app: weather-fetcher-client
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: weather-fetcher-client
+        image: weather-fetcher-client:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        args: 
+        - --ip
+        - weather-fetcher.shooting-star.svc.cluster.local
+        - --port
+        - "50051"

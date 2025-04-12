@@ -1,0 +1,5 @@
+FROM shooting-star-base
+
+WORKDIR /ShootingStar
+
+RUN bazel build //src/weather_fetcher:all
