@@ -19,7 +19,7 @@ _start_docker_container_to_compile() {
     echo "${container_run_cmd[@]}"
     "${container_run_cmd[@]}"
     if [[ $? != 0 ]]; then
-        echo_error "Failed to start docker container with image ${IMAGE_NAME}:${IMAGE_TAG}."
+        echo_error "Failed to start docker container with image ${image_name}:${image_tag}."
         exit 4
     fi
     echo_info "Docker container started and executed successfully."
@@ -59,11 +59,11 @@ while [[ "$#" -gt 0 ]]; do
             shift
             DOCKER_CMD=$1
             ;;
-        --base-img)
+        --base-image-name)
             shift
             BASE_IMAGE_NAME=$1
             ;;
-        --base-img-tag)
+        --base-image-tag)
             shift
             BASE_IMAGE_TAG=$1
             ;;

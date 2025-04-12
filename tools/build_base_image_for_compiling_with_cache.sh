@@ -75,6 +75,18 @@ while [[ "$#" -gt 0 ]]; do
         --rebuild-base-image)
             FLAG_REBUILD_BASE_IMAGE='true'
             ;;
+        --base-image-name)
+            shift
+            BASE_IMAGE_NAME=$1
+            ;;
+        --image-tag-compile-base)
+            shift
+            IMAGE_TAG_COMPILE_BASE=$1
+            ;;
+        --image-tag-compile-base-with-cache)
+            shift
+            IMAGE_TAG_COMPILE_BASE_WITH_CACHE=$1
+            ;;
         *)
             ARGS="${ARGS} $1"
             ;;
