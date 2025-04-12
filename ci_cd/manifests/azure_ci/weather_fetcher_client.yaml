@@ -23,6 +23,6 @@ spec:
             cpu: "1"
         args: 
         - --ip
-        - weather-fetcher.weather-fetcher-__PLACE_HOLDER_FOR_PR_NUMBER__.svc.cluster.local
+        - weather-fetcher.weather-fetcher-pr-__PLACE_HOLDER_FOR_PR_NUMBER__.svc.cluster.local
         - --port
         - "50051"
