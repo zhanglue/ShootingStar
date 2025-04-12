@@ -30,10 +30,10 @@ _main_flow() {
     _check_docker_is_available
 
     # Check base image.
-    _is_image_existing ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
+    _is_image_existing ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
     if [[ $? == 0 ]]; then
         echo
-        echo_error "Prepare base image of ${BASE_IMAGE_NAME}:${IMAGE_TAG_COMPILE_BASE} first."
+        echo_error "Prepare base image of ${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG} first."
         exit 1
     fi
 
@@ -54,6 +54,14 @@ while [[ "$#" -gt 0 ]]; do
         --docker-cmd)
             shift
             DOCKER_CMD=$1
+            ;;
+        --base-img)
+            shift
+            BASE_IMAGE_NAME=$1
+            ;;
+        --base-img-tag)
+            shift
+            BASE_IMAGE_TAG=$1
             ;;
         *)
             TARGETS="${TARGETS} $1"
