@@ -13,17 +13,17 @@ jobs:
     - name: Checkout the source code.
       uses: actions/checkout@v4
 
-    - name: Build the image of Weather Fetcher.
-      run: |
-        ./tools/compile_in_docker.sh //src/weather_fetcher:weather_fetcher
-        docker build . --file ./ci_cd/docker_files/weather_fetcher --tag shootingstar.azurecr.io/weather-fetcher:pr-${{ github.run_number }}
-
     - name: Login to Azure Container Registry.
       uses: Azure/docker-login@v2
       with:
          login-server: shootingstar.azurecr.io
          username: ${{ secrets.ACR_USERNAME }}
          password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build the image of Weather Fetcher.
+      run: |
+        ./tools/compile_in_docker.sh --base-img shootingstar.azurecr.io/shooting-star-base //src/weather_fetcher:weather_fetcher
+        docker build . --file ./ci_cd/docker_files/weather_fetcher --tag shootingstar.azurecr.io/weather-fetcher:pr-${{ github.run_number }}
 
     - name: Push image to Azure Container Registry.
       run: docker push shootingstar.azurecr.io/weather-fetcher:pr-${{ github.run_number }}
