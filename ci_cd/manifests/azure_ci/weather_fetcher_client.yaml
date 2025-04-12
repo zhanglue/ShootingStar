@@ -1,8 +1,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  namespace: shooting-star
   name: weather-fetcher-client
+  namespace: weather-fetcher-pr-__PLACE_HOLDER_FOR_PR_NUMBER__
 spec:
   template:
     metadata:
@@ -23,6 +23,6 @@ spec:
             cpu: "1"
         args: 
         - --ip
-        - weather-fetcher.shooting-star.svc.cluster.local
+        - weather-fetcher.weather-fetcher-__PLACE_HOLDER_FOR_PR_NUMBER__.svc.cluster.local
         - --port
         - "50051"
