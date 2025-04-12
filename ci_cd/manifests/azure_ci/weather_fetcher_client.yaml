@@ -12,8 +12,8 @@ spec:
       restartPolicy: Never
       containers:
       - name: weather-fetcher-client
-        image: weather-fetcher-client:latest
-        imagePullPolicy: Never
+        image: shootingstar.azurecr.io/weather-fetcher-client:pr-__PLACE_HOLDER_FOR_PR_NUMBER__
+        imagePullPolicy: Always
         resources:
           requests:
             memory: 256Mi
