@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-fetcher
+  namespace: weather-fetcher-pr-__PLACE_HOLDER_FOR_PR_NUMBER__
+spec:
+  template:
+    spec:
+      containers:
+      - name: weather-fetcher
+        image: shootingstar.azurecr.io/weather-fetcher:pr-__PLACE_HOLDER_FOR_PR_NUMBER__
+        imagePullPolicy: Always

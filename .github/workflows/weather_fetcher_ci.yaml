@@ -4,9 +4,13 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 env:
+  K8S_NAMESPACE: weather-fetcher-pr-${{ github.run_number }}
   COMPILE_BASE_IMG_NAME: shootingstar.azurecr.io/shooting-star-base
   COMPILE_BASE_IMG_TAG: compile-base-cached
-  K8S_NAMESPACE: weather-fetcher-pr-${{ github.run_number }}
+  WEATHER_FETCHER_IMG_NAME: shootingstar.azurecr.io/weather-fetcher
+  WEATHER_FETCHER_IMG_TAG: pr-${{ github.run_number }}
+  WEATHER_FETCHER_CLI_IMG_NAME: shootingstar.azurecr.io/weather-fetcher-client
+  WEATHER_FETCHER_CLI_IMG_TAG: pr-${{ github.run_number }}
 jobs:
   build_and_deploy_weather_fetcher:
     name: build & deploy
@@ -22,66 +26,64 @@ jobs:
          username: ${{ secrets.ACR_USERNAME }}
          password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: TEMP_TEMP_TEMP
-      run: |
-        docker pull ubuntu:24.04
-        ./tools/build_base_image_for_compiling_with_cache.sh \
-          --base-image-name ${COMPILE_BASE_IMG_NAME}
-        docker push ${COMPILE_BASE_IMG_NAME}:${COMPILE_BASE_IMG_TAG}
-        
-    - name: Build the image of Weather Fetcher.
+    - name: Compile the source code of WeatherFetcher.
       run: |
         ./tools/compile_in_docker.sh \
           --base-image-name ${COMPILE_BASE_IMG_NAME} \
           --base-image-tag ${COMPILE_BASE_IMG_TAG} \
           //src/weather_fetcher:weather_fetcher
+    - name: Build the image of WeatherFetcher.
+      run: |
         docker build . \
           --file ./ci_cd/docker_files/weather_fetcher \
-          --tag shootingstar.azurecr.io/weather-fetcher:pr-${{ github.run_number }}
+          --tag ${WEATHER_FETCHER_IMG_NAME}:${WEATHER_FETCHER_IMG_TAG}
 
-    - name: Push image to Azure Container Registry.
-      run: docker push shootingstar.azurecr.io/weather-fetcher:pr-${{ github.run_number }}
+    - name: Push the image to Azure Container Registry.
+      run: docker push ${WEATHER_FETCHER_IMG_NAME}:${WEATHER_FETCHER_IMG_TAG}
 
-#     - name: Login as ShootingStarSP.
-#       uses: Azure/login@v2
-#       with:
-#         creds: ${{ secrets.AZURE_CREDENTIALS }}
-# 
-#     - name: Set up kubectl.
-#       uses: Azure/setup-kubectl@v4
-#       with:
-#         version: v1.30.2
-# 
-#     - name: Set up Kubernetes context.
-#       uses: Azure/aks-set-context@v4
-#       with:
-#          resource-group: ShootingStarRG
-#          cluster-name: ShootingStarK8s
-# 
-#     - name: Create Kubernetes namespace for current PR.
-#       run: |
-#         kubectl create namespace ${{ env.K8S_NAMESPACE }}
-#         sed -i 's/grpc-demo/${{ env.K8S_NAMESPACE }}/g' manifests/k8s_grpc_service_demo.yaml
-# 
-#     - name: Create Kubernetes secret.
-#       uses: Azure/k8s-create-secret@v5
-#       with:
-#          secret-name: k8s-shootingstar-secret
-#          namespace: ${{ env.K8S_NAMESPACE }}
-#          container-registry-url: shootingstar.azurecr.io
-#          container-registry-username: ${{ secrets.ACR_USERNAME }}
-#          container-registry-password: ${{ secrets.ACR_PASSWORD }}
-# 
-#     - name: Deploy GrpcServiceDemo to Kubernetes.
-#       uses: Azure/k8s-deploy@v5
-#       with:
-#          action: deploy
-#          strategy: basic
-#          namespace: ${{ env.K8S_NAMESPACE }}
-#          manifests: manifests/k8s_grpc_service_demo.yaml
-#          images: shootingstar.azurecr.io/grpc-service-demo:pr-${{ github.run_number }}
-#          imagepullsecrets: k8s-shootingstar-secret
-# 
+    - name: Login as ShootingStarSP.
+      uses: Azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Set up kubectl.
+      uses: Azure/setup-kubectl@v4
+      with:
+        version: v1.30.2
+
+    - name: Set up Kubernetes context.
+      uses: Azure/aks-set-context@v4
+      with:
+         resource-group: ShootingStarRG
+         cluster-name: ShootingStarK8s
+
+    - name: Create Kubernetes namespace for current PR.
+      run: kubectl create namespace ${K8S_NAMESPACE}
+
+    - name: Create Kubernetes secret.
+      uses: Azure/k8s-create-secret@v5
+      with:
+         secret-name: k8s-shootingstar-secret
+         namespace: ${K8S_NAMESPACE}
+         container-registry-url: shootingstar.azurecr.io
+         container-registry-username: ${{ secrets.ACR_USERNAME }}
+         container-registry-password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Prepare Kubernetes manifest for Weather Fetcher.
+        find ci_cd/manifests/azure_ci/ -name "*.yaml" -exec \
+          sed -i "s/__PLACE_HOLDER_FOR_PR_NUMBER__/${{ github.run_number }}/g" {} \;
+        kustomize build ci_cd/manifests/azure_ci/weather_fetcher > ci_cd/manifests/azure_ci/weather_fetcher.yaml
+
+    - name: Deploy GrpcServiceDemo to Kubernetes.
+      uses: Azure/k8s-deploy@v5
+      with:
+         action: deploy
+         strategy: basic
+         namespace: ${K8S_NAMESPACE}
+         manifests: ci_cd/manifests/azure_ci/weather_fetcher.yaml
+         images: ${WEATHER_FETCHER_IMG_NAME}:${WEATHER_FETCHER_IMG_TAG}
+         imagepullsecrets: k8s-shootingstar-secret
+
 #   test_gprc_service_demo_with_grpc_client_demo:
 #     name: test by K8S job
 #     runs-on: ubuntu-latest
