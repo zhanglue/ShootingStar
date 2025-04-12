@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-fetcher
+  namespace: weather-fetcher-pr-__PLACE_HOLDER_FOR_PR_NUMBER__
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-fetcher
+  template:
+    metadata:
+      labels:
+        app: weather-fetcher
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: weather-fetcher
+        image: shootingstar.azurecr.io/weather-fetcher:pr-__PLACE_HOLDER_FOR_PR_NUMBER__
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        ports:
+        - containerPort: 50051
+          name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: shooting-star
+  name: weather-fetcher
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 50051
+  selector:
+    app: weather-fetcher

@@ -1,4 +1,0 @@
-resources:
-    - ../../local/weather_fetcher/deployment.yaml
-patchesStrategicMerge:
-    - patch.yaml
