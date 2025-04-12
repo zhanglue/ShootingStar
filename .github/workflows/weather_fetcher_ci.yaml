@@ -74,7 +74,6 @@ jobs:
       run: |
         find ci_cd/manifests/azure_ci/ -name "*.yaml" -exec \
           sed -i "s/__PLACE_HOLDER_FOR_PR_NUMBER__/${{ github.run_number }}/g" {} \;
-        kustomize build ci_cd/manifests/azure_ci/weather_fetcher > ci_cd/manifests/azure_ci/weather_fetcher.yaml
 
     - name: Deploy GrpcServiceDemo to Kubernetes.
       uses: Azure/k8s-deploy@v5
