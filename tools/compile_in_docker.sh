@@ -30,7 +30,7 @@ _main_flow() {
     check_docker_is_available
 
     # Check base image.
-    _is_image_existing ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
+    is_image_existing ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
     if [[ $? == 0 ]]; then
         pull_docker_image ${BASE_IMAGE_NAME} ${BASE_IMAGE_TAG}
 
