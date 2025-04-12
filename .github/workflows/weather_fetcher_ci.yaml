@@ -32,7 +32,8 @@ jobs:
     - name: Build the image of Weather Fetcher.
       run: |
         ./tools/compile_in_docker.sh \
-          --base-image-name ${{ compile_base_image_name }} \
+          --base-image-name ${COMPILE_BASE_IMG_NAME} \
+          --base-image-tag ${COMPILE_BASE_IMG_TAG} \
           //src/weather_fetcher:weather_fetcher
         docker build . \
           --file ./ci_cd/docker_files/weather_fetcher \
