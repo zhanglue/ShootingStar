@@ -1,0 +1,6 @@
+.bazelrc linguist-language=Bazel
+MODULE.bazel linguist-language=Bazel
+MODULE.bazel.lock linguist-language=Bazel
+protos/BUILD.bazel linguist-language=Bazel
+src/weather_fetcher/BUILD.bazel linguist-language=Bazel
+src/clients/BUILD.bazel linguist-language=Bazel
