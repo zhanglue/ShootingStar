@@ -88,7 +88,7 @@ is_image_existing() {
     image_name=$1
     image_tag=$2
 
-    result=$(${DOCKER_CMD} images --all | sed 's/[[:space:]]\+/ /g' | grep -- "${image_name} ${image_tag}" | wc -l)
+    result=$(${DOCKER_CMD} images --all | sed -E 's/^[[:space:]]+//; s/[[:space:]]+/ /g' | grep -- "${image_name} ${image_tag}" | wc -l)
     if [[ $result == 0 ]]; then
         return 0
     fi
