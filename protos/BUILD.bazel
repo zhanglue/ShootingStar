@@ -33,3 +33,33 @@ cc_grpc_library(
     grpc_only = True,
     deps = [":weather_fetcher_cc"],
 )
+
+# Profile
+proto_library(
+    name = "profile_proto",
+    srcs = ["profile.proto"],
+)
+
+cc_proto_library(
+    name = "profile_cc",
+    deps = [":profile_proto"],
+)
+
+# RecommenderEngine
+proto_library(
+    name = "recommender_engine_proto",
+    srcs = ["recommender_engine.proto"],
+    deps = [":profile_proto"],
+)
+
+cc_proto_library(
+    name = "recommender_engine_cc",
+    deps = [":recommender_engine_proto"],
+)
+
+cc_grpc_library(
+    name = "recommender_engine_cc_grpc",
+    srcs = ["recommender_engine_proto"],
+    grpc_only = True,
+    deps = [":recommender_engine_cc"],
+)
