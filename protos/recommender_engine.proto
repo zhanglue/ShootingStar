@@ -11,7 +11,7 @@ enum RecommenderStatus {
   SYSTEM_ERROR = 3;
 }
 
-service GatewayService {
+service Gateway {
   rpc Recommend (RecommendRequest) returns (RecommendResponse);
 }
 
