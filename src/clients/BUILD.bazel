@@ -12,3 +12,14 @@ cc_binary(
         "@protobuf//:protobuf",
     ],
 )
+
+cc_binary(
+    name = "recommender_engine_client",
+    srcs = ["recommender_engine_client.cpp"],
+    deps = [
+        "//protos:recommender_engine_cc",
+        "//protos:recommender_engine_cc_grpc",
+        "@grpc//:grpc++",
+        "@protobuf//:protobuf",
+    ],
+)
