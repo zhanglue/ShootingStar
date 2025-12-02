@@ -8,15 +8,15 @@ FLAG_REBUILD_BASE_IMAGE='false'
 BASE_IMAGE_NAME="shooting-star-base"
 BASE_IMAGE_TAG="compile-base-cached"
 CONTAINER_NAME="shooting-star-compiling"
-TARGETS=''
+TARGETS='//...'
 
 _start_docker_container_to_compile() {
     image_name=${BASE_IMAGE_NAME}
     image_tag=${BASE_IMAGE_TAG}
 
     echo_info "Starting Docker container ${image_name}:${image_tag} with command..."
-    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar && bazel build ${TARGETS} && cp -r bazel-bin/src binaries/")
-    echo "${container_run_cmd[@]}"
+    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar && bazel build ${TARGETS} && find ./bazel-bin/ -mindepth 1 -maxdepth 1 -type d ! -name 'external' -print0 | xargs -0 -I{} cp -r '{}' binaries/")
+    # echo "${container_run_cmd[@]}"
     "${container_run_cmd[@]}"
     if [[ $? != 0 ]]; then
         echo_error "Failed to start docker container with image ${image_name}:${image_tag}."

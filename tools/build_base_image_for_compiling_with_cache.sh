@@ -5,8 +5,8 @@ REPO_ROOT_PATH=$(git rev-parse --show-toplevel)
 
 FLAG_REBUILD_BASE_IMAGE='false'
 
-DOCKERFILE_PATH_BASE="${REPO_ROOT_PATH}/ci_cd/docker_files/base_image_for_compiling"
-DOCKERFILE_PATH_BASE_WITH_CACHE="${REPO_ROOT_PATH}/ci_cd/docker_files/base_image_for_compiling_with_cache"
+DOCKERFILE_PATH_BASE="${REPO_ROOT_PATH}/ci_cd/docker_files/compile/base_image_for_compiling"
+DOCKERFILE_PATH_BASE_WITH_CACHE="${REPO_ROOT_PATH}/ci_cd/docker_files/compile/base_image_for_compiling_with_cache"
 BASE_IMAGE_NAME="shooting-star-base"
 IMAGE_TAG_COMPILE_BASE="compile-base"
 IMAGE_TAG_COMPILE_BASE_WITH_CACHE="compile-base-cached"

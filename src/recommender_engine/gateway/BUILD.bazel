@@ -1,0 +1,34 @@
+package(default_visibility = ["//src/recommender_engine/gate_way:__pkg__"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
+
+cc_library(
+    name = "gateway_lib",
+    srcs = [
+        "gateway_service.cpp",
+    ],
+    hdrs = [
+        "gateway_service.h",
+    ],
+    deps = [
+        "//protos:profile_cc",
+        "//protos:recommender_engine_cc",
+        "//protos:recommender_engine_cc_grpc",
+        "@grpc//:grpc++",
+        "@grpc//:grpc++_reflection",
+        "@abseil-cpp//absl/flags:parse",
+    ],
+)
+
+cc_binary(
+    name = "gateway_bin",
+    srcs = [
+        "main.cpp",
+    ],
+    deps = [
+        ":gateway_lib",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)

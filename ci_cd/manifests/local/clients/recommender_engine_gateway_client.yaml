@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recommender-engine-client
+  namespace: recommender-engine
+spec:
+  template:
+    metadata:
+      labels:
+        app: recommender-engine-client
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: recommender-engine-client
+        image: recommender-engine-client:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        args: 
+        - --ip
+        - gateway.recommender-engine.svc.cluster.local
+        - --port
+        - "50051"
