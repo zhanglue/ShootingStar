@@ -1,0 +1,9 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/recommender_engine/gateway/gateway_bin /app/gateway
+
+WORKDIR /app
+
+EXPOSE 50051
+
+ENTRYPOINT ["/app/gateway"]
