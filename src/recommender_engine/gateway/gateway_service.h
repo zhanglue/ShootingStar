@@ -1,5 +1,4 @@
-#ifndef GATEWAY_SERVICE_H
-#define GATEWAY_SERVICE_H
+#pragma once
 
 #include <grpcpp/grpcpp.h>
 #include <unordered_map>
@@ -23,5 +22,3 @@ class GatewayServiceImpl final : public Gateway::Service {
 };
 
 }  // namespace weather_flow
-
-#endif  // GATEWAY_SERVICE_H
