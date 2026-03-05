@@ -21,7 +21,7 @@ _start_docker_container() {
     echo "${container_run_cmd[@]}"
     "${container_run_cmd[@]}"
     if [[ $? != 0 ]]; then
-        echo_error "Failed to start docker container with image ${IMAGE_NAME}:${IMAGE_TAG}."
+        echo_error "Failed to start docker container with image ${image_name}:${image_tag}."
         exit 4
     fi
     echo_info "Docker container started successfully."
@@ -39,6 +39,8 @@ _main_flow() {
             echo
             stop_existing_docker_container_by_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
             echo
+            remove_container ${CONTAINER_NAME}
+            echo
             remove_docker_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
             echo
             build_docker_image ${DOCKERFILE_PATH_BASE} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
@@ -54,11 +56,11 @@ _main_flow() {
     stop_existing_docker_container_by_name ${CONTAINER_NAME}
     echo
     remove_container ${CONTAINER_NAME}
-    is_image_existing ${BASE_IMAGE_NAME_WITH_CACHE} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
+    is_image_existing ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
     if [[ $? == 1 ]]; then
         echo
-        echo_info "Docker image ${BASE_IMAGE_NAME_WITH_CACHE}:${IMAGE_TAG_COMPILE_BASE_WITH_CACHE} already exists."
-        remove_docker_image ${BASE_IMAGE_NAME_WITH_CACHE} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
+        echo_info "Docker image ${BASE_IMAGE_NAME}:${IMAGE_TAG_COMPILE_BASE_WITH_CACHE} already exists."
+        remove_docker_image ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
     fi
     echo
     _start_docker_container ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
