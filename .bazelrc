@@ -1,22 +1,17 @@
-# Add following lines to system bazelrc:
-# startup --output_user_root=c:/b
-# startup --output_user_root=~/.b
- 
-common --enable_platform_specific_config
-
+# For Linux:
 build:linux   --cxxopt='-std=c++23'
 build:linux   --host_cxxopt='-std=c++23'
 build:linux   --action_env=CC=/usr/bin/clang
 build:linux   --action_env=CXX=/usr/bin/clang++
 
-# For macOS, install the latest Xcode via app store and llvm via brew first.
-# Confirm the path of clang with: brew --prefix llvm
-# Update the PATH to use the clang from llvm.
+# For macOS:
+# Use the built-in Apple clang on macOS to avoid build failures from third-party dependencies.
 build:macos   --cxxopt='-std=c++23'
 build:macos   --host_cxxopt='-std=c++23'
-build:macos   --action_env=CC=/opt/homebrew/opt/llvm/bin/clang
-build:macos   --action_env=CXX=/opt/homebrew/opt/llvm/bin/clang++
+build:macos   --action_env=CC=/usr/bin/clang
+build:macos   --action_env=CXX=/usr/bin/clang++
 
+# NOT VERIFIED
 build:windows --compiler='msvc-cl'
 build:windows --cxxopt='/std:c++23'
 build:windows --host_cxxopt='/std:c++23'
