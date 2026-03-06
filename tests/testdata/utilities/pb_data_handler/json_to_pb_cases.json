@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "name": "valid_profile_ignores_unknown_field",
+      "input": {
+        "user_id": 1001,
+        "demographics": {
+          "birth_year": 1990,
+          "gender": "male",
+          "location_id": 1
+        },
+        "social": {
+          "following": [2001, 2002],
+          "followers": [3001]
+        },
+        "interests": {
+          "category_ids": [10, 12],
+          "tag_ids": [101, 205]
+        },
+        "behaviors": {
+          "viewed_items": [501, 502],
+          "clicked_items": [502],
+          "active_timeframe": 3600
+        },
+        "session": {
+          "last_login_time": 1703719000,
+          "recent_viewed_items": [501],
+          "recent_clicked_items": [502]
+        },
+        "unknown_field_should_be_ignored": "ignored"
+      },
+      "expect_success": true,
+      "expected": {
+        "user_id": 1001,
+        "birth_year": 1990,
+        "following_size": 2,
+        "tag_ids_size": 2,
+        "active_timeframe": 3600,
+        "last_login_time": 1703719000
+      }
+    },
+    {
+      "name": "invalid_json_input",
+      "raw_input": "{ invalid json",
+      "expect_success": false,
+      "error_contains": "failed"
+    }
+  ]
+}

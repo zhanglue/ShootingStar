@@ -1,0 +1,19 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "pb_data_handler_test",
+    srcs = ["pb_data_handler_test.cpp"],
+    data = [
+        "//tests/testdata:utilities/pb_data_handler/json_to_pb_cases.json",
+        "//tests/testdata:utilities/pb_data_handler/roundtrip_profile.json",
+    ],
+    size = "small",
+    deps = [
+        "//protos:profile_cc",
+        "//src/utilities/pb_data_handler:pb_data_handler",
+        "@googletest//:gtest_main",
+        "@protobuf//:protobuf",
+    ],
+)
