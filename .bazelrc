@@ -1,3 +1,6 @@
+# Enable auto-selection of build:<os> blocks (build:macos/build:linux/...).
+common --enable_platform_specific_config
+
 # For Linux:
 build:linux   --cxxopt='-std=c++23'
 build:linux   --host_cxxopt='-std=c++23'
