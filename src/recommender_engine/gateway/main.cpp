@@ -13,12 +13,18 @@
 #include "src/recommender_engine/gateway/gateway_service.h"
 
 ABSL_FLAG(uint16_t, port, 50000, "Server port for the service");
+ABSL_FLAG(::std::string, profile_service_host, "localhost", "Profile service host");
+ABSL_FLAG(uint16_t, profile_service_port, 50100, "Profile service port");
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
 
   ::std::string server_address = absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
-  recommender_engine::GatewayServiceImpl service;
+  const ::std::string profile_service_address =
+      absl::StrFormat("%s:%d", absl::GetFlag(FLAGS_profile_service_host),
+                      absl::GetFlag(FLAGS_profile_service_port));
+  recommender_engine::GatewayServiceImpl service(
+      grpc::CreateChannel(profile_service_address, grpc::InsecureChannelCredentials()));
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
@@ -31,6 +37,7 @@ int main(int argc, char** argv) {
   // Finally assemble the server.
   ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
   ::std::cout << "Server listening on " << server_address << ::std::endl;
+  ::std::cout << "Using profile service at " << profile_service_address << ::std::endl;
 
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.

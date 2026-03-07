@@ -12,11 +12,11 @@ cc_library(
     ],
     deps = [
         "//protos:profile_cc",
+        "//protos:profile_cc_grpc",
         "//protos:recommender_engine_cc",
         "//protos:recommender_engine_cc_grpc",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
-        "@abseil-cpp//absl/flags:parse",
     ],
 )
 

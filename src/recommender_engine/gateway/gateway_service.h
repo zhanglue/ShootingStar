@@ -1,25 +1,27 @@
 #pragma once
 
-#include <unordered_map>
+#include <memory>
 
 #include <grpcpp/grpcpp.h>
 
+#include "protos/profile.grpc.pb.h"
 #include "protos/recommender_engine.grpc.pb.h"
 
 namespace recommender_engine {
 
-using UserIdProfileMap = ::std::unordered_map<int, Profile>;
-
 class GatewayServiceImpl final : public Gateway::Service {
  public:
-  GatewayServiceImpl();
+  explicit GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profile_channel);
 
   ::grpc::Status Recommend(::grpc::ServerContext* context,
                            const RecommendRequest* request,
                            RecommendResponse* response) override;
 
  private:
-  UserIdProfileMap profiles_;
+  ::grpc::Status FetchProfile(const RecommendRequest& request, Profile* profile,
+                              RecommenderStatus* recommender_status) const;
+
+  ::std::unique_ptr<ProfileService::Stub> profile_stub_;
 };
 
 }  // namespace recommender_engine
