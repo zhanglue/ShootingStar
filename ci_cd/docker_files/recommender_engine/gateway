@@ -4,6 +4,6 @@ COPY binaries/src/recommender_engine/gateway/gateway_bin /app/gateway
 
 WORKDIR /app
 
-EXPOSE 50051
+EXPOSE 50000
 
 ENTRYPOINT ["/app/gateway"]

@@ -4,6 +4,6 @@ COPY binaries/src/weather_fetcher/weather_fetcher /app/weather_fetcher
 
 WORKDIR /app
 
-EXPOSE 50051
+EXPOSE 40000
 
 ENTRYPOINT ["/app/weather_fetcher"]
