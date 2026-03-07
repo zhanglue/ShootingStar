@@ -6,9 +6,9 @@
 
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
+namespace shooting_star {
+namespace utilities {
 namespace {
-
-using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 
 class RuntimeUtilitiesTest : public ::testing::Test {
  protected:
@@ -32,9 +32,7 @@ class RuntimeUtilitiesTest : public ::testing::Test {
 
 TEST_F(RuntimeUtilitiesTest, ReturnsConfiguredPathWhenProvided) {
   EXPECT_EQ(
-      ResolveWorkspaceRelativePath(
-          "/tmp/profiles.json",
-          "tests/testdata/profiles/demo_profiles.json"),
+      ResolveWorkspaceRelativePath("/tmp/profiles.json"),
       "/tmp/profiles.json");
 }
 
@@ -42,20 +40,18 @@ TEST_F(RuntimeUtilitiesTest, UsesWorkspaceDirectoryWhenEnvironmentVariableExists
   ASSERT_EQ(setenv("BUILD_WORKSPACE_DIRECTORY", "/workspace/shooting_star", 1), 0);
 
   EXPECT_EQ(
-      ResolveWorkspaceRelativePath(
-          "",
-          "tests/testdata/profiles/demo_profiles.json"),
-      "/workspace/shooting_star/tests/testdata/profiles/demo_profiles.json");
+      ResolveWorkspaceRelativePath("tests/testdata/recommender_engine/profile/demo_profiles.json"),
+      "/workspace/shooting_star/tests/testdata/recommender_engine/profile/demo_profiles.json");
 }
 
 TEST_F(RuntimeUtilitiesTest, FallsBackToRelativePathWhenEnvironmentVariableIsMissing) {
   ASSERT_EQ(unsetenv("BUILD_WORKSPACE_DIRECTORY"), 0);
 
   EXPECT_EQ(
-      ResolveWorkspaceRelativePath(
-          "",
-          "tests/testdata/profiles/demo_profiles.json"),
-      "tests/testdata/profiles/demo_profiles.json");
+      ResolveWorkspaceRelativePath("tests/testdata/recommender_engine/profile/demo_profiles.json"),
+      "tests/testdata/recommender_engine/profile/demo_profiles.json");
 }
 
 }  // namespace
+}  // namespace utilities
+}  // namespace shooting_star

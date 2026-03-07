@@ -1,0 +1,15 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "local_file_profile_store_test",
+    srcs = ["local_file_profile_store_test.cpp"],
+    data = ["//tests/testdata:recommender_engine/profile/demo_profiles.json"],
+    size = "small",
+    deps = [
+        "//src/recommender_engine/profile:profile_lib",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@googletest//:gtest_main",
+    ],
+)

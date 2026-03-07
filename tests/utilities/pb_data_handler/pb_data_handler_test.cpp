@@ -10,6 +10,8 @@
 #include "protos/profile.pb.h"
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
 
+namespace shooting_star {
+namespace utilities {
 namespace {
 
 using ::recommender_engine::Profile;
@@ -176,3 +178,5 @@ TEST_F(PBDataHandlerTest, JsonFileToPBFailsForMissingFile) {
 }
 
 }  // namespace
+}  // namespace utilities
+}  // namespace shooting_star
