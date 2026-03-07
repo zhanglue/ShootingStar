@@ -56,7 +56,7 @@ void PrintUsage() {
        << "Options:\n"
        << "  -h, --help              Show this help message\n"
        << "  -i, --ip <IP>           Set server IP (default: localhost)\n"
-       << "  -p, --port <PORT>       Set server port (default: 50052)\n"
+       << "  -p, --port <PORT>       Set server port (default: 50100)\n"
        << "  -u, --user-id <USER_ID> Set user ID to query (default: 1001)\n";
 }
 
@@ -65,7 +65,7 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   string ip = "localhost";
-  string port = "50052";
+  string port = "50100";
   int user_id = 1001;
 
   struct option long_options[] = {

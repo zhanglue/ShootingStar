@@ -27,7 +27,7 @@ spec:
             memory: 512Mi
             cpu: "1"
         ports:
-        - containerPort: 50051
+        - containerPort: 50000
           name: grpc
 ---
 apiVersion: v1
@@ -38,6 +38,6 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 50051
+  - port: 50000
   selector:
     app: gateway

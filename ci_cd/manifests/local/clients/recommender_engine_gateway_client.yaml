@@ -25,4 +25,4 @@ spec:
         - --ip
         - gateway.recommender-engine.svc.cluster.local
         - --port
-        - "50051"
+        - "50000"

@@ -18,7 +18,7 @@
 
 using ::std::string;
 
-ABSL_FLAG(uint16_t, port, 50052, "Server port for the service");
+ABSL_FLAG(uint16_t, port, 50100, "Server port for the service");
 ABSL_FLAG(
     ::std::string,
     profile_store_type,
