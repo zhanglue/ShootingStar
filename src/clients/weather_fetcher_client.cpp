@@ -13,9 +13,8 @@ using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using weather_flow::GetWeatherRequest;
-using weather_flow::GetWeatherResponse;
-using weather_flow::WeatherFetcher;
+using ::weather_flow::GetWeatherRequest;
+using ::weather_flow::GetWeatherResponse;
 
 namespace weather_flow {
 namespace {
