@@ -1,6 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "profiles/demo_profiles.json",
+    "recommender_engine/profile/demo_profiles.json",
     "utilities/pb_data_handler/json_to_pb_cases.json",
     "utilities/pb_data_handler/roundtrip_profile.json",
 ])

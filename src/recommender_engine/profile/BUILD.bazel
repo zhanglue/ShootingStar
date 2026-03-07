@@ -1,0 +1,35 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+cc_library(
+    name = "profile_lib",
+    srcs = [
+        "local_file_profile_store.cpp",
+        "profile_service.cpp",
+    ],
+    hdrs = [
+        "local_file_profile_store.h",
+        "profile_service.h",
+        "profile_store.h",
+    ],
+    deps = [
+        "//protos:profile_cc",
+        "//protos:profile_cc_grpc",
+        "//src/utilities/pb_data_handler:pb_data_handler",
+        "@grpc//:grpc++",
+        "@grpc//:grpc++_reflection",
+    ],
+)
+
+cc_binary(
+    name = "profile_bin",
+    srcs = ["main.cpp"],
+    deps = [
+        ":profile_lib",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)
