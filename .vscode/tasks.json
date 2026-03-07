@@ -1,16 +1,23 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Build Weather Fetcher",
-            "type": "shell",
-            "command": "cd ./src/weather_fetcher && bazel build :all --verbose_failures",
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "problemMatcher": [],
-            "detail": "Build wether_fetcher."
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Refresh compile_commands.json",
+      "type": "shell",
+      "command": "python3 ./tools/refresh_compile_commands.py",
+      "problemMatcher": [],
+      "detail": "Generate repository-wide compile_commands.json for src and tests targets from Bazel."
+    },
+    {
+      "label": "Build Weather Fetcher",
+      "type": "shell",
+      "command": "cd ./src/weather_fetcher && bazel build :all --verbose_failures",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [],
+      "detail": "Build wether_fetcher."
+    }
+  ]
 }
