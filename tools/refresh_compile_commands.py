@@ -10,6 +10,7 @@ from pathlib import Path
 SOURCE_RE = re.compile(r"^(src|tests|protos)/.*\.(c|cc|cpp|cxx)$")
 WORKSPACE_HEADER_RE = re.compile(r"^(src|tests|protos)/.*\.(h|hh|hpp|inc)$")
 QUERY = 'mnemonic("CppCompile", set(//src/... //tests/... //protos/...))'
+TARGET_PATTERNS = ["//src/...", "//tests/...", "//protos/..."]
 PROTOBUF_SRC_FLAGS = [
     "-isystem",
     "external/protobuf+/src",
@@ -168,6 +169,14 @@ def main() -> int:
     output_path = root / "compile_commands.json"
 
     try:
+        subprocess.run(
+            ["bazel", "build", "--nobuild", *TARGET_PATTERNS],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
         result = subprocess.run(
             ["bazel", "aquery", "--output=jsonproto", QUERY],
             cwd=root,

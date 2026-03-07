@@ -1,0 +1,13 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "runtime_utilities_test",
+    srcs = ["runtime_utilities_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@googletest//:gtest_main",
+    ],
+)

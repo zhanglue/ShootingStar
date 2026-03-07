@@ -1,0 +1,12 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "runtime_utilities",
+    srcs = ["runtime_utilities.cpp"],
+    hdrs = ["runtime_utilities.h"],
+    deps = [
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)

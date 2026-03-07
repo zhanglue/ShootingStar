@@ -2,7 +2,6 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <vector>
 
 #include "google/protobuf/struct.pb.h"
 #include "google/protobuf/util/json_util.h"

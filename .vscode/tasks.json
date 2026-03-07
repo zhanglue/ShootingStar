@@ -2,14 +2,14 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Refresh compile_commands.json",
+      "label": "refresh compile_commands.json",
       "type": "shell",
       "command": "python3 ./tools/refresh_compile_commands.py",
       "problemMatcher": [],
       "detail": "Generate repository-wide compile_commands.json for src and tests targets from Bazel."
     },
     {
-      "label": "Build Weather Fetcher",
+      "label": "build Weather Fetcher",
       "type": "shell",
       "command": "cd ./src/weather_fetcher && bazel build :all --verbose_failures",
       "group": {
@@ -18,6 +18,17 @@
       },
       "problemMatcher": [],
       "detail": "Build wether_fetcher."
+    },
+    {
+      "label": "run all unit test cases",
+      "type": "shell",
+      "command": "bazel test //tests/...",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "Run all Bazel unit tests under tests/."
     }
   ]
 }
