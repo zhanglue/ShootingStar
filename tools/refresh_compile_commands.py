@@ -18,6 +18,7 @@ PROTOBUF_SRC_FLAGS = [
     "bazel-out/darwin_arm64-fastbuild/bin/external/protobuf+/src",
 ]
 CLANGD_DRIVER = "/usr/bin/clang++"
+PATH_FLAGS = {"-iquote", "-isystem", "-MF", "-o"}
 
 
 def workspace_root() -> Path:
@@ -50,9 +51,75 @@ def apple_sdk_flags() -> list[str]:
     return flags
 
 
+def external_include_flags(output_base: str) -> list[str]:
+    cached = getattr(external_include_flags, "_cached", None)
+    if cached is not None:
+        return cached
+
+    flags = [
+        "-isystem",
+        str(Path(output_base) / "external/grpc+/include"),
+        "-isystem",
+        str(Path(output_base) / "external/protobuf+/src"),
+        "-isystem",
+        str(Path(output_base) / "external/googletest+/googletest/include"),
+        "-isystem",
+        str(Path(output_base) / "external/googletest+/googlemock/include"),
+    ]
+    external_include_flags._cached = flags
+    return flags
+
+
 def execroot_dir(root: Path) -> str:
-    execroot = root / "bazel-ShootingStar"
-    return str(execroot if execroot.exists() else root)
+    cached = getattr(execroot_dir, "_cached", None)
+    if cached is not None:
+        return cached
+    value = command_output(["bazel", "info", "execution_root"])
+    execroot_dir._cached = value
+    return value
+
+
+def output_base_dir() -> str:
+    cached = getattr(output_base_dir, "_cached", None)
+    if cached is not None:
+        return cached
+    value = command_output(["bazel", "info", "output_base"])
+    output_base_dir._cached = value
+    return value
+
+
+def normalize_path(path: str, execroot: str, output_base: str) -> str:
+    if path.startswith("external/"):
+        return str(Path(output_base) / path)
+    if path.startswith("bazel-out/"):
+        return str(Path(execroot) / path)
+    return path
+
+
+def normalize_arguments(arguments: list[str], execroot: str, output_base: str) -> list[str]:
+    normalized = []
+    index = 0
+
+    while index < len(arguments):
+        argument = arguments[index]
+
+        if argument in PATH_FLAGS and index + 1 < len(arguments):
+            normalized.append(argument)
+            normalized.append(normalize_path(arguments[index + 1], execroot, output_base))
+            index += 2
+            continue
+
+        if argument.startswith("-I") and len(argument) > 2:
+            normalized.append("-I" + normalize_path(argument[2:], execroot, output_base))
+        elif argument.startswith("-frandom-seed="):
+            prefix, value = argument.split("=", 1)
+            normalized.append(prefix + "=" + normalize_path(value, execroot, output_base))
+        else:
+            normalized.append(argument)
+
+        index += 1
+
+    return normalized
 
 
 def source_from_arguments(arguments: list[str]) -> str | None:
@@ -63,16 +130,25 @@ def source_from_arguments(arguments: list[str]) -> str | None:
 
 
 def with_extra_flags(arguments: list[str]) -> list[str]:
-    normalized = list(arguments)
+    execroot = execroot_dir(workspace_root())
+    output_base = output_base_dir()
+    normalized = normalize_arguments(arguments, execroot, output_base)
     if normalized:
         normalized[0] = CLANGD_DRIVER
 
     sdk_flags = apple_sdk_flags()
+    external_flags = external_include_flags(output_base)
     for idx in range(0, len(normalized) - 1):
         if normalized[idx:idx + 2] == sdk_flags[:2]:
             break
     else:
         normalized.extend(sdk_flags)
+
+    for idx in range(0, len(normalized) - 1):
+        if normalized[idx:idx + 2] == external_flags[:2]:
+            break
+    else:
+        normalized.extend(external_flags)
 
     for idx in range(0, len(normalized) - 3):
         if normalized[idx:idx + 4] == PROTOBUF_SRC_FLAGS:
