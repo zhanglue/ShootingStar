@@ -21,4 +21,4 @@ class GatewayServiceImpl final : public Gateway::Service {
   UserIdProfileMap profiles_;
 };
 
-}  // namespace weather_flow
+}  // namespace recommender_engine
