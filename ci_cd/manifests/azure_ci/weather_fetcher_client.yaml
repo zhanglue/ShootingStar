@@ -25,4 +25,4 @@ spec:
         - --ip
         - weather-fetcher.weather-fetcher-pr-__PLACE_HOLDER_FOR_PR_NUMBER__.svc.cluster.local
         - --port
-        - "50051"
+        - "40000"

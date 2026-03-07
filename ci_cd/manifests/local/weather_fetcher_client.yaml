@@ -25,4 +25,4 @@ spec:
         - --ip
         - weather-fetcher.shooting-star.svc.cluster.local
         - --port
-        - "50051"
+        - "40000"

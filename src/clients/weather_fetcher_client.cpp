@@ -51,7 +51,7 @@ void PrintUsage() {
        << "Options:\n"
        << "  -h, --help           Show this help message\n"
        << "  -i, --ip <IP>        Set server IP (default: localhost)\n"
-       << "  -p, --port <PORT>    Set server port (default: 50051)\n"
+       << "  -p, --port <PORT>    Set server port (default: 40000)\n"
        << "  -c, --city <CITY>    Set city name for weather query (default: Denver)\n";
 }
 
@@ -60,7 +60,7 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   string ip = "localhost";
-  string port = "50051";
+  string port = "40000";
   string city = "Denver";
 
   struct option long_options[] = {
