@@ -23,3 +23,14 @@ cc_binary(
         "@protobuf//:protobuf",
     ],
 )
+
+cc_binary(
+    name = "profile_client",
+    srcs = ["profile_client.cpp"],
+    deps = [
+        "//protos:profile_cc",
+        "//protos:profile_cc_grpc",
+        "@grpc//:grpc++",
+        "@protobuf//:protobuf",
+    ],
+)

@@ -1,10 +1,12 @@
 #include <getopt.h>
+
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/recommender_engine.grpc.pb.h"
+#include "protos/profile.grpc.pb.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -13,30 +15,30 @@ using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::recommender_engine::RecommendRequest;
-using ::recommender_engine::RecommendResponse;
+using ::recommender_engine::GetProfileRequest;
+using ::recommender_engine::GetProfileResponse;
 
 namespace recommender_engine {
 namespace {
 
-class RecommenderEngineClient {
+class ProfileClient {
  public:
-  explicit RecommenderEngineClient(shared_ptr<Channel> channel)
-      : stub_(Gateway::NewStub(channel)) {}
+  explicit ProfileClient(shared_ptr<Channel> channel)
+      : stub_(ProfileService::NewStub(channel)) {}
 
-  void Recommend(int user_id) {
-    RecommendRequest request;
-    request.set_request_id("ABCDE-10155");
+  void GetProfile(int user_id) {
+    GetProfileRequest request;
+    request.set_request_id("ABCDE-10156");
     request.set_user_id(user_id);
 
-    RecommendResponse response;
+    GetProfileResponse response;
     ClientContext context;
 
-    const Status status = stub_->Recommend(&context, request, &response);
+    const Status status = stub_->GetProfile(&context, request, &response);
 
     if (status.ok()) {
       cout << ::std::endl;
-      cout << "Recommend result: " << ::std::endl;
+      cout << "Profile result:" << ::std::endl;
       cout << response.DebugString() << ::std::endl;
       cout << ::std::endl;
     } else {
@@ -46,16 +48,16 @@ class RecommenderEngineClient {
   }
 
  private:
-  unique_ptr<Gateway::Stub> stub_;
+  unique_ptr<ProfileService::Stub> stub_;
 };
 
 void PrintUsage() {
-  cout << "Usage: recommender_engine_client [options]\n"
+  cout << "Usage: profile_client [options]\n"
        << "Options:\n"
        << "  -h, --help              Show this help message\n"
        << "  -i, --ip <IP>           Set server IP (default: localhost)\n"
-       << "  -p, --port <PORT>       Set server port (default: 50051)\n"
-       << "  -u, --user-id <USER_ID> Set user ID to recommend (default: 1001)\n";
+       << "  -p, --port <PORT>       Set server port (default: 50052)\n"
+       << "  -u, --user-id <USER_ID> Set user ID to query (default: 1001)\n";
 }
 
 }  // namespace
@@ -63,15 +65,16 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   string ip = "localhost";
-  string port = "50051";
+  string port = "50052";
   int user_id = 1001;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
       {"ip", required_argument, nullptr, 'i'},
       {"port", required_argument, nullptr, 'p'},
-      {"user_id", required_argument, nullptr, 'u'},
-      {0, 0, 0, 0}};
+      {"user-id", required_argument, nullptr, 'u'},
+      {0, 0, 0, 0},
+  };
 
   int opt;
   int option_index = 0;
@@ -107,11 +110,11 @@ int main(int argc, char** argv) {
   const string target_str = ip + ":" + port;
 
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
-  cout << "Recommend for user: " << user_id << ::std::endl << ::std::endl;
+  cout << "Fetching profile for user: " << user_id << ::std::endl << ::std::endl;
 
-  recommender_engine::RecommenderEngineClient client(
+  recommender_engine::ProfileClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.Recommend(user_id);
+  client.GetProfile(user_id);
 
   return 0;
 }
