@@ -1,6 +1,8 @@
 #include "pb_data_handler.h"
-#include <google/protobuf/util/json_util.h>
+
 #include <fstream>
+
+#include <google/protobuf/util/json_util.h>
 
 using string = ::std::string;
 using Message = ::google::protobuf::Message;

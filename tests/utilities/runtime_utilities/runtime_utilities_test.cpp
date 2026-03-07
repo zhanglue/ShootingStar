@@ -2,7 +2,8 @@
 #include <optional>
 #include <string>
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace {

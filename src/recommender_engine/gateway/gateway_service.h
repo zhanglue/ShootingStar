@@ -1,7 +1,8 @@
 #pragma once
 
-#include <grpcpp/grpcpp.h>
 #include <unordered_map>
+
+#include <grpcpp/grpcpp.h>
 
 #include "protos/recommender_engine.grpc.pb.h"
 

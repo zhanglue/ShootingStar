@@ -1,7 +1,8 @@
 #include <getopt.h>
-#include <grpcpp/grpcpp.h>
 #include <iostream>
 #include <memory>
+
+#include <grpcpp/grpcpp.h>
 
 #include "protos/recommender_engine.grpc.pb.h"
 

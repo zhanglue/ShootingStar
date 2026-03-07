@@ -1,8 +1,9 @@
 #ifndef WEATHER_FETCHER_SERVICE_H
 #define WEATHER_FETCHER_SERVICE_H
 
-#include <grpcpp/grpcpp.h>
 #include <unordered_map>
+
+#include <grpcpp/grpcpp.h>
 
 #include "protos/weather_fetcher.grpc.pb.h"
 

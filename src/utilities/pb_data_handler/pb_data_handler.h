@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+
 #include <google/protobuf/message.h>
 
 namespace shooting_star {
