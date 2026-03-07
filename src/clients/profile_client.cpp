@@ -15,10 +15,10 @@ using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::recommender_engine::GetProfileRequest;
-using ::recommender_engine::GetProfileResponse;
+using ::recommendation_engine::GetProfileRequest;
+using ::recommendation_engine::GetProfileResponse;
 
-namespace recommender_engine {
+namespace recommendation_engine {
 namespace {
 
 class ProfileClient {
@@ -61,7 +61,7 @@ void PrintUsage() {
 }
 
 }  // namespace
-}  // namespace recommender_engine
+}  // namespace recommendation_engine
 
 int main(int argc, char** argv) {
   string ip = "localhost";
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
   while ((opt = getopt_long(argc, argv, "hi:p:u:", long_options, &option_index)) != -1) {
     switch (opt) {
       case 'h':
-        recommender_engine::PrintUsage();
+        recommendation_engine::PrintUsage();
         return 0;
       case 'i':
         ip = optarg;
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
         }
         break;
       default:
-        recommender_engine::PrintUsage();
+        recommendation_engine::PrintUsage();
         return 1;
     }
   }
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Fetching profile for user: " << user_id << ::std::endl << ::std::endl;
 
-  recommender_engine::ProfileClient client(
+  recommendation_engine::ProfileClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
   client.GetProfile(user_id);
 

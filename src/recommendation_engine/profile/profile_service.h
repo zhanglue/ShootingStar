@@ -3,9 +3,9 @@
 #include <grpcpp/grpcpp.h>
 
 #include "protos/profile.grpc.pb.h"
-#include "src/recommender_engine/profile/profile_store.h"
+#include "src/recommendation_engine/profile/profile_store.h"
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 class ProfileServiceImpl final : public ProfileService::Service {
  public:
@@ -19,4 +19,4 @@ class ProfileServiceImpl final : public ProfileService::Service {
   const ProfileStore* profile_store_;
 };
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

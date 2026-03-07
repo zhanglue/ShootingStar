@@ -14,7 +14,7 @@ namespace shooting_star {
 namespace utilities {
 namespace {
 
-using ::recommender_engine::Profile;
+using ::recommendation_engine::Profile;
 using ::shooting_star::utilities::PBDataHandler;
 namespace fs = ::std::filesystem;
 using ::google::protobuf::Struct;

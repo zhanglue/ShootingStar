@@ -1,4 +1,4 @@
-package(default_visibility = ["//src/recommender_engine/gate_way:__pkg__"])
+package(default_visibility = ["//src/recommendation_engine/gateway:__pkg__"])
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
 
@@ -13,8 +13,8 @@ cc_library(
     deps = [
         "//protos:profile_cc",
         "//protos:profile_cc_grpc",
-        "//protos:recommender_engine_cc",
-        "//protos:recommender_engine_cc_grpc",
+        "//protos:recommendation_engine_cc",
+        "//protos:recommendation_engine_cc_grpc",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
     ],

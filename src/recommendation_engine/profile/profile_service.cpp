@@ -1,8 +1,8 @@
-#include "src/recommender_engine/profile/profile_service.h"
+#include "src/recommendation_engine/profile/profile_service.h"
 
 #include <format>
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 using ::grpc::ServerContext;
 using ::grpc::Status;
@@ -37,4 +37,4 @@ Status ProfileServiceImpl::GetProfile(ServerContext* context,
   return Status::OK;
 }
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

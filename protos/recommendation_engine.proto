@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package recommender_engine;
+package recommendation_engine;
 
 import "protos/profile.proto";
 

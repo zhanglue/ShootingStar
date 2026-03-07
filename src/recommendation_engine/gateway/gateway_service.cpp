@@ -1,8 +1,8 @@
-#include "src/recommender_engine/gateway/gateway_service.h"
+#include "src/recommendation_engine/gateway/gateway_service.h"
 
 #include <format>
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 using ::grpc::ClientContext;
 using ::grpc::Status;
@@ -71,4 +71,4 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
   return ::grpc::Status::OK;
 }
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

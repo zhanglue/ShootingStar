@@ -3,9 +3,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "src/recommender_engine/profile/profile_store.h"
+#include "src/recommendation_engine/profile/profile_store.h"
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 using UserIdProfileMap = ::std::unordered_map<int, Profile>;
 
@@ -21,4 +21,4 @@ class LocalFileProfileStore final : public ProfileStore {
   UserIdProfileMap profiles_;
 };
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

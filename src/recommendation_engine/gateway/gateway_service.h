@@ -5,9 +5,9 @@
 #include <grpcpp/grpcpp.h>
 
 #include "protos/profile.grpc.pb.h"
-#include "protos/recommender_engine.grpc.pb.h"
+#include "protos/recommendation_engine.grpc.pb.h"
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 class GatewayServiceImpl final : public Gateway::Service {
  public:
@@ -24,4 +24,4 @@ class GatewayServiceImpl final : public Gateway::Service {
   ::std::unique_ptr<ProfileService::Stub> profile_stub_;
 };
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

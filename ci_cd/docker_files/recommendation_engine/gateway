@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-COPY binaries/src/recommender_engine/gateway/gateway_bin /app/gateway
+COPY binaries/src/recommendation_engine/gateway/gateway_bin /app/gateway
 
 WORKDIR /app
 

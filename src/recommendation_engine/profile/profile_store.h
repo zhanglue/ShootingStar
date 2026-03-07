@@ -2,7 +2,7 @@
 
 #include "protos/profile.pb.h"
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 class ProfileStore {
  public:
@@ -11,4 +11,4 @@ class ProfileStore {
   virtual const Profile* FindByUserId(int user_id) const = 0;
 };
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

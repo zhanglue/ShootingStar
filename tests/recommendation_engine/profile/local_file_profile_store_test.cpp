@@ -3,10 +3,10 @@
 
 #include <gtest/gtest.h>
 
-#include "src/recommender_engine/profile/local_file_profile_store.h"
+#include "src/recommendation_engine/profile/local_file_profile_store.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommender_engine {
+namespace recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
@@ -19,7 +19,7 @@ class LocalFileProfileStoreTest : public ::testing::Test {
   }
 
   static constexpr const char* kProfileDataRelativePath =
-      "tests/testdata/recommender_engine/profile/demo_profiles.json";
+      "tests/testdata/recommendation_engine/profile/demo_profiles.json";
 
   string profile_data_path_;
 };
@@ -48,4 +48,4 @@ TEST_F(LocalFileProfileStoreTest, ThrowsWhenJsonFileDoesNotExist) {
 }
 
 }  // namespace
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

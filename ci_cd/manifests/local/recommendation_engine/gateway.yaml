@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: recommender-engine
+  namespace: recommendation-engine
   name: gateway
 spec:
   replicas: 1
@@ -17,7 +17,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
       - name: gateway
-        image: recommender-engine-gateway:latest
+        image: recommendation-engine-gateway:latest
         imagePullPolicy: Never
         resources:
           requests:
@@ -33,7 +33,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: recommender-engine
+  namespace: recommendation-engine
   name: gateway
 spec:
   type: LoadBalancer

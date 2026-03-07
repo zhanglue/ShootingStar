@@ -52,21 +52,21 @@ cc_grpc_library(
     deps = [":profile_cc"],
 )
 
-# RecommenderEngine
+# RecommendationEngine
 proto_library(
-    name = "recommender_engine_proto",
-    srcs = ["recommender_engine.proto"],
+    name = "recommendation_engine_proto",
+    srcs = ["recommendation_engine.proto"],
     deps = [":profile_proto"],
 )
 
 cc_proto_library(
-    name = "recommender_engine_cc",
-    deps = [":recommender_engine_proto"],
+    name = "recommendation_engine_cc",
+    deps = [":recommendation_engine_proto"],
 )
 
 cc_grpc_library(
-    name = "recommender_engine_cc_grpc",
-    srcs = ["recommender_engine_proto"],
+    name = "recommendation_engine_cc_grpc",
+    srcs = ["recommendation_engine_proto"],
     grpc_only = True,
-    deps = [":recommender_engine_cc"],
+    deps = [":recommendation_engine_cc"],
 )

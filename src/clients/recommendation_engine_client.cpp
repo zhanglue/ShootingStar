@@ -4,7 +4,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/recommender_engine.grpc.pb.h"
+#include "protos/recommendation_engine.grpc.pb.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -13,15 +13,15 @@ using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::recommender_engine::RecommendRequest;
-using ::recommender_engine::RecommendResponse;
+using ::recommendation_engine::RecommendRequest;
+using ::recommendation_engine::RecommendResponse;
 
-namespace recommender_engine {
+namespace recommendation_engine {
 namespace {
 
-class RecommenderEngineClient {
+class RecommendationEngineClient {
  public:
-  explicit RecommenderEngineClient(shared_ptr<Channel> channel)
+  explicit RecommendationEngineClient(shared_ptr<Channel> channel)
       : stub_(Gateway::NewStub(channel)) {}
 
   void Recommend(int user_id) {
@@ -50,7 +50,7 @@ class RecommenderEngineClient {
 };
 
 void PrintUsage() {
-  cout << "Usage: recommender_engine_client [options]\n"
+  cout << "Usage: recommendation_engine_client [options]\n"
        << "Options:\n"
        << "  -h, --help              Show this help message\n"
        << "  -i, --ip <IP>           Set server IP (default: localhost)\n"
@@ -59,7 +59,7 @@ void PrintUsage() {
 }
 
 }  // namespace
-}  // namespace recommender_engine
+}  // namespace recommendation_engine
 
 int main(int argc, char** argv) {
   string ip = "localhost";
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
   while ((opt = getopt_long(argc, argv, "hi:p:u:", long_options, &option_index)) != -1) {
     switch (opt) {
       case 'h':
-        recommender_engine::PrintUsage();
+        recommendation_engine::PrintUsage();
         return 0;
       case 'i':
         ip = optarg;
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
         }
         break;
       default:
-        recommender_engine::PrintUsage();
+        recommendation_engine::PrintUsage();
         return 1;
     }
   }
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Recommend for user: " << user_id << ::std::endl << ::std::endl;
 
-  recommender_engine::RecommenderEngineClient client(
+  recommendation_engine::RecommendationEngineClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
   client.Recommend(user_id);
 

@@ -1,4 +1,4 @@
-#include "src/recommender_engine/profile/local_file_profile_store.h"
+#include "src/recommendation_engine/profile/local_file_profile_store.h"
 
 #include <fstream>
 #include <stdexcept>
@@ -9,7 +9,7 @@
 
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
 
-namespace recommender_engine {
+namespace recommendation_engine {
 
 using ::google::protobuf::ListValue;
 using ::google::protobuf::Value;
@@ -80,4 +80,4 @@ const Profile* LocalFileProfileStore::FindByUserId(int user_id) const {
   return &it->second;
 }
 
-}  // namespace recommender_engine
+}  // namespace recommendation_engine

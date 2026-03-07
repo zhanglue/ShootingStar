@@ -10,7 +10,7 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_format.h"
 
-#include "src/recommender_engine/gateway/gateway_service.h"
+#include "src/recommendation_engine/gateway/gateway_service.h"
 
 ABSL_FLAG(uint16_t, port, 50000, "Server port for the service");
 ABSL_FLAG(::std::string, profile_service_host, "localhost", "Profile service host");
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   const ::std::string profile_service_address =
       absl::StrFormat("%s:%d", absl::GetFlag(FLAGS_profile_service_host),
                       absl::GetFlag(FLAGS_profile_service_port));
-  recommender_engine::GatewayServiceImpl service(
+  recommendation_engine::GatewayServiceImpl service(
       grpc::CreateChannel(profile_service_address, grpc::InsecureChannelCredentials()));
 
   grpc::EnableDefaultHealthCheckService(true);

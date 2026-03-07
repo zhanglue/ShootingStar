@@ -11,9 +11,9 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_format.h"
 
-#include "src/recommender_engine/profile/local_file_profile_store.h"
-#include "src/recommender_engine/profile/profile_service.h"
-#include "src/recommender_engine/profile/profile_store.h"
+#include "src/recommendation_engine/profile/local_file_profile_store.h"
+#include "src/recommendation_engine/profile/profile_service.h"
+#include "src/recommendation_engine/profile/profile_store.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::std::string;
@@ -27,16 +27,16 @@ ABSL_FLAG(
 ABSL_FLAG(
     ::std::string,
     profile_data_path,
-    "tests/testdata/recommender_engine/profile/demo_profiles.json",
+    "tests/testdata/recommendation_engine/profile/demo_profiles.json",
     "Path to the profile data JSON file.");
 
 namespace {
 
-::std::unique_ptr<::recommender_engine::ProfileStore> CreateProfileStore(
+::std::unique_ptr<::recommendation_engine::ProfileStore> CreateProfileStore(
     const string& profile_store_type,
     const string& profile_data_path) {
   if (profile_store_type == "local") {
-    return ::std::make_unique<::recommender_engine::LocalFileProfileStore>(profile_data_path);
+    return ::std::make_unique<::recommendation_engine::LocalFileProfileStore>(profile_data_path);
   }
 
   throw ::std::invalid_argument(
@@ -54,9 +54,9 @@ int main(int argc, char** argv) {
   const string profile_store_type = ::absl::GetFlag(FLAGS_profile_store_type);
 
   try {
-    ::std::unique_ptr<::recommender_engine::ProfileStore> profile_store =
+    ::std::unique_ptr<::recommendation_engine::ProfileStore> profile_store =
         CreateProfileStore(profile_store_type, profile_data_path);
-    ::recommender_engine::ProfileServiceImpl service(profile_store.get());
+    ::recommendation_engine::ProfileServiceImpl service(profile_store.get());
 
     ::grpc::EnableDefaultHealthCheckService(true);
     ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
