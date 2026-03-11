@@ -1,5 +1,6 @@
 #include <cstdlib>
-#include <optional>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -10,24 +11,32 @@ namespace shooting_star {
 namespace utilities {
 namespace {
 
+using std::getenv;
+using std::ofstream;
+using std::string;
+using std::filesystem::absolute;
+using std::filesystem::create_directories;
+using std::filesystem::current_path;
+using std::filesystem::path;
+using std::filesystem::weakly_canonical;
+
 class RuntimeUtilitiesTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    const char* workspace_dir = ::std::getenv("BUILD_WORKSPACE_DIRECTORY");
-    if (workspace_dir != nullptr) {
-      original_workspace_dir_ = workspace_dir;
+  path GetTestRoot(const string& name) const {
+    const char* test_tmpdir = getenv("TEST_TMPDIR");
+    EXPECT_NE(test_tmpdir, nullptr);
+    if (test_tmpdir == nullptr) {
+      return current_path() / name;
     }
+    return path(test_tmpdir) / name;
   }
 
-  void TearDown() override {
-    if (original_workspace_dir_.has_value()) {
-      ASSERT_EQ(setenv("BUILD_WORKSPACE_DIRECTORY", original_workspace_dir_->c_str(), 1), 0);
-    } else {
-      ASSERT_EQ(unsetenv("BUILD_WORKSPACE_DIRECTORY"), 0);
-    }
+  void CreateFile(const path& file_path) {
+    create_directories(file_path.parent_path());
+    ofstream fout(file_path);
+    ASSERT_TRUE(fout.is_open());
+    fout << "{}";
   }
-
-  ::std::optional<::std::string> original_workspace_dir_;
 };
 
 TEST_F(RuntimeUtilitiesTest, ReturnsConfiguredPathWhenProvided) {
@@ -36,20 +45,44 @@ TEST_F(RuntimeUtilitiesTest, ReturnsConfiguredPathWhenProvided) {
       "/tmp/profiles.json");
 }
 
-TEST_F(RuntimeUtilitiesTest, UsesWorkspaceDirectoryWhenEnvironmentVariableExists) {
-  ASSERT_EQ(setenv("BUILD_WORKSPACE_DIRECTORY", "/workspace/shooting_star", 1), 0);
+TEST_F(RuntimeUtilitiesTest, ResolvesPathRelativeToExecutableDirectoryParents) {
+  const path test_root = GetTestRoot("runtime_utilities_executable_root");
+  const path executable_path = test_root / "AAA/BBB/CCC/profile_server";
+  const path expected_path =
+      test_root / "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+  CreateFile(expected_path);
 
   EXPECT_EQ(
-      ResolveWorkspaceRelativePath("tests/testdata/recommendation_engine/profile/demo_profiles.json"),
-      "/workspace/shooting_star/tests/testdata/recommendation_engine/profile/demo_profiles.json");
+      ResolveWorkspaceRelativePath(
+          "tests/testdata/recommendation_engine/profile/demo_profiles.json",
+          executable_path.string()),
+      expected_path.lexically_normal().string());
 }
 
-TEST_F(RuntimeUtilitiesTest, FallsBackToRelativePathWhenEnvironmentVariableIsMissing) {
-  ASSERT_EQ(unsetenv("BUILD_WORKSPACE_DIRECTORY"), 0);
+TEST_F(RuntimeUtilitiesTest, FallsBackToExecutableDirectoryWhenNoCandidateExists) {
+  EXPECT_EQ(
+      ResolveWorkspaceRelativePath(
+          "profiles/demo_profiles.json",
+          "AAA/BBB/CCC/profile_server"),
+      (absolute("AAA/BBB/CCC") / "profiles/demo_profiles.json")
+          .lexically_normal()
+          .string());
+}
 
+TEST_F(RuntimeUtilitiesTest, ResolvesPathRelativeToCurrentDirectoryParents) {
+  const path test_root = GetTestRoot("runtime_utilities_current_path_root");
+  const path original_cwd = current_path();
+  const path nested_cwd = test_root / "DDD/EEE/FFF";
+  const path expected_path =
+      test_root / "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+  CreateFile(expected_path);
+  create_directories(nested_cwd);
+
+  current_path(nested_cwd);
   EXPECT_EQ(
       ResolveWorkspaceRelativePath("tests/testdata/recommendation_engine/profile/demo_profiles.json"),
-      "tests/testdata/recommendation_engine/profile/demo_profiles.json");
+      weakly_canonical(expected_path).string());
+  current_path(original_cwd);
 }
 
 }  // namespace
