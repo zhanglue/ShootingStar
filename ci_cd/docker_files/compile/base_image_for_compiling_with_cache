@@ -2,4 +2,4 @@ FROM shooting-star-base
 
 WORKDIR /ShootingStar
 
-RUN bazel build //src/weather_fetcher:all
+RUN bazel build //src/weather_forecast/weather_fetcher:all
