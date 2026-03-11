@@ -7,17 +7,18 @@ FLAG_REBUILD_BASE_IMAGE='false'
 
 DOCKERFILE_PATH_BASE="${REPO_ROOT_PATH}/ci_cd/docker_files/compile/base_image_for_compiling"
 DOCKERFILE_PATH_BASE_WITH_CACHE="${REPO_ROOT_PATH}/ci_cd/docker_files/compile/base_image_for_compiling_with_cache"
-BASE_IMAGE_NAME="shooting-star-base"
-IMAGE_TAG_COMPILE_BASE="compile-base"
-IMAGE_TAG_COMPILE_BASE_WITH_CACHE="compile-base-cached"
-CONTAINER_NAME="shooting-star-img-building"
+BASE_IMAGE_NAME='shooting-star-base'
+IMAGE_TAG_COMPILE_BASE='compile-base'
+IMAGE_TAG_COMPILE_BASE_WITH_CACHE='compile-base-cached'
+CONTAINER_NAME='shooting-star-base-img-building'
+BASE_TARGET='//src/recommendation_engine/gateway:gateway_bin'
 
 _start_docker_container() {
     image_name=$1
     image_tag=$2
     echo_info "Starting Docker container ${image_name}:${image_tag} with command..."
 
-    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar && bazel build //src/weather_fetcher:all")
+    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar && bazel build ${BASE_TARGET}")
     echo "${container_run_cmd[@]}"
     "${container_run_cmd[@]}"
     if [[ $? != 0 ]]; then
@@ -66,6 +67,8 @@ _main_flow() {
     _start_docker_container ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE}
     echo
     commit_container ${CONTAINER_NAME} ${BASE_IMAGE_NAME} ${IMAGE_TAG_COMPILE_BASE_WITH_CACHE}
+    echo
+    remove_container ${CONTAINER_NAME}
 }
 
 while [[ "$#" -gt 0 ]]; do
