@@ -1,17 +1,17 @@
-#ifndef WEATHER_FETCHER_SERVICE_H
-#define WEATHER_FETCHER_SERVICE_H
+#ifndef FETCHER_SERVICE_H
+#define FETCHER_SERVICE_H
 
 #include <unordered_map>
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/weather_fetcher.grpc.pb.h"
+#include "protos/weather_forecast/fetcher.grpc.pb.h"
 
 namespace weather_flow {
 
-class WeatherFetcherServiceImpl final : public WeatherFetcher::Service {
+class FetcherServiceImpl final : public Fetcher::Service {
  public:
-  WeatherFetcherServiceImpl();
+  FetcherServiceImpl();
   grpc::Status GetWeather(grpc::ServerContext* context,
                           const GetWeatherRequest* request,
                           GetWeatherResponse* response) override;
@@ -22,4 +22,4 @@ class WeatherFetcherServiceImpl final : public WeatherFetcher::Service {
 
 }  // namespace weather_flow
 
-#endif  // WEATHER_FETCHER_SERVICE_H
+#endif  // FETCHER_SERVICE_H

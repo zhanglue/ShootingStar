@@ -10,9 +10,9 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_format.h"
 
-#include "src/weather_forecast/weather_fetcher/weather_fetcher_service.h"
+#include "src/weather_forecast/fetcher/fetcher_service.h"
 
-ABSL_FLAG(uint16_t, port, 50051, "Server port for the service");
+ABSL_FLAG(uint16_t, port, 40000, "Server port for the service");
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
 
   string server_address = absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
-  weather_flow::WeatherFetcherServiceImpl service;
+  weather_flow::FetcherServiceImpl service;
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();

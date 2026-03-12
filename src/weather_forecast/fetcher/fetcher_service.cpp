@@ -1,4 +1,4 @@
-#include "src/weather_forecast/weather_fetcher/weather_fetcher_service.h"
+#include "src/weather_forecast/fetcher/fetcher_service.h"
 
 #include <iostream>
 #include <memory>
@@ -12,7 +12,7 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_format.h"
 
-#include "protos/weather_fetcher.grpc.pb.h"
+#include "protos/weather_forecast/fetcher.grpc.pb.h"
 
 namespace weather_flow {
 
@@ -24,19 +24,19 @@ using grpc::StatusCode;
 using std::cout;
 using std::endl;
 using std::string;
-using weather_flow::WeatherFetcher;
+using weather_flow::Fetcher;
 using weather_flow::GetWeatherRequest;
 using weather_flow::GetWeatherResponse;
 
 // Hardcoded weather data for cities.
-WeatherFetcherServiceImpl::WeatherFetcherServiceImpl() {
+FetcherServiceImpl::FetcherServiceImpl() {
   weather_data_map_["San Francisco"] = WeatherData::SUNNY;
   weather_data_map_["New York"] = WeatherData::CLOUDY;
   weather_data_map_["Seattle"] = WeatherData::RAINY;
   weather_data_map_["Denver"] = WeatherData::SNOWY;
 }
 
-Status WeatherFetcherServiceImpl::GetWeather(
+Status FetcherServiceImpl::GetWeather(
     ServerContext* context,
     const GetWeatherRequest* request,
     GetWeatherResponse* response) {

@@ -1,19 +1,19 @@
-package(default_visibility = ["//src/weather_forecast/weather_fetcher:__pkg__"])
+package(default_visibility = ["//src/weather_forecast/fetcher:__pkg__"])
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
 
 cc_library(
-    name = "weather_fetcher_service",
+    name = "fetcher_service",
     srcs = [
-        "weather_fetcher_service.cpp",
+        "fetcher_service.cpp",
     ],
     hdrs = [
-        "weather_fetcher_service.h",
+        "fetcher_service.h",
     ],
     deps = [
-        "//protos:weather_data_cc",
-        "//protos:weather_fetcher_cc",
-        "//protos:weather_fetcher_cc_grpc",
+        "//protos/weather_forecast:weather_data_cc",
+        "//protos/weather_forecast:fetcher_cc",
+        "//protos/weather_forecast:fetcher_cc_grpc",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
         "@abseil-cpp//absl/flags:flag",
@@ -23,12 +23,12 @@ cc_library(
 )
 
 cc_binary(
-    name = "weather_fetcher",
+    name = "fetcher_bin",
     srcs = [
         "main.cpp",
     ],
     deps = [
-        ":weather_fetcher_service",
+        ":fetcher_service",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
         "@abseil-cpp//absl/flags:flag",
