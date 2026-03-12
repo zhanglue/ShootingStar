@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package recommendation_engine;
 
-import "protos/profile.proto";
+import "protos/recommendation_engine/profile.proto";
 
-enum RecommenderStatus {
+enum RecommendationStatus {
   SUCCESS = 0;
   INVALID_REQUEST = 1;
   USER_NOT_FOUND = 2;
@@ -21,7 +21,7 @@ message RecommendRequest {
 }
 
 message RecommendResponse {
-  RecommenderStatus status = 1;
+  RecommendationStatus status = 1;
   RecommendRequest request = 2;
   Profile profile = 3;
 }

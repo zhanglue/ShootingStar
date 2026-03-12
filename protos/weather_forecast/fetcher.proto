@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package weather_flow;
 
-import "protos/weather_data.proto";
+import "protos/weather_forecast/weather_data.proto";
 
-service WeatherFetcher {
+service Fetcher {
   rpc GetWeather (GetWeatherRequest) returns (GetWeatherResponse);
 }
 
