@@ -43,6 +43,19 @@ check_kubectl_is_available() {
     fi
 }
 
+is_docker_image_in_use() {
+    image_name=$1
+    image_tag=$2
+
+    result=$(${DOCKER_CMD} container list --all --filter "ancestor=${image_name}:${image_tag}" --format '{{.ID}}' | wc -l)
+    result=$(echo "${result}" | tr -d '[:space:]')
+    if (( result > 0 )); then
+        return 1
+    fi
+
+    return 0
+}
+
 build_docker_image() {
     dockerfile_path=$1
     image_name=$2
