@@ -2,7 +2,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/profile.grpc.pb.h"
+#include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/recommendation_engine/profile/profile_store.h"
 
 namespace recommendation_engine {

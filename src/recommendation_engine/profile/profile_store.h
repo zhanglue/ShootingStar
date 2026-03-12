@@ -1,6 +1,6 @@
 #pragma once
 
-#include "protos/profile.pb.h"
+#include "protos/recommendation_engine/profile.pb.h"
 
 namespace recommendation_engine {
 

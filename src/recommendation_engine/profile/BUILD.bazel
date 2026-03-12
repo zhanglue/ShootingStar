@@ -14,8 +14,8 @@ cc_library(
         "profile_store.h",
     ],
     deps = [
-        "//protos:profile_cc",
-        "//protos:profile_cc_grpc",
+        "//protos/recommendation_engine:profile_cc",
+        "//protos/recommendation_engine:profile_cc_grpc",
         "//src/utilities/pb_data_handler:pb_data_handler",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",

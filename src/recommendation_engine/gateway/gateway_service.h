@@ -4,8 +4,8 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/profile.grpc.pb.h"
-#include "protos/recommendation_engine.grpc.pb.h"
+#include "protos/recommendation_engine/profile.grpc.pb.h"
+#include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
 
 namespace recommendation_engine {
 
@@ -19,7 +19,7 @@ class GatewayServiceImpl final : public Gateway::Service {
 
  private:
   ::grpc::Status FetchProfile(const RecommendRequest& request, Profile* profile,
-                              RecommenderStatus* recommender_status) const;
+                              RecommendationStatus* recommendation_status) const;
 
   ::std::unique_ptr<ProfileService::Stub> profile_stub_;
 };

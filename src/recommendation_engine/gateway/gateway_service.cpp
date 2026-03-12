@@ -20,16 +20,16 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
 
   response->mutable_request()->CopyFrom(*request);
 
-  RecommenderStatus recommender_status = RecommenderStatus::SYSTEM_ERROR;
-  Status status = FetchProfile(*request, response->mutable_profile(), &recommender_status);
-  response->set_status(recommender_status);
+  RecommendationStatus recommendation_status = RecommendationStatus::SYSTEM_ERROR;
+  Status status = FetchProfile(*request, response->mutable_profile(), &recommendation_status);
+  response->set_status(recommendation_status);
   return status;
 }
 
 ::grpc::Status GatewayServiceImpl::FetchProfile(const RecommendRequest& request, Profile* profile,
-                                                RecommenderStatus* recommender_status) const {
+                                                RecommendationStatus* recommendation_status) const {
   if (profile_stub_ == nullptr) {
-    *recommender_status = RecommenderStatus::SYSTEM_ERROR;
+    *recommendation_status = RecommendationStatus::SYSTEM_ERROR;
     return Status(StatusCode::INTERNAL, "Profile service client is not initialized.");
   }
 
@@ -45,20 +45,20 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
   if (!profile_status.ok()) {
     if (profile_status.error_code() == StatusCode::NOT_FOUND ||
         profile_response.status() == ProfileServiceStatus::PROFILE_USER_NOT_FOUND) {
-      *recommender_status = RecommenderStatus::USER_NOT_FOUND;
+      *recommendation_status = RecommendationStatus::USER_NOT_FOUND;
       return Status(StatusCode::NOT_FOUND, format("User ID of {} not found.", request.user_id()));
     }
 
-    *recommender_status = RecommenderStatus::SYSTEM_ERROR;
+    *recommendation_status = RecommendationStatus::SYSTEM_ERROR;
     return Status(StatusCode::INTERNAL,
                   format("Failed to fetch profile for user {}: {}", request.user_id(),
                          profile_status.error_message()));
   }
 
   if (profile_response.status() != ProfileServiceStatus::PROFILE_SUCCESS) {
-    *recommender_status = profile_response.status() == ProfileServiceStatus::PROFILE_USER_NOT_FOUND
-                              ? RecommenderStatus::USER_NOT_FOUND
-                              : RecommenderStatus::SYSTEM_ERROR;
+    *recommendation_status = profile_response.status() == ProfileServiceStatus::PROFILE_USER_NOT_FOUND
+                                 ? RecommendationStatus::USER_NOT_FOUND
+                                 : RecommendationStatus::SYSTEM_ERROR;
     return Status(profile_response.status() == ProfileServiceStatus::PROFILE_USER_NOT_FOUND
                       ? StatusCode::NOT_FOUND
                       : StatusCode::INTERNAL,
@@ -66,7 +66,7 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
                          static_cast<int>(profile_response.status()), request.user_id()));
   }
 
-  *recommender_status = RecommenderStatus::SUCCESS;
+  *recommendation_status = RecommendationStatus::SUCCESS;
   profile->CopyFrom(profile_response.profile());
   return ::grpc::Status::OK;
 }
