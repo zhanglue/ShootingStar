@@ -1,18 +1,18 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: recommendation-engine-client
+  name: recommendation-engine-gateway-client
   namespace: recommendation-engine
 spec:
   template:
     metadata:
       labels:
-        app: recommendation-engine-client
+        app: recommendation-engine-gateway-client
     spec:
       restartPolicy: Never
       containers:
-      - name: recommendation-engine-client
-        image: recommendation-engine-client:latest
+      - name: recommendation-engine-gateway-client
+        image: recommendation-engine-gateway-client:latest
         imagePullPolicy: Never
         resources:
           requests:

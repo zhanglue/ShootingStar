@@ -1,0 +1,7 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/clients/profile_client /app/profile_client
+
+WORKDIR /app
+
+ENTRYPOINT ["/app/profile_client"]

@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: weather-forecast
-  name: weather-fetcher
+  name: fetcher
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: weather-fetcher
+      app: fetcher
   template:
     metadata:
       labels:
-        app: weather-fetcher
+        app: fetcher
     spec:
       nodeSelector:
         "kubernetes.io/os": linux
       containers:
-      - name: weather-fetcher
-        image: weather-fetcher:latest
+      - name: fetcher
+        image: weather-forecast-fetcher:latest
         imagePullPolicy: Never
         resources:
           requests:
@@ -34,10 +34,10 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: weather-forecast
-  name: weather-fetcher
+  name: fetcher
 spec:
   type: LoadBalancer
   ports:
   - port: 40000
   selector:
-    app: weather-fetcher
+    app: fetcher

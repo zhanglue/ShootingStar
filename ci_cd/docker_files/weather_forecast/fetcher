@@ -1,0 +1,9 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/weather_forecast/fetcher/fetcher /app/fetcher
+
+WORKDIR /app
+
+EXPOSE 40000
+
+ENTRYPOINT ["/app/fetcher"]

@@ -1,18 +1,18 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: weather-fetcher-client
+  name: weather-forecast-fetcher-client
   namespace: weather-forecast
 spec:
   template:
     metadata:
       labels:
-        app: weather-fetcher-client
+        app: weather-forecast-fetcher-client
     spec:
       restartPolicy: Never
       containers:
-      - name: weather-fetcher-client
-        image: weather-fetcher-client:latest
+      - name: weather-forecast-fetcher-client
+        image: weather-forecast-fetcher-client:latest
         imagePullPolicy: Never
         resources:
           requests:
@@ -23,6 +23,6 @@ spec:
             cpu: "1"
         args: 
         - --ip
-        - weather-fetcher.weather-forecast.svc.cluster.local
+        - fetcher.weather-forecast.svc.cluster.local
         - --port
         - "40000"
