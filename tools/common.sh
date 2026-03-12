@@ -35,6 +35,14 @@ check_docker_is_available() {
     fi
 }
 
+check_kubectl_is_available() {
+    kubectl version --client > /dev/null 2>&1
+    if [[ $? != 0 ]]; then
+        echo_error "kubectl is not installed or not available in PATH."
+        exit 2
+    fi
+}
+
 build_docker_image() {
     dockerfile_path=$1
     image_name=$2

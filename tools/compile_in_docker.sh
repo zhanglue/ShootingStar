@@ -41,9 +41,8 @@ _main_flow() {
         fi
     fi
 
-    rm ./bazel-*
+    [[ -d ./bazel-bin ]] && rm ./bazel-*
     [[ ! -d ./binaries ]] && mkdir ./binaries
-    echo
     stop_existing_docker_container_by_name ${CONTAINER_NAME}
     echo
     remove_container ${CONTAINER_NAME}
