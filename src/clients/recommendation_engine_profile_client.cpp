@@ -6,7 +6,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/profile.grpc.pb.h"
+#include "protos/recommendation_engine/profile.grpc.pb.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;

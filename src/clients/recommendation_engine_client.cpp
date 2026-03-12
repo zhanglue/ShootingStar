@@ -4,7 +4,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/recommendation_engine.grpc.pb.h"
+#include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
