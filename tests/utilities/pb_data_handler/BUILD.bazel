@@ -11,7 +11,7 @@ cc_test(
     ],
     size = "small",
     deps = [
-        "//protos:profile_cc",
+        "//protos/recommendation_engine:profile_cc",
         "//src/utilities/pb_data_handler:pb_data_handler",
         "@googletest//:gtest_main",
         "@protobuf//:protobuf",

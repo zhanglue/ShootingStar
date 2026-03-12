@@ -7,7 +7,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <gtest/gtest.h>
 
-#include "protos/profile.pb.h"
+#include "protos/recommendation_engine/profile.pb.h"
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
 
 namespace shooting_star {
