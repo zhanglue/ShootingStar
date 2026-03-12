@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pod_namespace=${1:-shooting-star}
+pod_namespace=${1:-weather-forecast}
 pod_prefix=${2:-weather-forecast-fetcher-client}
 max_retries=3
 retry_interval=3

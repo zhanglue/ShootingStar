@@ -1,7 +1,0 @@
-FROM ubuntu:24.04
-
-COPY binaries/src/clients/fetcher_client /app/fetcher_client
-
-WORKDIR /app
-
-ENTRYPOINT ["/app/fetcher_client"]
