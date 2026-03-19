@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: recommendation-engine
+  name: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: gateway
+        image: recommendation-engine-gateway:latest
+        imagePullPolicy: Never
+        args:
+        - --profile_service_host=profile.recommendation-engine.svc.cluster.local
+        - --profile_service_port=50100
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        ports:
+        - containerPort: 50000
+          name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: recommendation-engine
+  name: gateway
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 50000
+  selector:
+    app: gateway

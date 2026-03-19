@@ -1,0 +1,13 @@
+{
+  "user_id": 3001,
+  "demographics": {
+    "birth_year": 1995,
+    "gender": "female",
+    "location_id": 9
+  },
+  "session": {
+    "last_login_time": 1700000000,
+    "recent_viewed_items": [7001, 7002],
+    "recent_clicked_items": [7002]
+  }
+}

@@ -2,6 +2,9 @@ FROM ubuntu:24.04
 
 # Set non-interactive mode to avoid prompts
 ENV DEBIAN_FRONTEND=noninteractive
+ENV CC=/usr/bin/clang
+ENV CXX=/usr/bin/clang++
+ENV USE_BAZEL_VERSION=8.4.0
 
 # Set Timezone to Asia/Shanghai
 RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -47,4 +50,3 @@ WORKDIR /
 
 # Default shell
 CMD ["/bin/bash"]
-

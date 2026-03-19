@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package recommendation_engine;
+
+import "protos/recommendation_engine/profile.proto";
+
+enum RecommendationStatus {
+  SUCCESS = 0;
+  INVALID_REQUEST = 1;
+  USER_NOT_FOUND = 2;
+  SYSTEM_ERROR = 3;
+}
+
+service Gateway {
+  rpc Recommend (RecommendRequest) returns (RecommendResponse);
+}
+
+message RecommendRequest {
+  string request_id = 1;
+  int32 user_id = 2;
+}
+
+message RecommendResponse {
+  RecommendationStatus status = 1;
+  RecommendRequest request = 2;
+  Profile profile = 3;
+}

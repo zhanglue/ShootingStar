@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package recommendation_engine;
+
+enum ProfileServiceStatus {
+  PROFILE_SUCCESS = 0;
+  PROFILE_INVALID_REQUEST = 1;
+  PROFILE_USER_NOT_FOUND = 2;
+  PROFILE_SYSTEM_ERROR = 3;
+}
+
+service ProfileService {
+  rpc GetProfile (GetProfileRequest) returns (GetProfileResponse);
+}
+
+message Profile {
+  int64 user_id = 1;
+  Demographics demographics = 2;
+  SocialInfo social = 3;
+  Interests interests = 4;
+  repeated NegativeFeedback feedbacks = 5;
+  Behaviors behaviors = 6;
+  repeated EmbeddingSet embedding_sets = 7;
+  SessionContext session = 8;
+}
+
+message Demographics {
+  int32 birth_year = 1;
+  string gender = 2;
+  int32 location_id = 3;
+}
+
+message SocialInfo {
+  repeated int64 following = 1;
+  repeated int64 followers = 2;
+}
+
+message Interests {
+  repeated int32 category_ids = 1;
+  repeated int32 tag_ids = 2;
+}
+
+message NegativeFeedback {
+  string type = 1;
+  int64 target_id = 2;
+  int64 feedback_time = 3;
+  string reason = 4;
+}
+
+message Behaviors {
+  repeated int64 viewed_items = 1;
+  repeated int64 clicked_items = 2;
+  int64 active_timeframe = 3;
+}
+
+message EmbeddingSet {
+  string embedding_id = 1;
+  string description = 2;
+  repeated float vector = 3;
+  bool active = 4;
+}
+
+message SessionContext {
+  int64 last_login_time = 1;
+  repeated int64 recent_viewed_items = 2;
+  repeated int64 recent_clicked_items = 3;
+}
+
+message GetProfileRequest {
+  string request_id = 1;
+  int32 user_id = 2;
+}
+
+message GetProfileResponse {
+  ProfileServiceStatus status = 1;
+  GetProfileRequest request = 2;
+  Profile profile = 3;
+}

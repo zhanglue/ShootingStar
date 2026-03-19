@@ -35,6 +35,27 @@ check_docker_is_available() {
     fi
 }
 
+check_kubectl_is_available() {
+    kubectl version --client > /dev/null 2>&1
+    if [[ $? != 0 ]]; then
+        echo_error "kubectl is not installed or not available in PATH."
+        exit 2
+    fi
+}
+
+is_docker_image_in_use() {
+    image_name=$1
+    image_tag=$2
+
+    result=$(${DOCKER_CMD} container list --all --filter "ancestor=${image_name}:${image_tag}" --format '{{.ID}}' | wc -l)
+    result=$(echo "${result}" | tr -d '[:space:]')
+    if (( result > 0 )); then
+        return 1
+    fi
+
+    return 0
+}
+
 build_docker_image() {
     dockerfile_path=$1
     image_name=$2
@@ -89,7 +110,8 @@ is_image_existing() {
     image_tag=$2
 
     result=$(${DOCKER_CMD} images --all --format table | sed -E 's/^[[:space:]]+//; s/[[:space:]]+/ /g' | grep -- "${image_name} ${image_tag}" | wc -l)
-    if [[ $result == 0 ]]; then
+    result=$(echo "${result}" | tr -d '[:space:]')
+    if (( result == 0 )); then
         return 0
     fi
 
@@ -100,7 +122,8 @@ stop_existing_docker_container_by_image() {
     image_name=$1
     image_tag=$2
     result=$(${DOCKER_CMD} container list --all | grep -- "${image_name}:${image_tag}" | wc -l)
-    if [[ $result == 0 ]]; then
+    result=$(echo "${result}" | tr -d '[:space:]')
+    if (( result == 0 )); then
         return
     fi
 
@@ -121,7 +144,8 @@ stop_existing_docker_container_by_image() {
         sleep 3s
 
         result=$(${DOCKER_CMD} container list --all | grep -- "${image_name}:${image_tag}" | wc -l)
-        if [[ $result == 0 ]]; then
+        result=$(echo "${result}" | tr -d '[:space:]')
+        if (( result == 0 )); then
             return
         fi
 
@@ -133,7 +157,8 @@ stop_existing_docker_container_by_image() {
 stop_existing_docker_container_by_name() {
     container_name=$1
     result=$(${DOCKER_CMD} container list --all | grep -- "${container_name}" | wc -l)
-    if [[ $result == 0 ]]; then
+    result=$(echo "${result}" | tr -d '[:space:]')
+    if (( result == 0 )); then
         return
     fi
 
@@ -152,7 +177,8 @@ stop_existing_docker_container_by_name() {
         sleep 3s
 
         result=$(${DOCKER_CMD} container list --all | grep -- "${container_name}" | wc -l)
-        if [[ $result == 0 ]]; then
+        result=$(echo "${result}" | tr -d '[:space:]')
+        if (( result == 0 )); then
             return
         fi
 
@@ -164,7 +190,8 @@ stop_existing_docker_container_by_name() {
 remove_container() {
     container_name=$1
     result=$(${DOCKER_CMD} container list --all | grep -- "${container_name}" | wc -l)
-    if [[ $result == 0 ]]; then
+    result=$(echo "${result}" | tr -d '[:space:]')
+    if (( result == 0 )); then
         return
     fi
     echo_info "Removing existing Docker container ${container_name}..."
@@ -196,4 +223,3 @@ commit_container() {
 
     echo_info "Docker container ${container_name} committed as ${image_name}:${image_tag} successfully."
 }
-

@@ -1,0 +1,133 @@
+[
+  {
+    "user_id": 1001,
+    "demographics": {
+      "birth_year": 1990,
+      "gender": "male",
+      "location_id": 1
+    },
+    "social": {
+      "following": [2001, 2002, 2003],
+      "followers": [3001, 3002]
+    },
+    "interests": {
+      "category_ids": [10, 12],
+      "tag_ids": [101, 205, 330]
+    },
+    "feedbacks": [
+      {
+        "type": "category",
+        "target_id": 12,
+        "feedback_time": 1703700000,
+        "reason": "not_interested"
+      },
+      {
+        "type": "user",
+        "target_id": 3009,
+        "feedback_time": 1703710000,
+        "reason": "spammy"
+      }
+    ],
+    "behaviors": {
+      "viewed_items": [501, 502, 503],
+      "clicked_items": [502],
+      "active_timeframe": 2700
+    },
+    "embedding_sets": [
+      {
+        "embedding_id": "recall_embedding_v1",
+        "description": "multi-interest recall embedding",
+        "vector": [0.12, -0.03, 0.55, 0.4],
+        "active": true
+      }
+    ],
+    "session": {
+      "last_login_time": 1703719000,
+      "recent_viewed_items": [501],
+      "recent_clicked_items": [502]
+    }
+  },
+  {
+    "user_id": 1002,
+    "demographics": {
+      "birth_year": 1985,
+      "gender": "female",
+      "location_id": 2
+    },
+    "social": {
+      "following": [2101],
+      "followers": [3201, 3202, 3203, 3204]
+    },
+    "interests": {
+      "category_ids": [11, 14, 20],
+      "tag_ids": [150, 201]
+    },
+    "feedbacks": [
+      {
+        "type": "tag",
+        "target_id": 330,
+        "feedback_time": 1703650000,
+        "reason": "irrelevant"
+      }
+    ],
+    "behaviors": {
+      "viewed_items": [601, 602, 603, 604],
+      "clicked_items": [603],
+      "active_timeframe": 1200
+    },
+    "embedding_sets": [
+      {
+        "embedding_id": "ctr_embedding_v1",
+        "description": "CTR prediction embedding",
+        "vector": [0.02, 0.3, -0.15, 0.8],
+        "active": true
+      },
+      {
+        "embedding_id": "recall_embedding_v1",
+        "description": "expired embedding",
+        "vector": [0.11, 0.22, 0.33, 0.44],
+        "active": false
+      }
+    ],
+    "session": {
+      "last_login_time": 1703718800,
+      "recent_viewed_items": [603],
+      "recent_clicked_items": [603]
+    }
+  },
+  {
+    "user_id": 1003,
+    "demographics": {
+      "birth_year": 2000,
+      "gender": "male",
+      "location_id": 3
+    },
+    "social": {
+      "following": [],
+      "followers": [3301]
+    },
+    "interests": {
+      "category_ids": [9],
+      "tag_ids": [401, 402]
+    },
+    "feedbacks": [],
+    "behaviors": {
+      "viewed_items": [701],
+      "clicked_items": [],
+      "active_timeframe": 300
+    },
+    "embedding_sets": [
+      {
+        "embedding_id": "recall_embedding_v1",
+        "description": "basic recall embedding",
+        "vector": [0.01, -0.02, 0.03, -0.04],
+        "active": true
+      }
+    ],
+    "session": {
+      "last_login_time": 1703724000,
+      "recent_viewed_items": [701],
+      "recent_clicked_items": []
+    }
+  }
+]

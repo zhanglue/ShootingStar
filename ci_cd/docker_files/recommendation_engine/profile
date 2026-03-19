@@ -1,0 +1,10 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/recommendation_engine/profile/profile_bin /app/profile
+COPY tests/testdata/recommendation_engine/profile/demo_profiles.json /app/tests/testdata/recommendation_engine/profile/demo_profiles.json
+
+WORKDIR /app
+
+EXPOSE 50100
+
+ENTRYPOINT ["/app/profile"]

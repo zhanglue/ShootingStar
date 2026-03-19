@@ -3,22 +3,33 @@ package(default_visibility = ["//src/clients:__pkg__"])
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_binary(
-    name = "weather_fetcher_client",
-    srcs = ["weather_fetcher_client.cpp"],
+    name = "weather_forecast_fetcher_client",
+    srcs = ["weather_forecast_fetcher_client.cpp"],
     deps = [
-        "//protos:weather_fetcher_cc",
-        "//protos:weather_fetcher_cc_grpc",
+        "//protos/weather_forecast:fetcher_cc",
+        "//protos/weather_forecast:fetcher_cc_grpc",
         "@grpc//:grpc++",
         "@protobuf//:protobuf",
     ],
 )
 
 cc_binary(
-    name = "recommender_engine_client",
-    srcs = ["recommender_engine_client.cpp"],
+    name = "recommendation_engine_client",
+    srcs = ["recommendation_engine_client.cpp"],
     deps = [
-        "//protos:recommender_engine_cc",
-        "//protos:recommender_engine_cc_grpc",
+        "//protos/recommendation_engine:recommendation_engine_cc",
+        "//protos/recommendation_engine:recommendation_engine_cc_grpc",
+        "@grpc//:grpc++",
+        "@protobuf//:protobuf",
+    ],
+)
+
+cc_binary(
+    name = "recommendation_engine_profile_client",
+    srcs = ["recommendation_engine_profile_client.cpp"],
+    deps = [
+        "//protos/recommendation_engine:profile_cc",
+        "//protos/recommendation_engine:profile_cc_grpc",
         "@grpc//:grpc++",
         "@protobuf//:protobuf",
     ],
