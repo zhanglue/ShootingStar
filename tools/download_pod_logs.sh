@@ -32,7 +32,7 @@ while (( attempt <= max_retries )); do
 
     if [[ ${pod_status} == 'Completed' ]]; then
         pod_name=$(kubectl get pods --namespace ${pod_namespace} 2>/dev/null | grep -- ${pod_prefix} | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 1 | tail -n 1)
-        kubectl logs --namespace ${pod_namespace} ${pod_name} > ${pod_prefix}.log
+        kubectl logs --namespace ${pod_namespace} ${pod_name} > ${pod_name}.log
         echo "Pod completed successfully."
         exit 0
     fi

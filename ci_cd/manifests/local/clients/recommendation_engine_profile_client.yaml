@@ -1,18 +1,18 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: recommendation-engine-gateway-client
+  name: recommendation-engine-profile-client
   namespace: recommendation-engine
 spec:
   template:
     metadata:
       labels:
-        app: recommendation-engine-gateway-client
+        app: recommendation-engine-profile-client
     spec:
       restartPolicy: Never
       containers:
-      - name: recommendation-engine-gateway-client
-        image: recommendation-engine-gateway-client:latest
+      - name: recommendation-engine-profile-client
+        image: recommendation-engine-profile-client:latest
         imagePullPolicy: Never
         resources:
           requests:
@@ -23,6 +23,6 @@ spec:
             cpu: "1"
         args: 
         - --ip
-        - gateway.recommendation-engine.svc.cluster.local
+        - profile.recommendation-engine.svc.cluster.local
         - --port
-        - "50000"
+        - "50100"

@@ -63,7 +63,7 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   string ip = "localhost";
-  string port = "50000";
+  string port = "50100";
   int user_id = 1001;
 
   struct option long_options[] = {
