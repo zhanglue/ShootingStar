@@ -5,6 +5,24 @@ load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
 proto_library(
+    name = "recommendation_engine_proto",
+    srcs = ["recommendation_engine.proto"],
+    deps = [":profile_proto"],
+)
+
+cc_proto_library(
+    name = "recommendation_engine_cc",
+    deps = [":recommendation_engine_proto"],
+)
+
+cc_grpc_library(
+    name = "recommendation_engine_cc_grpc",
+    srcs = ["recommendation_engine_proto"],
+    grpc_only = True,
+    deps = [":recommendation_engine_cc"],
+)
+
+proto_library(
     name = "profile_proto",
     srcs = ["profile.proto"],
 )
@@ -22,19 +40,19 @@ cc_grpc_library(
 )
 
 proto_library(
-    name = "recommendation_engine_proto",
-    srcs = ["recommendation_engine.proto"],
+    name = "retrieval_proto",
+    srcs = ["retrieval.proto"],
     deps = [":profile_proto"],
 )
 
 cc_proto_library(
-    name = "recommendation_engine_cc",
-    deps = [":recommendation_engine_proto"],
+    name = "retrieval_cc",
+    deps = [":retrieval_proto"],
 )
 
 cc_grpc_library(
-    name = "recommendation_engine_cc_grpc",
-    srcs = ["recommendation_engine_proto"],
+    name = "retrieval_cc_grpc",
+    srcs = ["retrieval_proto"],
     grpc_only = True,
-    deps = [":recommendation_engine_cc"],
+    deps = [":retrieval_cc"],
 )
