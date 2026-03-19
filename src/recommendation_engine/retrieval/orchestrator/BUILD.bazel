@@ -1,0 +1,32 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+cc_library(
+    name = "retrieval_orchestrator_lib",
+    srcs = [
+        "retrieval_orchestrator.cpp",
+    ],
+    hdrs = [
+        "retrieval_orchestrator.h",
+    ],
+    deps = [
+        "//protos/recommendation_engine:retrieval_cc",
+        "//protos/recommendation_engine:retrieval_cc_grpc",
+        "@grpc//:grpc++",
+        "@grpc//:grpc++_reflection",
+    ],
+)
+
+cc_binary(
+    name = "retrieval_orchestrator_bin",
+    srcs = [
+        "main.cpp",
+    ],
+    deps = [
+        ":retrieval_orchestrator_lib",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)
