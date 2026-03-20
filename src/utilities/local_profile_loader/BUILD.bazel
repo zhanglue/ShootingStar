@@ -1,0 +1,14 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "local_profile_loader",
+    srcs = ["local_profile_loader.cpp"],
+    hdrs = ["local_profile_loader.h"],
+    deps = [
+        "//protos/recommendation_engine:profile_cc",
+        "//src/recommendation_engine/profile:profile_lib",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+    ],
+)

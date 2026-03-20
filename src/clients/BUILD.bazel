@@ -34,3 +34,15 @@ cc_binary(
         "@protobuf//:protobuf",
     ],
 )
+
+cc_binary(
+    name = "recommendation_engine_retrieval_orchestrator_client",
+    srcs = ["recommendation_engine_retrieval_orchestrator_client.cpp"],
+    deps = [
+        "//protos/recommendation_engine:retrieval_cc",
+        "//protos/recommendation_engine:retrieval_cc_grpc",
+        "//src/utilities/local_profile_loader:local_profile_loader",
+        "@grpc//:grpc++",
+        "@protobuf//:protobuf",
+    ],
+)
