@@ -36,13 +36,13 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
 
   for (int trigger_rank = 0;
        trigger_rank < static_cast<int>(trigger_seeds.size()) &&
-       response->candidates_size() < request.candidate_count();
+       response->candidates_size() < request.max_candidate_count();
        ++trigger_rank) {
     const TriggerSeed& trigger_seed = trigger_seeds[trigger_rank];
 
     for (int neighbor_rank = 0;
-         neighbor_rank < request.candidate_count() &&
-         response->candidates_size() < request.candidate_count();
+         neighbor_rank < request.max_candidate_count() &&
+         response->candidates_size() < request.max_candidate_count();
          ++neighbor_rank) {
       const uint64_t candidate_item_id =
           BuildCandidateItemId(trigger_seed.item_id, trigger_rank, neighbor_rank);

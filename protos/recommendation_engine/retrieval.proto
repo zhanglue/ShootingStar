@@ -12,13 +12,14 @@ message RetrieveRequest {
   string request_id = 1;
   int64 user_id = 2;
   Profile profile = 3;
-  int32 candidate_count = 4;
+  int32 max_candidate_count = 4;
 }
 
 message RetrieveResponse {
   RetrievalServiceStatus status = 1;
   RetrieveRequest request = 2;
-  repeated CandidateItem candidates = 3;
+  int32 candidate_count = 3;
+  repeated CandidateItem candidates = 4;
 }
 
 message TriggerEntity {

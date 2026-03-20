@@ -1,7 +1,11 @@
 {
+  "C_Cpp.inlayHints.parameterNames.enabled": false,
+  "C_Cpp.inlayHints.autoDeclarationTypes.enabled": false,
+  "C_Cpp.inlayHints.referenceOperator.enabled": false,
   "C_Cpp.intelliSenseEngine": "disabled",
   "C_Cpp.errorSquiggles": "disabled",
   "clangd.path": "/usr/bin/clangd",
+  "clangd.inlayHints.enable": false,
   "clangd.arguments": [
     "--compile-commands-dir=${workspaceFolder}",
     "--background-index",
@@ -9,6 +13,12 @@
     "--completion-style=detailed",
     "--query-driver=/usr/bin/clang++,/usr/bin/clang"
   ],
+  "[c]": {
+    "editor.inlayHints.enabled": "off"
+  },
+  "[cpp]": {
+    "editor.inlayHints.enabled": "off"
+  },
   "cSpell.ignorePaths": [
     "compile_commands.json"
   ],

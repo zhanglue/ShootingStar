@@ -10,7 +10,8 @@ namespace recommendation_engine {
 
 class RetrieverUserCf final : public RetrieverBase {
  public:
-  RetrieverUserCf() = default;
+  explicit RetrieverUserCf(int default_max_candidate_count = 10)
+      : RetrieverBase(default_max_candidate_count) {}
 
  private:
   ::grpc::Status DoRetrieve(const RetrieverRequest& request,

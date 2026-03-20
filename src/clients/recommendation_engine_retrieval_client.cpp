@@ -33,13 +33,13 @@ class RetrievalClient {
       : stub_(RetrievalService::NewStub(channel)) {}
 
   void Retrieve(int64_t user_id,
-                int candidate_count,
+                int max_candidate_count,
                 const string& profile_data_path,
                 const string& executable_path) {
     RetrieveRequest request;
     request.set_request_id("ABCDE-10200");
     request.set_user_id(user_id);
-    request.set_candidate_count(candidate_count);
+    request.set_max_candidate_count(max_candidate_count);
 
     string error_msg;
     if (!LoadProfileFromDemoData(
@@ -78,7 +78,7 @@ void PrintUsage() {
        << "  -i, --ip <IP>                     Set server IP (default: localhost)\n"
        << "  -p, --port <PORT>                 Set server port (default: 50200)\n"
        << "  -u, --user-id <USER_ID>           Set user ID to retrieve for (default: 1001)\n"
-       << "  -c, --candidate-count <COUNT>     Set requested candidate count (default: 50)\n"
+       << "  -c, --max-candidate-count <COUNT> Set requested max candidate count (default: 50)\n"
        << "  -f, --profile-data-path <PATH>    Set demo profile json path\n"
        << "                                    (default: " << kDefaultProfileDataPath << ")\n";
 }
@@ -91,14 +91,14 @@ int main(int argc, char** argv) {
   string port = "50200";
   string profile_data_path = kDefaultProfileDataPath;
   int64_t user_id = 1001;
-  int candidate_count = 5;
+  int max_candidate_count = 20;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
       {"ip", required_argument, nullptr, 'i'},
       {"port", required_argument, nullptr, 'p'},
       {"user-id", required_argument, nullptr, 'u'},
-      {"candidate-count", required_argument, nullptr, 'c'},
+      {"max-candidate-count", required_argument, nullptr, 'c'},
       {"profile-data-path", required_argument, nullptr, 'f'},
       {0, 0, 0, 0},
   };
@@ -130,12 +130,12 @@ int main(int argc, char** argv) {
         break;
       case 'c':
         try {
-          candidate_count = ::std::stoi(optarg);
+          max_candidate_count = ::std::stoi(optarg);
         } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: candidate_count is not a valid integer: " << optarg << "\n";
+          ::std::cerr << "Error: max_candidate_count is not a valid integer: " << optarg << "\n";
           return 1;
         } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: candidate_count is out of range: " << optarg << "\n";
+          ::std::cerr << "Error: max_candidate_count is out of range: " << optarg << "\n";
           return 1;
         }
         break;
@@ -153,11 +153,12 @@ int main(int argc, char** argv) {
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Retrieving candidates for user: " << user_id << ::std::endl;
   cout << "Using profile data from: " << profile_data_path << ::std::endl;
-  cout << "Requested candidate count: " << candidate_count << ::std::endl << ::std::endl;
+  cout << "Requested max candidate count: " << max_candidate_count << ::std::endl
+       << ::std::endl;
 
   recommendation_engine::RetrievalClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.Retrieve(user_id, candidate_count, profile_data_path, argv[0]);
+  client.Retrieve(user_id, max_candidate_count, profile_data_path, argv[0]);
 
   return 0;
 }

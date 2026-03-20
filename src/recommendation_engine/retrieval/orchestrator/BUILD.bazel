@@ -11,6 +11,8 @@ cc_library(
         "retrieval_orchestrator.h",
     ],
     deps = [
+        "//protos/recommendation_engine:retriever_cc",
+        "//protos/recommendation_engine:retriever_cc_grpc",
         "//protos/recommendation_engine:retrieval_cc",
         "//protos/recommendation_engine:retrieval_cc_grpc",
         "@grpc//:grpc++",

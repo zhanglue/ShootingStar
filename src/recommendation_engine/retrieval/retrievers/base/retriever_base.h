@@ -8,10 +8,10 @@ namespace recommendation_engine {
 
 class RetrieverBase : public RetrieverService::Service {
  public:
-  RetrieverBase() = default;
+  explicit RetrieverBase(int default_max_candidate_count = 5);
   ~RetrieverBase() override = default;
 
- ::grpc::Status Retrieve(::grpc::ServerContext* context,
+  ::grpc::Status Retrieve(::grpc::ServerContext* context,
                           const RetrieverRequest* request,
                           RetrieverResponse* response) final;
 
@@ -22,6 +22,8 @@ class RetrieverBase : public RetrieverService::Service {
  private:
   virtual ::grpc::Status DoRetrieve(const RetrieverRequest& request,
                                     RetrieverResponse* response) const = 0;
+
+  int default_max_candidate_count_;
 };
 
 }  // namespace recommendation_engine

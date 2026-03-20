@@ -21,10 +21,10 @@ int main(int argc, char** argv) {
       absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
   ::recommendation_engine::RetrieverItemCf service;
 
-  grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+  ::grpc::EnableDefaultHealthCheckService(true);
+  ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ::grpc::ServerBuilder builder;
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
 
   ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
