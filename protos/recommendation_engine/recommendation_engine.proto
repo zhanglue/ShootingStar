@@ -3,6 +3,7 @@ syntax = "proto3";
 package recommendation_engine;
 
 import "protos/recommendation_engine/profile.proto";
+import "protos/recommendation_engine/retrieval.proto";
 
 service Gateway {
   rpc Recommend (RecommendRequest) returns (RecommendResponse);
@@ -11,12 +12,15 @@ service Gateway {
 message RecommendRequest {
   string request_id = 1;
   int32 user_id = 2;
+  int32 max_candidate_count = 3;
 }
 
 message RecommendResponse {
   RecommendationStatus status = 1;
   RecommendRequest request = 2;
   Profile profile = 3;
+  int32 candidate_count = 4;
+  repeated CandidateItem candidates = 5;
 }
 
 enum RecommendationStatus {

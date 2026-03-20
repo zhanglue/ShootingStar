@@ -24,10 +24,11 @@ class RecommendationEngineClient {
   explicit RecommendationEngineClient(shared_ptr<Channel> channel)
       : stub_(Gateway::NewStub(channel)) {}
 
-  void Recommend(int user_id) {
+  void Recommend(int user_id, int max_candidate_count) {
     RecommendRequest request;
     request.set_request_id("ABCDE-10155");
     request.set_user_id(user_id);
+    request.set_max_candidate_count(max_candidate_count);
 
     RecommendResponse response;
     ClientContext context;
@@ -55,7 +56,8 @@ void PrintUsage() {
        << "  -h, --help              Show this help message\n"
        << "  -i, --ip <IP>           Set server IP (default: localhost)\n"
        << "  -p, --port <PORT>       Set server port (default: 50000)\n"
-       << "  -u, --user-id <USER_ID> Set user ID to recommend (default: 1001)\n";
+       << "  -u, --user-id <USER_ID> Set user ID to recommend (default: 1001)\n"
+       << "  -m, --max-candidates <N> Set max candidate count (default: 20)\n";
 }
 
 }  // namespace
@@ -63,20 +65,22 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   string ip = "localhost";
-  string port = "50100";
+  string port = "50000";
   int user_id = 1001;
+  int max_candidate_count = 20;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
       {"ip", required_argument, nullptr, 'i'},
       {"port", required_argument, nullptr, 'p'},
       {"user_id", required_argument, nullptr, 'u'},
+      {"max-candidates", required_argument, nullptr, 'm'},
       {0, 0, 0, 0}};
 
   int opt;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "hi:p:u:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hi:p:u:m:", long_options, &option_index)) != -1) {
     switch (opt) {
       case 'h':
         recommendation_engine::PrintUsage();
@@ -98,6 +102,18 @@ int main(int argc, char** argv) {
           return 1;
         }
         break;
+      case 'm':
+        try {
+          max_candidate_count = ::std::stoi(optarg);
+        } catch (const ::std::invalid_argument&) {
+          ::std::cerr << "Error: max_candidate_count is not a valid integer: " << optarg
+                      << "\n";
+          return 1;
+        } catch (const ::std::out_of_range&) {
+          ::std::cerr << "Error: max_candidate_count is out of range: " << optarg << "\n";
+          return 1;
+        }
+        break;
       default:
         recommendation_engine::PrintUsage();
         return 1;
@@ -108,10 +124,11 @@ int main(int argc, char** argv) {
 
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Recommend for user: " << user_id << ::std::endl << ::std::endl;
+  cout << "Requested max candidate count: " << max_candidate_count << ::std::endl << ::std::endl;
 
   recommendation_engine::RecommendationEngineClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.Recommend(user_id);
+  client.Recommend(user_id, max_candidate_count);
 
   return 0;
 }

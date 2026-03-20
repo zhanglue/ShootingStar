@@ -7,7 +7,10 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 proto_library(
     name = "recommendation_engine_proto",
     srcs = ["recommendation_engine.proto"],
-    deps = [":profile_proto"],
+    deps = [
+        ":profile_proto",
+        ":retrieval_proto",
+    ],
 )
 
 cc_proto_library(
