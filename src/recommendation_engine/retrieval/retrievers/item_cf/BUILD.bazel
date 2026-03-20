@@ -1,0 +1,33 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+cc_library(
+    name = "retriever_item_cf_lib",
+    srcs = [
+        "retriever_item_cf.cpp",
+    ],
+    hdrs = [
+        "retriever_item_cf.h",
+    ],
+    deps = [
+        "//src/recommendation_engine/retrieval/retrievers/base:retriever_base_lib",
+        "//protos/recommendation_engine:retriever_cc",
+        "//protos/recommendation_engine:retriever_cc_grpc",
+        "@grpc//:grpc++",
+        "@grpc//:grpc++_reflection",
+    ],
+)
+
+cc_binary(
+    name = "retriever_item_cf_bin",
+    srcs = [
+        "main.cpp",
+    ],
+    deps = [
+        ":retriever_item_cf_lib",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)

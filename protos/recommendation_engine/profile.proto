@@ -2,15 +2,19 @@ syntax = "proto3";
 
 package recommendation_engine;
 
-enum ProfileServiceStatus {
-  PROFILE_SUCCESS = 0;
-  PROFILE_INVALID_REQUEST = 1;
-  PROFILE_USER_NOT_FOUND = 2;
-  PROFILE_SYSTEM_ERROR = 3;
-}
-
 service ProfileService {
   rpc GetProfile (GetProfileRequest) returns (GetProfileResponse);
+}
+
+message GetProfileRequest {
+  string request_id = 1;
+  int32 user_id = 2;
+}
+
+message GetProfileResponse {
+  ProfileServiceStatus status = 1;
+  GetProfileRequest request = 2;
+  Profile profile = 3;
 }
 
 message Profile {
@@ -66,13 +70,9 @@ message SessionContext {
   repeated int64 recent_clicked_items = 3;
 }
 
-message GetProfileRequest {
-  string request_id = 1;
-  int32 user_id = 2;
-}
-
-message GetProfileResponse {
-  ProfileServiceStatus status = 1;
-  GetProfileRequest request = 2;
-  Profile profile = 3;
+enum ProfileServiceStatus {
+  PROFILE_SUCCESS = 0;
+  PROFILE_INVALID_REQUEST = 1;
+  PROFILE_USER_NOT_FOUND = 2;
+  PROFILE_SYSTEM_ERROR = 3;
 }

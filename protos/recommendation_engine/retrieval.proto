@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package recommendation_engine;
+
+import "protos/recommendation_engine/profile.proto";
+
+service RetrievalService {
+  rpc Retrieve (RetrieveRequest) returns (RetrieveResponse);
+}
+
+message RetrieveRequest {
+  string request_id = 1;
+  int64 user_id = 2;
+  Profile profile = 3;
+  int32 max_candidate_count = 4;
+}
+
+message RetrieveResponse {
+  RetrievalServiceStatus status = 1;
+  RetrieveRequest request = 2;
+  int32 candidate_count = 3;
+  repeated CandidateItem candidates = 4;
+}
+
+message TriggerEntity {
+  EntityType entity_type = 1;
+  uint64 entity_id = 2;
+}
+
+message RetrievalReason {
+  ReasonType reason_type = 1;
+  TriggerEntity trigger = 2;
+  double reason_score = 3;
+  string description = 4;
+}
+
+message CandidateItem {
+  uint64 item_id = 1;
+  ItemType item_type = 2;
+  uint64 author_id = 3;
+  string retriever = 4;
+  double retrieve_score = 5;
+  repeated RetrievalReason reasons = 6;
+}
+
+enum RetrievalServiceStatus {
+  RETRIEVAL_SUCCESS = 0;
+  RETRIEVAL_INVALID_REQUEST = 1;
+  RETRIEVAL_USER_NOT_FOUND = 2;
+  RETRIEVAL_SYSTEM_ERROR = 3;
+}
+
+enum ItemType {
+  ITEM_TYPE_UNSPECIFIED = 0;
+  ITEM_TYPE_VIDEO = 1;
+  ITEM_TYPE_IMAGE_TEXT = 2;
+}
+
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_ITEM = 1;
+  ENTITY_TYPE_AUTHOR = 2;
+  ENTITY_TYPE_QUERY = 3;
+  ENTITY_TYPE_TAG = 4;
+  ENTITY_TYPE_TOPIC = 5;
+}
+
+enum ReasonType {
+  REASON_TYPE_UNSPECIFIED = 0;
+  REASON_TYPE_USER_CF = 1;
+  REASON_TYPE_ITEM_CF = 2;
+  REASON_TYPE_EMBEDDING = 3;
+  REASON_TYPE_HOT = 4;
+  REASON_TYPE_FOLLOW = 5;
+}

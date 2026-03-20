@@ -1,0 +1,8 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/clients/recommendation_engine_retriever_client /app/retriever_client
+COPY tests/testdata/recommendation_engine/profile/demo_profiles.json /app/tests/testdata/recommendation_engine/profile/demo_profiles.json
+
+WORKDIR /app
+
+ENTRYPOINT ["/app/retriever_client"]

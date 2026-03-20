@@ -1,0 +1,9 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/recommendation_engine/retrieval/retrievers/user_cf/retriever_user_cf_bin /app/retriever_user_cf
+
+WORKDIR /app
+
+EXPOSE 50211
+
+ENTRYPOINT ["/app/retriever_user_cf"]

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-pod_namespace=${1:-weather-forecast}
-pod_prefix=${2:-weather-forecast-fetcher-client}
+pod_namespace=${1:-recommendation-engine}
+pod_prefix=${2:-recommendation-engine-client}
 max_retries=3
 retry_interval=3
 

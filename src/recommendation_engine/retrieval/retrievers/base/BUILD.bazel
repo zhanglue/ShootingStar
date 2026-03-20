@@ -1,0 +1,18 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "retriever_base_lib",
+    srcs = [
+        "retriever_base.cpp",
+    ],
+    hdrs = [
+        "retriever_base.h",
+    ],
+    deps = [
+        "//protos/recommendation_engine:retriever_cc",
+        "//protos/recommendation_engine:retriever_cc_grpc",
+        "@grpc//:grpc++",
+    ],
+)
