@@ -2,28 +2,23 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: recommendation-engine
-  name: gateway
+  name: retriever-item-cf
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: gateway
+      app: retriever-item-cf
   template:
     metadata:
       labels:
-        app: gateway
+        app: retriever-item-cf
     spec:
       nodeSelector:
         "kubernetes.io/os": linux
       containers:
-      - name: gateway
-        image: recommendation-engine-gateway:latest
+      - name: retriever-item-cf
+        image: recommendation-engine-retriever-item-cf:latest
         imagePullPolicy: Never
-        args:
-        - --profile_service_host=profile.recommendation-engine.svc.cluster.local
-        - --profile_service_port=50100
-        - --retrieval_service_host=retrieval-orchestrator.recommendation-engine.svc.cluster.local
-        - --retrieval_service_port=50200
         resources:
           requests:
             memory: 256Mi
@@ -32,17 +27,17 @@ spec:
             memory: 512Mi
             cpu: "1"
         ports:
-        - containerPort: 50000
+        - containerPort: 50210
           name: grpc
 ---
 apiVersion: v1
 kind: Service
 metadata:
   namespace: recommendation-engine
-  name: gateway
+  name: retriever-item-cf
 spec:
   type: LoadBalancer
   ports:
-  - port: 50000
+  - port: 50210
   selector:
-    app: gateway
+    app: retriever-item-cf

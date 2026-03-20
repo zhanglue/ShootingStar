@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recommendation-engine-retrieval-client
+  namespace: recommendation-engine
+spec:
+  template:
+    metadata:
+      labels:
+        app: recommendation-engine-retrieval-client
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: recommendation-engine-retrieval-client
+        image: recommendation-engine-retrieval-client:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        args:
+        - --ip
+        - retrieval-orchestrator.recommendation-engine.svc.cluster.local
+        - --port
+        - "50200"

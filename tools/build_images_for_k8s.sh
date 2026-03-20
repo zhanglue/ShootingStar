@@ -5,12 +5,17 @@ DOCKER_FILES_ROOT_PATH="${REPO_ROOT_PATH}/ci_cd/docker_files"
 . ${REPO_ROOT_PATH}/tools/common.sh
 
 DOCKER_FILE_TO_IMAGE_NAME=(
-    'recommendation_engine/gateway                | recommendation-engine-gateway'
-    'recommendation_engine/profile                | recommendation-engine-profile'
-    'weather_forecast/fetcher                     | weather-forecast-fetcher'
-    'clients/recommendation_engine_client         | recommendation-engine-client'
-    'clients/recommendation_engine_profile_client | recommendation-engine-profile-client'
-    'clients/weather_forecast_fetcher_client      | weather-forecast-fetcher-client'
+    'recommendation_engine/gateway                  | recommendation-engine-gateway'
+    'recommendation_engine/profile                  | recommendation-engine-profile'
+    'recommendation_engine/retrieval_orchestrator   | recommendation-engine-retrieval-orchestrator'
+    'recommendation_engine/retriever_item_cf        | recommendation-engine-retriever-item-cf'
+    'recommendation_engine/retriever_user_cf        | recommendation-engine-retriever-user-cf'
+    'weather_forecast/fetcher                       | weather-forecast-fetcher'
+    'clients/recommendation_engine_client           | recommendation-engine-client'
+    'clients/recommendation_engine_profile_client   | recommendation-engine-profile-client'
+    'clients/recommendation_engine_retrieval_client | recommendation-engine-retrieval-client'
+    'clients/recommendation_engine_retriever_client | recommendation-engine-retriever-client'
+    'clients/weather_forecast_fetcher_client        | weather-forecast-fetcher-client'
 )
 namespace=""
 image_tag="latest"
