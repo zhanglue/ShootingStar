@@ -27,9 +27,9 @@ constexpr char kDefaultProfileDataPath[] =
 namespace recommendation_engine {
 namespace {
 
-class RetrievalOrchestratorClient {
+class RetrievalClient {
  public:
-  explicit RetrievalOrchestratorClient(shared_ptr<Channel> channel)
+  explicit RetrievalClient(shared_ptr<Channel> channel)
       : stub_(RetrievalService::NewStub(channel)) {}
 
   void Retrieve(int64_t user_id,
@@ -72,7 +72,7 @@ class RetrievalOrchestratorClient {
 };
 
 void PrintUsage() {
-  cout << "Usage: retrieval_orchestrator_client [options]\n"
+  cout << "Usage: retrieval_client [options]\n"
        << "Options:\n"
        << "  -h, --help                        Show this help message\n"
        << "  -i, --ip <IP>                     Set server IP (default: localhost)\n"
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
   cout << "Using profile data from: " << profile_data_path << ::std::endl;
   cout << "Requested candidate count: " << candidate_count << ::std::endl << ::std::endl;
 
-  recommendation_engine::RetrievalOrchestratorClient client(
+  recommendation_engine::RetrievalClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
   client.Retrieve(user_id, candidate_count, profile_data_path, argv[0]);
 

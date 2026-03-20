@@ -36,8 +36,8 @@ cc_binary(
 )
 
 cc_binary(
-    name = "recommendation_engine_retrieval_orchestrator_client",
-    srcs = ["recommendation_engine_retrieval_orchestrator_client.cpp"],
+    name = "recommendation_engine_retrieval_client",
+    srcs = ["recommendation_engine_retrieval_client.cpp"],
     deps = [
         "//protos/recommendation_engine:retrieval_cc",
         "//protos/recommendation_engine:retrieval_cc_grpc",
