@@ -7,19 +7,19 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include "protos/recommendation_engine/retrieval.grpc.pb.h"
+#include "protos/recommendation_engine/retriever.grpc.pb.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
+using ::recommendation_engine::RetrieverRequest;
+using ::recommendation_engine::RetrieverResponse;
+using ::shooting_star::utilities::LoadProfileFromDemoData;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::recommendation_engine::RetrieveRequest;
-using ::recommendation_engine::RetrieveResponse;
-using ::shooting_star::utilities::LoadProfileFromDemoData;
 
 constexpr char kDefaultProfileDataPath[] =
     "tests/testdata/recommendation_engine/profile/demo_profiles.json";
@@ -27,17 +27,17 @@ constexpr char kDefaultProfileDataPath[] =
 namespace recommendation_engine {
 namespace {
 
-class RetrievalOrchestratorClient {
+class RetrieverClient {
  public:
-  explicit RetrievalOrchestratorClient(shared_ptr<Channel> channel)
-      : stub_(RetrievalService::NewStub(channel)) {}
+  explicit RetrieverClient(shared_ptr<Channel> channel)
+      : stub_(RetrieverService::NewStub(channel)) {}
 
   void Retrieve(int64_t user_id,
                 int candidate_count,
                 const string& profile_data_path,
                 const string& executable_path) {
-    RetrieveRequest request;
-    request.set_request_id("ABCDE-10200");
+    RetrieverRequest request;
+    request.set_request_id("ABCDE-10210");
     request.set_user_id(user_id);
     request.set_candidate_count(candidate_count);
 
@@ -51,7 +51,7 @@ class RetrievalOrchestratorClient {
     cout << "Retrieve request:" << ::std::endl;
     cout << request.DebugString() << ::std::endl;
 
-    RetrieveResponse response;
+    RetrieverResponse response;
     ClientContext context;
 
     const Status status = stub_->Retrieve(&context, request, &response);
@@ -68,15 +68,15 @@ class RetrievalOrchestratorClient {
   }
 
  private:
-  unique_ptr<RetrievalService::Stub> stub_;
+  unique_ptr<RetrieverService::Stub> stub_;
 };
 
 void PrintUsage() {
-  cout << "Usage: retrieval_orchestrator_client [options]\n"
+  cout << "Usage: retriever_client [options]\n"
        << "Options:\n"
        << "  -h, --help                        Show this help message\n"
        << "  -i, --ip <IP>                     Set server IP (default: localhost)\n"
-       << "  -p, --port <PORT>                 Set server port (default: 50200)\n"
+       << "  -p, --port <PORT>                 Set server port (default: 50210)\n"
        << "  -u, --user-id <USER_ID>           Set user ID to retrieve for (default: 1001)\n"
        << "  -c, --candidate-count <COUNT>     Set requested candidate count (default: 50)\n"
        << "  -f, --profile-data-path <PATH>    Set demo profile json path\n"
@@ -88,7 +88,7 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   string ip = "localhost";
-  string port = "50200";
+  string port = "50210";
   string profile_data_path = kDefaultProfileDataPath;
   int64_t user_id = 1001;
   int candidate_count = 5;
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
   cout << "Using profile data from: " << profile_data_path << ::std::endl;
   cout << "Requested candidate count: " << candidate_count << ::std::endl << ::std::endl;
 
-  recommendation_engine::RetrievalOrchestratorClient client(
+  recommendation_engine::RetrieverClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
   client.Retrieve(user_id, candidate_count, profile_data_path, argv[0]);
 

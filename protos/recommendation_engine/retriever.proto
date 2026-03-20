@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package recommendation_engine;
+
+import "protos/recommendation_engine/profile.proto";
+import "protos/recommendation_engine/retrieval.proto";
+
+service RetrieverService {
+  rpc Retrieve (RetrieverRequest) returns (RetrieverResponse);
+}
+
+message RetrieverRequest {
+  string request_id = 1;
+  int64 user_id = 2;
+  Profile profile = 3;
+  int32 candidate_count = 4;
+}
+
+message RetrieverResponse {
+  RetrieverServiceStatus status = 1;
+  RetrieverRequest request = 2;
+  repeated CandidateItem candidates = 3;
+}
+
+enum RetrieverServiceStatus {
+  RETRIEVER_SUCCESS = 0;
+  RETRIEVER_INVALID_REQUEST = 1;
+  RETRIEVER_USER_NOT_FOUND = 2;
+  RETRIEVER_SYSTEM_ERROR = 3;
+}

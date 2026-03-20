@@ -56,3 +56,24 @@ cc_grpc_library(
     grpc_only = True,
     deps = [":retrieval_cc"],
 )
+
+proto_library(
+    name = "retriever_proto",
+    srcs = ["retriever.proto"],
+    deps = [
+        ":profile_proto",
+        ":retrieval_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "retriever_cc",
+    deps = [":retriever_proto"],
+)
+
+cc_grpc_library(
+    name = "retriever_cc_grpc",
+    srcs = ["retriever_proto"],
+    grpc_only = True,
+    deps = [":retriever_cc"],
+)
