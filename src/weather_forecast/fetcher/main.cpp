@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 #include <string>
 
@@ -11,6 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/weather_forecast/fetcher/fetcher_service.h"
+#include "src/utilities/grpc_logger/grpc_logger.h"
 
 ABSL_FLAG(uint16_t, port, 40000, "Server port for the service");
 
@@ -20,6 +20,7 @@ using std::string;
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
+  const ::shooting_star::utilities::Logger logger("fetcher");
 
   string server_address = absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
   weather_flow::FetcherServiceImpl service;
@@ -27,6 +28,8 @@ int main(int argc, char** argv) {
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ServerBuilder builder;
+  builder.experimental().SetInterceptorCreators(
+      ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(logger));
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with
@@ -34,7 +37,11 @@ int main(int argc, char** argv) {
   builder.RegisterService(&service);
   // Finally assemble the server.
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  std::cout << "Server listening on " << server_address << std::endl;
+  logger.Info(
+      "server_started",
+      {
+          {"listen_address", server_address},
+      });
 
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.

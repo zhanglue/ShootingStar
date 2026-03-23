@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 #include <string>
 
@@ -11,6 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/recommendation_engine/retrieval/orchestrator/retrieval_orchestrator.h"
+#include "src/utilities/grpc_logger/grpc_logger.h"
 
 ABSL_FLAG(uint16_t, port, 50200, "Server port for the service");
 ABSL_FLAG(::std::string, retriever_item_cf_host, "localhost", "Item CF retriever host");
@@ -20,6 +20,7 @@ ABSL_FLAG(uint16_t, retriever_user_cf_port, 50211, "User CF retriever port");
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
+  const ::shooting_star::utilities::Logger logger("retrieval_orchestrator");
 
   const ::std::string server_address =
       absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
@@ -36,13 +37,19 @@ int main(int argc, char** argv) {
   ::grpc::EnableDefaultHealthCheckService(true);
   ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ::grpc::ServerBuilder builder;
+  builder.experimental().SetInterceptorCreators(
+      ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(logger));
   builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
 
   ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-  ::std::cout << "Server listening on " << server_address << ::std::endl;
-  ::std::cout << "Using item_cf retriever at " << item_cf_service_address << ::std::endl;
-  ::std::cout << "Using user_cf retriever at " << user_cf_service_address << ::std::endl;
+  logger.Info(
+      "server_started",
+      {
+          {"listen_address", server_address},
+          {"retriever_item_cf_address", item_cf_service_address},
+          {"retriever_user_cf_address", user_cf_service_address},
+      });
   server->Wait();
 
   return 0;

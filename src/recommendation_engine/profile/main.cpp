@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -14,6 +13,7 @@
 #include "src/recommendation_engine/profile/local_file_profile_store.h"
 #include "src/recommendation_engine/profile/profile_service.h"
 #include "src/recommendation_engine/profile/profile_store.h"
+#include "src/utilities/grpc_logger/grpc_logger.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 ABSL_FLAG(uint16_t, port, 50100, "Server port for the service");
@@ -30,14 +30,13 @@ ABSL_FLAG(
 
 namespace {
 
-using ::std::cout;
-using ::std::endl;
 using ::std::invalid_argument;
 using ::std::make_unique;
 using ::std::string;
 using ::std::unique_ptr;
 
 unique_ptr<::recommendation_engine::ProfileStore> CreateProfileStore(
+    const ::shooting_star::utilities::Logger& logger,
     const string& profile_store_type,
     const string& profile_data_path,
     const string& executable_path) {
@@ -45,7 +44,12 @@ unique_ptr<::recommendation_engine::ProfileStore> CreateProfileStore(
     const string resolved_profile_data_path =
         ::shooting_star::utilities::ResolveWorkspaceRelativePath(
             profile_data_path, executable_path);
-    cout << "Profile data path: " << resolved_profile_data_path << endl;
+    logger.Info(
+        "profile_store_initialized",
+        {
+            {"profile_store_type", profile_store_type},
+            {"profile_data_path", resolved_profile_data_path},
+        });
     return make_unique<::recommendation_engine::LocalFileProfileStore>(
         resolved_profile_data_path);
   }
@@ -58,28 +62,43 @@ unique_ptr<::recommendation_engine::ProfileStore> CreateProfileStore(
 
 int main(int argc, char** argv) {
   ::absl::ParseCommandLine(argc, argv);
+  const ::shooting_star::utilities::Logger logger("profile");
   const ::std::string server_address =
       ::absl::StrFormat("0.0.0.0:%d", ::absl::GetFlag(FLAGS_port));
   const ::std::string profile_data_path = ::absl::GetFlag(FLAGS_profile_data_path);
   const ::std::string profile_store_type = ::absl::GetFlag(FLAGS_profile_store_type);
 
   try {
-    ::std::cout << "Profile store type: " << profile_store_type << ::std::endl;
+    logger.Info(
+        "profile_store_selected",
+        {
+            {"profile_store_type", profile_store_type},
+        });
     ::std::unique_ptr<::recommendation_engine::ProfileStore> profile_store =
-        CreateProfileStore(profile_store_type, profile_data_path, argv[0]);
+        CreateProfileStore(logger, profile_store_type, profile_data_path, argv[0]);
     ::recommendation_engine::ProfileServiceImpl service(profile_store.get());
 
     ::grpc::EnableDefaultHealthCheckService(true);
     ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ::grpc::ServerBuilder builder;
+    builder.experimental().SetInterceptorCreators(
+        ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(logger));
     builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
 
     ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-    ::std::cout << "Server listening on " << server_address << ::std::endl;
+    logger.Info(
+        "server_started",
+        {
+            {"listen_address", server_address},
+        });
     server->Wait();
   } catch (const ::std::exception& ex) {
-    ::std::cerr << ex.what() << ::std::endl;
+    logger.Error(
+        "server_startup_failed",
+        {
+            {"error", ex.what()},
+        });
     return EXIT_FAILURE;
   }
 
