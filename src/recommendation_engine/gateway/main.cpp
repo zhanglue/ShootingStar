@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 #include <string>
 
@@ -11,6 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/recommendation_engine/gateway/gateway_service.h"
+#include "src/utilities/grpc_logger/grpc_logger.h"
 
 ABSL_FLAG(uint16_t, port, 50000, "Server port for the service");
 ABSL_FLAG(::std::string, profile_service_host, "localhost", "Profile service host");
@@ -20,6 +20,7 @@ ABSL_FLAG(uint16_t, retrieval_service_port, 50200, "Retrieval service port");
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
+  const ::shooting_star::utilities::Logger logger("gateway");
 
   ::std::string server_address = absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
   const ::std::string profile_service_address =
@@ -35,6 +36,8 @@ int main(int argc, char** argv) {
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ::grpc::ServerBuilder builder;
+  builder.experimental().SetInterceptorCreators(
+      ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(logger));
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with
@@ -42,9 +45,13 @@ int main(int argc, char** argv) {
   builder.RegisterService(&service);
   // Finally assemble the server.
   ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-  ::std::cout << "Server listening on " << server_address << ::std::endl;
-  ::std::cout << "Using profile service at " << profile_service_address << ::std::endl;
-  ::std::cout << "Using retrieval service at " << retrieval_service_address << ::std::endl;
+  logger.Info(
+      "server_started",
+      {
+          {"listen_address", server_address},
+          {"profile_service_address", profile_service_address},
+          {"retrieval_service_address", retrieval_service_address},
+      });
 
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.

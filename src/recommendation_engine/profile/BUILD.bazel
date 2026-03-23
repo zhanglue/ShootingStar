@@ -27,6 +27,7 @@ cc_binary(
     srcs = ["main.cpp"],
     deps = [
         ":profile_lib",
+        "//src/utilities/grpc_logger:grpc_logger",
         "//src/utilities/runtime_utilities:runtime_utilities",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
