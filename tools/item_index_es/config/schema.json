@@ -1,0 +1,30 @@
+{
+  "item_id": 1,
+  "title": "Toy Story",
+  "title_raw": "Toy Story (1995)",
+  "title_norm": "toy story",
+  "year": 1995,
+  "genres": ["Adventure", "Animation", "Children", "Comedy", "Fantasy"],
+  "tags": {
+    "top_tags": [
+      { "tag": "pixar", "weight": 12.3 },
+      { "tag": "animation", "weight": 9.8 },
+      { "tag": "toys", "weight": 7.1 },
+      { "tag": "friendship", "weight": 5.9 }
+    ],
+    "tag_count": 42,
+    "unique_tag_count": 15
+  },
+  "rating": {
+    "avg": 4.3,
+    "count": 8
+  },
+  "search": {
+    "tag_text": "pixar toys animation friendship family childhood",
+    "all_text": "toy story pixar toys animation friendship family adventure comedy fantasy"
+  },
+  "ext": {
+    "imdb_id": "tt0114709",
+    "tmdb_id": 862
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "item_id": {
+        "type": "long"
+      },
+      "title": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 512
+          }
+        }
+      },
+      "title_raw": {
+        "type": "keyword",
+        "ignore_above": 1024
+      },
+      "title_norm": {
+        "type": "keyword",
+        "ignore_above": 1024
+      },
+      "year": {
+        "type": "short"
+      },
+      "genres": {
+        "type": "keyword",
+        "ignore_above": 256
+      },
+      "tags": {
+        "properties": {
+          "top_tags": {
+            "type": "nested",
+            "properties": {
+              "tag": {
+                "type": "keyword",
+                "ignore_above": 512
+              },
+              "weight": {
+                "type": "float"
+              }
+            }
+          },
+          "tag_count": {
+            "type": "integer"
+          },
+          "unique_tag_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "rating": {
+        "properties": {
+          "avg": {
+            "type": "float"
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "search": {
+        "properties": {
+          "tag_text": {
+            "type": "text"
+          },
+          "all_text": {
+            "type": "text"
+          }
+        }
+      },
+      "ext": {
+        "properties": {
+          "imdb_id": {
+            "type": "keyword",
+            "ignore_above": 64
+          },
+          "tmdb_id": {
+            "type": "long"
+          }
+        }
+      }
+    }
+  }
+}
