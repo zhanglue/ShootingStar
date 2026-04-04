@@ -262,12 +262,14 @@ class ElasticsearchWriter:
         )
 
     def preflight_for_file(self) -> None:
+        self.logger.info("Starting Elasticsearch preflight for file-based indexing.")
         self._log_input_file()
         self._log_cluster_status()
         self.ensure_index()
         self._log_index_status()
 
     def preflight_for_items(self, item_count: int) -> None:
+        self.logger.info("Starting Elasticsearch preflight for in-memory indexing.")
         self.logger.info("Received %s in-memory documents for indexing.", item_count)
         self._log_cluster_status()
         self.ensure_index()
@@ -310,14 +312,17 @@ class ElasticsearchWriter:
         return indexed_count
 
     def write_file(self) -> int:
+        self.logger.info("ElasticsearchWriter file write started.")
         self.preflight_for_file()
         return self._bulk_write(self.iter_documents())
 
     def write_items(self, items: list[dict[str, Any]]) -> int:
+        self.logger.info("ElasticsearchWriter in-memory write started.")
         self.preflight_for_items(len(items))
         return self._bulk_write(items)
 
     def run(self) -> int:
+        self.logger.info("ElasticsearchWriter run started.")
         return self.write_file()
 
     @classmethod

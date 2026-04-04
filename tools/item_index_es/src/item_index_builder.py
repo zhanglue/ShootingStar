@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import math
 import re
 import unicodedata
@@ -31,6 +32,7 @@ class ItemIndexBuilder:
         "top_k": 10,
         "min_weight": 0.0,
         "min_relative_weight": 0.3,
+        "log_level": "INFO",
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
@@ -38,6 +40,7 @@ class ItemIndexBuilder:
         if config:
             merged.update(config)
         self.config = self._normalize_config(merged)
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     @classmethod
     def _normalize_config(cls, config: dict[str, Any]) -> dict[str, Any]:
@@ -59,6 +62,7 @@ class ItemIndexBuilder:
         normalized["top_k"] = int(normalized["top_k"])
         normalized["min_weight"] = float(normalized["min_weight"])
         normalized["min_relative_weight"] = float(normalized["min_relative_weight"])
+        normalized["log_level"] = str(normalized["log_level"]).upper()
         return normalized
 
     @staticmethod
@@ -115,13 +119,16 @@ class ItemIndexBuilder:
             return None
 
     def read_movies(self) -> list[dict[str, str]]:
+        self.logger.info("Loading movies from %s.", self.config["movies_path"])
         movies: list[dict[str, str]] = []
         with self.config["movies_path"].open(newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle):
                 movies.append(row)
+        self.logger.info("Loaded %s movies.", len(movies))
         return movies
 
     def build_links_map(self) -> dict[int, dict[str, Any]]:
+        self.logger.info("Loading links from %s.", self.config["links_path"])
         links: dict[int, dict[str, Any]] = {}
         with self.config["links_path"].open(newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle):
@@ -130,9 +137,11 @@ class ItemIndexBuilder:
                     "imdb_id": self.format_imdb_id(row.get("imdbId", "")),
                     "tmdb_id": self.format_tmdb_id(row.get("tmdbId", "")),
                 }
+        self.logger.info("Built links map for %s movies.", len(links))
         return links
 
     def build_ratings_map(self) -> dict[int, dict[str, Any]]:
+        self.logger.info("Aggregating ratings from %s.", self.config["ratings_path"])
         totals: dict[int, float] = defaultdict(float)
         counts: Counter[int] = Counter()
 
@@ -149,11 +158,17 @@ class ItemIndexBuilder:
                 "avg": round(totals[movie_id] / count, 4),
                 "count": count,
             }
+        self.logger.info("Built ratings map for %s movies.", len(ratings))
         return ratings
 
     def collect_tags(
         self, valid_movie_ids: set[int]
     ) -> tuple[dict[int, Counter[str]], dict[int, dict[str, set[str]]]]:
+        self.logger.info(
+            "Collecting tags from %s for %s valid movies.",
+            self.config["tags_path"],
+            len(valid_movie_ids),
+        )
         tag_row_counts: dict[int, Counter[str]] = defaultdict(Counter)
         tag_user_sets: dict[int, dict[str, set[str]]] = defaultdict(
             lambda: defaultdict(set)
@@ -174,11 +189,21 @@ class ItemIndexBuilder:
                 if user_id:
                     tag_user_sets[movie_id][tag].add(user_id)
 
+        self.logger.info(
+            "Collected tags for %s movies with tag data.",
+            len(tag_user_sets),
+        )
         return tag_row_counts, tag_user_sets
 
     def compute_top_tags(
         self, tag_user_sets: dict[int, dict[str, set[str]]]
     ) -> dict[int, list[dict[str, Any]]]:
+        self.logger.info(
+            "Computing top tags with top_k=%s, min_weight=%s, min_relative_weight=%s.",
+            self.config["top_k"],
+            self.config["min_weight"],
+            self.config["min_relative_weight"],
+        )
         document_frequency: Counter[str] = Counter()
         for movie_tags in tag_user_sets.values():
             for tag in movie_tags:
@@ -223,6 +248,7 @@ class ItemIndexBuilder:
 
             results[movie_id] = kept_tags
 
+        self.logger.info("Computed top tags for %s movies.", len(results))
         return results
 
     def build_search_fields(
@@ -239,6 +265,7 @@ class ItemIndexBuilder:
         }
 
     def build_items(self) -> list[dict[str, Any]]:
+        self.logger.info("Starting item document build.")
         movies = self.read_movies()
         valid_movie_ids = {int(row["movieId"]) for row in movies}
         links_map = self.build_links_map()
@@ -276,28 +303,39 @@ class ItemIndexBuilder:
                     "rating": ratings_map.get(movie_id, {"avg": None, "count": 0}),
                     "search": search,
                     "ext": links_map.get(movie_id, {"imdb_id": None, "tmdb_id": None}),
-                }
-            )
+                    }
+                )
 
+        self.logger.info("Built %s item documents.", len(items))
         return items
 
     def write_output(self, items: list[dict[str, Any]]) -> Path:
         output_path = self.config["output_path"]
+        self.logger.info(
+            "Writing %s items to %s as %s.",
+            len(items),
+            output_path,
+            self.config["output_format"],
+        )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with output_path.open("w", encoding="utf-8") as handle:
             if self.config["output_format"] == "json":
                 json.dump(items, handle, ensure_ascii=False, indent=2)
                 handle.write("\n")
+                self.logger.info("Finished writing output to %s.", output_path)
                 return output_path
 
             for item in items:
                 handle.write(json.dumps(item, ensure_ascii=False))
                 handle.write("\n")
+        self.logger.info("Finished writing output to %s.", output_path)
         return output_path
 
     def run(self) -> tuple[list[dict[str, Any]], Path]:
+        self.logger.info("ItemIndexBuilder run started.")
         items = self.build_items()
         output_path = self.write_output(items)
+        self.logger.info("ItemIndexBuilder run finished.")
         return items, output_path
 
     @classmethod
@@ -338,6 +376,12 @@ class ItemIndexBuilder:
             type=float,
             help="Relative minimum weight versus the strongest tag for non-leading tags.",
         )
+        parser.add_argument(
+            "--log-level",
+            dest="log_level",
+            choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+            help="Logging level for builder execution.",
+        )
         return parser
 
     @classmethod
@@ -352,6 +396,8 @@ class ItemIndexBuilder:
 def main() -> None:
     parser = ItemIndexBuilder.build_arg_parser()
     args = parser.parse_args()
+    log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
+    logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     builder = ItemIndexBuilder(ItemIndexBuilder.config_from_args(args))
     items, output_path = builder.run()
     print(f"Wrote {len(items)} items to {output_path}")

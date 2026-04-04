@@ -27,15 +27,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Skip Elasticsearch writing and only build the output file.",
     )
 
-    for action in ItemIndexBuilder.build_arg_parser()._actions:
-        if action.dest == "help":
-            continue
-        parser._add_action(action)
+    existing_option_strings = set()
 
-    for action in ElasticsearchWriter.build_arg_parser()._actions:
-        if action.dest == "help":
-            continue
-        parser._add_action(action)
+    def add_actions_from(source_parser: argparse.ArgumentParser) -> None:
+        for action in source_parser._actions:
+            if action.dest == "help":
+                continue
+
+            option_strings = set(action.option_strings)
+            if option_strings and option_strings & existing_option_strings:
+                continue
+
+            parser._add_action(action)
+            existing_option_strings.update(option_strings)
+
+    add_actions_from(ItemIndexBuilder.build_arg_parser())
+    add_actions_from(ElasticsearchWriter.build_arg_parser())
 
     return parser
 
@@ -77,6 +84,7 @@ def main() -> None:
         level=log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    logger = logging.getLogger("main")
     config = config_from_args(args)
     builder_config, writer_config, run_build, run_index = split_config(config)
 
@@ -87,16 +95,22 @@ def main() -> None:
     indexed_count: int | None = None
 
     if run_build:
+        logger.info("Build phase enabled; starting ItemIndexBuilder.")
         items, output_path = builder.run()
         built_count = len(items)
         writer_config["input_path"] = output_path
         writer_config["input_format"] = builder.config["output_format"]
+    else:
+        logger.info("Build phase skipped.")
 
     if run_index:
         # The writer will create the index only when it is missing and
         # --ensure-index is enabled. Existing indices are reused as-is.
+        logger.info("Indexing phase enabled; starting ElasticsearchWriter.")
         writer = ElasticsearchWriter(writer_config)
         indexed_count = writer.run()
+    else:
+        logger.info("Indexing phase skipped.")
 
     parts: list[str] = []
     if built_count is not None:

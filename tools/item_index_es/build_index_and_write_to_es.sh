@@ -28,8 +28,8 @@ LOG_LEVEL="INFO"
 LOG_EVERY=5000
 
 # Expect credentials to come from the environment.
-#   export ES_USERNAME=elastic
-#   export ES_PASSWORD='your-password'
+export ES_USERNAME=elastic
+export ES_PASSWORD='KzlzvBCMs1cfr2pIOyxABV59'
 
 python3 "${SCRIPT_DIR}/src/main.py" \
   --movies "${MOVIES_PATH}" \
