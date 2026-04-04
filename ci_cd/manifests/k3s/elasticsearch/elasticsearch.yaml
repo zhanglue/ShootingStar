@@ -1,0 +1,80 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: item-index
+  namespace: recommendation-engine-es
+spec:
+  version: 9.3.2
+  volumeClaimDeletePolicy: DeleteOnScaledownOnly
+  nodeSets:
+    - name: large
+      count: 1
+      config:
+        node.roles: ["master", "data", "ingest"]
+        node.store.allow_mmap: false
+      podTemplate:
+        spec:
+          nodeSelector:
+            storage-size: large
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      elasticsearch.k8s.elastic.co/cluster-name: item_index
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: elasticsearch
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: 3Gi
+                limits:
+                  cpu: "2"
+                  memory: 3Gi
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: local-path
+            resources:
+              requests:
+                storage: 32Gi
+
+    - name: small
+      count: 2
+      config:
+        node.roles: ["master", "data", "ingest"]
+        node.store.allow_mmap: false
+      podTemplate:
+        spec:
+          nodeSelector:
+            storage-size: small
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      elasticsearch.k8s.elastic.co/cluster-name: item_index
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: elasticsearch
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: 2Gi
+                limits:
+                  cpu: "2"
+                  memory: 2Gi
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: local-path
+            resources:
+              requests:
+                storage: 16Gi
