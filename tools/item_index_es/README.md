@@ -283,7 +283,7 @@ If Elasticsearch is still exposed as `ClusterIP`, your local machine usually can
 A common workflow is:
 
 ```bash
-kubectl port-forward -n recommendation-engine-es service/item-index-es-http 9200
+kubectl port-forward -n recommendation-engine-es service/item-index-http 9200
 ```
 
 Then access ES locally through:

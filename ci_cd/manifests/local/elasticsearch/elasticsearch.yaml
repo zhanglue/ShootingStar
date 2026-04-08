@@ -31,3 +31,13 @@ spec:
         resources:
           requests:
             storage: 20Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: item-index-http
+  namespace: recommendation-engine-es
+spec:
+  type: ExternalName
+  externalName: item-index-es-http.recommendation-engine-es.svc.cluster.local
