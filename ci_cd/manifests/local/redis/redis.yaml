@@ -1,0 +1,185 @@
+# Simple single-node Redis for Docker Desktop Kubernetes.
+#
+# Goals:
+# - Keep the same namespace as the k3s setup: recommendation-engine-redis
+# - Keep the same stable service names used by clients:
+#     redis-write
+#     redis-read
+# - Avoid requiring the OT-CONTAINER-KIT redis-operator locally
+#
+# Differences from the k3s HA manifest:
+# - This deploys a single Redis pod only
+# - There is no replication and no Sentinel
+# - redis-write and redis-read both point to the same Redis instance
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recommendation-engine-redis
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-auth
+  namespace: recommendation-engine-redis
+type: Opaque
+stringData:
+  # Replace this before apply if needed.
+  password: "ot-container-kit-nb"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: recommendation-engine-redis
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    appendonly yes
+    appendfsync everysec
+    save ""
+    maxmemory 512mb
+    maxmemory-policy noeviction
+    dir /data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-data-headless
+  namespace: recommendation-engine-redis
+spec:
+  clusterIP: None
+  selector:
+    app: redis-data
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-data
+  namespace: recommendation-engine-redis
+spec:
+  selector:
+    app: redis-data
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-write
+  namespace: recommendation-engine-redis
+spec:
+  selector:
+    app: redis-data
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-read
+  namespace: recommendation-engine-redis
+spec:
+  selector:
+    app: redis-data
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-data
+  namespace: recommendation-engine-redis
+spec:
+  serviceName: redis-data-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-data
+  template:
+    metadata:
+      labels:
+        app: redis-data
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              exec redis-server /etc/redis/redis.conf --requirepass "${REDIS_PASSWORD}"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-auth
+                  key: password
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - redis-cli -h 127.0.0.1 -p 6379 -a "${REDIS_PASSWORD}" --no-auth-warning PING | grep -q PONG
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - redis-cli -h 127.0.0.1 -p 6379 -a "${REDIS_PASSWORD}" --no-auth-warning PING | grep -q PONG
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 6
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: redis-config
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 4Gi
