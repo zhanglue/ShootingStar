@@ -27,11 +27,11 @@ spec:
             - name: elasticsearch
               resources:
                 requests:
-                  cpu: "1"
-                  memory: 3Gi
+                  cpu: "500m"
+                  memory: 1536Mi
                 limits:
-                  cpu: "2"
-                  memory: 3Gi
+                  cpu: "1500m"
+                  memory: 1536Mi
       volumeClaimTemplates:
         - metadata:
             name: elasticsearch-data
@@ -63,11 +63,11 @@ spec:
             - name: elasticsearch
               resources:
                 requests:
-                  cpu: "1"
-                  memory: 2Gi
+                  cpu: "500m"
+                  memory: 1536Mi
                 limits:
-                  cpu: "2"
-                  memory: 2Gi
+                  cpu: "1000m"
+                  memory: 1536Mi
       volumeClaimTemplates:
         - metadata:
             name: elasticsearch-data
