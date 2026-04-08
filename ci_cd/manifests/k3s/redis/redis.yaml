@@ -1,0 +1,222 @@
+# Assumes OT-CONTAINER-KIT redis-operator is already installed.
+# This manifest is written for redis.redis.opstreelabs.in/v1beta2.
+#
+# What it does:
+# - 3-node RedisReplication
+# - AOF only, appendfsync everysec
+# - noeviction
+# - maxmemory 1Gi
+# - PVC 8Gi on local-path
+# - Redis data pods spread across crimson/auburn/bronze
+# - 3 RedisSentinel pods
+# - explicit service aliases:
+#     redis-write    -> operator-generated master service
+#     redis-read     -> operator-generated replica service
+#     redis-sentinel -> Sentinel service
+#
+# IMPORTANT:
+# 1) Fill in the Redis password Secret before applying.
+# 2) The alias services below assume the operator creates:
+#      <replication-name>-master
+#      <replication-name>-replica
+#    which matches the current operator's service naming.
+# 3) This operator version does not support separate leader/follower scheduling
+#    in the CRD. The manifest therefore spreads Redis pods across the three nodes
+#    instead of pinning roles to specific hosts.
+# 4) This YAML intentionally keeps Sentinel separate from Redis data pods.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recommendation-engine-redis
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-auth
+  namespace: recommendation-engine-redis
+type: Opaque
+stringData:
+  # Replace this before apply.
+  password: "ot-container-kit-nb"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-data-config
+  namespace: recommendation-engine-redis
+data:
+  redis-additional.conf: |
+    appendonly yes
+    appendfsync everysec
+    save ""
+    maxmemory 1gb
+    maxmemory-policy noeviction
+
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisReplication
+metadata:
+  name: redis-data
+  namespace: recommendation-engine-redis
+spec:
+  clusterSize: 3
+
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - auburn
+                  - bronze
+                  - crimson
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - redis
+          topologyKey: kubernetes.io/hostname
+
+  kubernetesConfig:
+    image: quay.io/opstree/redis:latest
+    imagePullPolicy: IfNotPresent
+
+    redisSecret:
+      name: redis-auth
+      key: password
+
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "1500m"
+        memory: "2Gi"
+
+  # Redis data PVC
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: local-path
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
+
+  redisExporter:
+    enabled: false
+    image: quay.io/opstree/redis-exporter:latest
+
+  # Redis server config
+  redisConfig:
+    additionalRedisConfig: redis-data-config
+
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: RedisSentinel
+metadata:
+  name: redis-sentinel
+  namespace: recommendation-engine-redis
+spec:
+  clusterSize: 3
+
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - redis-sentinel
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - auburn
+                  - bronze
+                  - crimson
+
+  redisSentinelConfig:
+    redisReplicationName: redis-data
+    # Sentinel needs the Redis password to talk to the replication set.
+    redisReplicationPassword:
+      secretKeyRef:
+        name: redis-auth
+        key: password
+
+  kubernetesConfig:
+    image: quay.io/opstree/redis-sentinel:latest
+    imagePullPolicy: IfNotPresent
+
+    # Password for connecting to sentinel itself.
+    redisSecret:
+      name: redis-auth
+      key: password
+
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "250m"
+        memory: "256Mi"
+
+---
+# User-facing write alias.
+# Assumes the operator creates service "redis-data-master".
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-write
+  namespace: recommendation-engine-redis
+spec:
+  type: ExternalName
+  externalName: redis-data-master.recommendation-engine-redis.svc.cluster.local
+
+---
+# User-facing read alias.
+# Assumes the operator creates service "redis-data-replica".
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-read
+  namespace: recommendation-engine-redis
+spec:
+  type: ExternalName
+  externalName: redis-data-replica.recommendation-engine-redis.svc.cluster.local
+
+---
+# Optional explicit sentinel alias.
+# If you want the shorter name to exist regardless of the operator's own service naming,
+# keep this alias. The current operator creates service "redis-sentinel-sentinel".
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel
+  namespace: recommendation-engine-redis
+spec:
+  type: ExternalName
+  externalName: redis-sentinel-sentinel.recommendation-engine-redis.svc.cluster.local
