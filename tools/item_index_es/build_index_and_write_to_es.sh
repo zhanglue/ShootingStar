@@ -29,7 +29,7 @@ LOG_EVERY=5000
 
 # Expect credentials to come from the environment.
 export ES_USERNAME=elastic
-export ES_PASSWORD='KzlzvBCMs1cfr2pIOyxABV59'
+export ES_PASSWORD=$(kubectl get secret -n recommendation-engine-es item-index-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
 
 python3 "${SCRIPT_DIR}/src/main.py" \
   --movies "${MOVIES_PATH}" \
