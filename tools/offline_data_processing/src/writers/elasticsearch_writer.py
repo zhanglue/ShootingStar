@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+"""
+Write generated item index documents into Elasticsearch.
+"""
 from __future__ import annotations
 
 import argparse
@@ -17,6 +19,14 @@ CONFIG_DIR = ROOT_DIR / "config"
 
 
 class ElasticsearchWriter:
+    """
+    Validate, create-if-needed, and bulk-index item documents.
+
+    The writer deliberately refuses to rely on dynamic mappings unless
+    ``ensure_index`` is enabled, so mapping mistakes are caught before a full
+    dataset write.
+    """
+
     DEFAULT_CONFIG: dict[str, Any] = {
         "es_url": "http://localhost:9200",
         "cloud_id": None,
@@ -44,6 +54,9 @@ class ElasticsearchWriter:
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """
+        Normalize config and construct the Elasticsearch client.
+        """
         merged = dict(self.DEFAULT_CONFIG)
         if config:
             merged.update(config)
@@ -53,6 +66,9 @@ class ElasticsearchWriter:
 
     @classmethod
     def _normalize_config(cls, config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Coerce CLI/env-style values into client and indexing settings.
+        """
         normalized = dict(config)
         normalized["es_url"] = str(normalized["es_url"]).rstrip("/")
         normalized["cloud_id"] = (
@@ -96,6 +112,9 @@ class ElasticsearchWriter:
 
     @classmethod
     def build_arg_parser(cls) -> argparse.ArgumentParser:
+        """
+        Create the standalone CLI parser for Elasticsearch writes.
+        """
         parser = argparse.ArgumentParser(
             description="Write item documents into Elasticsearch."
         )
@@ -206,6 +225,9 @@ class ElasticsearchWriter:
 
     @classmethod
     def config_from_args(cls, args: argparse.Namespace) -> dict[str, Any]:
+        """
+        Return only CLI arguments that should override defaults.
+        """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
             if key in {"verify_certs", "retry_on_timeout"}:
@@ -219,6 +241,9 @@ class ElasticsearchWriter:
         value: Any,
         env_name: str | None = None,
     ) -> str | None:
+        """
+        Read optional secrets from explicit values first, then env vars.
+        """
         candidate = value
         if candidate in (None, "") and env_name:
             candidate = os.getenv(env_name)
@@ -228,6 +253,9 @@ class ElasticsearchWriter:
 
     @staticmethod
     def _format_bytes(size: int) -> str:
+        """
+        Format a byte count for progress and preflight logs.
+        """
         units = ["B", "KB", "MB", "GB", "TB"]
         value = float(size)
         for unit in units:
@@ -239,6 +267,9 @@ class ElasticsearchWriter:
         return f"{size}B"
 
     def load_mapping(self) -> dict[str, Any] | None:
+        """
+        Load the JSON mapping body used when creating a missing index.
+        """
         mapping = self.config.get("mapping")
         if mapping is not None:
             return mapping
@@ -251,6 +282,9 @@ class ElasticsearchWriter:
             return json.load(handle)
 
     def ensure_index(self) -> bool:
+        """
+        Create the target index when requested and missing.
+        """
         index_name = self.config["index_name"]
         if self.client.indices.exists(index=index_name):
             # We intentionally do not try to mutate mappings on an existing index.
@@ -284,6 +318,9 @@ class ElasticsearchWriter:
         return True
 
     def iter_documents(self) -> Iterable[dict[str, Any]]:
+        """
+        Stream input documents from JSON Lines or a JSON array file.
+        """
         input_path = self.config["input_path"]
         if self.config["input_format"] == "json":
             with input_path.open(encoding="utf-8") as handle:
@@ -302,6 +339,9 @@ class ElasticsearchWriter:
     def iter_bulk_actions(
         self, documents: Iterable[dict[str, Any]]
     ) -> Iterable[dict[str, Any]]:
+        """
+        Convert item documents into Elasticsearch bulk API actions.
+        """
         for document in documents:
             action: dict[str, Any] = {
                 "_op_type": "index",
@@ -314,6 +354,9 @@ class ElasticsearchWriter:
             yield action
 
     def preflight_for_file(self) -> None:
+        """
+        Validate the input file, cluster connection, and target index.
+        """
         self.logger.info("Starting Elasticsearch preflight for file-based indexing.")
         self._log_input_file()
         self._log_cluster_status()
@@ -321,6 +364,9 @@ class ElasticsearchWriter:
         self._log_index_status()
 
     def preflight_for_items(self, item_count: int) -> None:
+        """
+        Validate cluster/index state before writing in-memory items.
+        """
         self.logger.info("Starting Elasticsearch preflight for in-memory indexing.")
         self.logger.info("Received %s in-memory documents for indexing.", item_count)
         self._log_cluster_status()
@@ -328,20 +374,32 @@ class ElasticsearchWriter:
         self._log_index_status()
 
     def write_file(self) -> int:
+        """
+        Index documents from the configured input file.
+        """
         self.logger.info("ElasticsearchWriter file write started.")
         self.preflight_for_file()
         return self._bulk_write(self.iter_documents())
 
     def write_items(self, items: list[dict[str, Any]]) -> int:
+        """
+        Index already-built item documents without rereading from disk.
+        """
         self.logger.info("ElasticsearchWriter in-memory write started.")
         self.preflight_for_items(len(items))
         return self._bulk_write(items)
 
     def run(self) -> int:
+        """
+        Run the default file-based indexing path.
+        """
         self.logger.info("ElasticsearchWriter run started.")
         return self.write_file()
 
     def _create_client(self) -> Elasticsearch:
+        """
+        Create the Elasticsearch client with auth, TLS, and retry settings.
+        """
         client_kwargs: dict[str, Any] = {
             "request_timeout": self.config["timeout"],
             "max_retries": self.config["max_retries"],
@@ -366,6 +424,9 @@ class ElasticsearchWriter:
         return Elasticsearch(self.config["es_url"], **client_kwargs)
 
     def _log_input_file(self) -> None:
+        """
+        Fail fast if the input file is missing, not a file, or empty.
+        """
         input_path = self.config["input_path"]
         if not input_path.exists():
             raise FileNotFoundError(f"Input file does not exist: {input_path}")
@@ -384,6 +445,9 @@ class ElasticsearchWriter:
         )
 
     def _log_cluster_status(self) -> None:
+        """
+        Log the connected cluster version and health before indexing.
+        """
         info = self.client.info()
         version = info.get("version", {}).get("number", "unknown")
         cluster_name = info.get("cluster_name", "unknown")
@@ -402,6 +466,9 @@ class ElasticsearchWriter:
         )
 
     def _log_index_status(self) -> None:
+        """
+        Log current target-index document count.
+        """
         count = self.client.count(index=self.config["index_name"]).get("count", 0)
         self.logger.info(
             "Target index '%s' currently contains %s documents.",
@@ -410,6 +477,9 @@ class ElasticsearchWriter:
         )
 
     def _bulk_write(self, documents: Iterable[dict[str, Any]]) -> int:
+        """
+        Stream documents through Elasticsearch helpers.streaming_bulk.
+        """
         indexed_count = 0
         progress_interval = max(self.config["bulk_size"], self.config["log_every"])
         next_progress = progress_interval
@@ -447,6 +517,9 @@ class ElasticsearchWriter:
 
 
 def main() -> None:
+    """
+    CLI entrypoint for running only the Elasticsearch writer.
+    """
     parser = ElasticsearchWriter.build_arg_parser()
     args = parser.parse_args()
     log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
@@ -461,4 +534,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Direct writer-only run example, after port-forwarding ES to localhost:9200:
+    #   ES_USERNAME=elastic ES_PASSWORD=... \
+    #   python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
+    #     --input tools/offline_data_processing/item_index.jsonl \
+    #     --es-url https://localhost:9200 \
+    #     --index-name movielens_32m_rating_index \
+    #     --ensure-index --no-verify-certs
     main()

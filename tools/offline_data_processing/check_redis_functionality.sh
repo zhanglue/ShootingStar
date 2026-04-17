@@ -2,8 +2,20 @@
 
 set -euo pipefail
 
+# Validate Redis service aliases, replication visibility, and Sentinel state.
+#
+# Typical scenarios:
+#   1. Validate the Raspberry Pi HA deployment with RedisReplication/Sentinel:
+#        ./check_redis_functionality.sh ha
+#   2. Validate the single-node local Kubernetes manifest:
+#        ./check_redis_functionality.sh local
+#   3. Keep the temporary validation key for manual redis-cli inspection:
+#        KEEP_TEST_KEY=true ./check_redis_functionality.sh ha
+#   4. Tune replica-read retry timing for a slower cluster:
+#        READ_RETRY_COUNT=20 READ_RETRY_INTERVAL_SECONDS=2 ./check_redis_functionality.sh ha
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../common.sh"
 
 MODE="${1:-ha}"
 REDIS_NAMESPACE="${REDIS_NAMESPACE:-recommendation-engine-redis}"
@@ -29,6 +41,8 @@ TEST_KEY=""
 TEST_VALUE=""
 
 usage() {
+    # The help text lists the operational knobs; the header comments above show
+    # the most common ways to combine them.
     cat <<EOF
 Usage:
   $(basename "$0") [ha|local]
@@ -79,6 +93,8 @@ run_kubectl() {
 }
 
 configure_mode() {
+    # The local manifest has a single Redis pod and no Sentinel, while HA mode
+    # expects the operator-managed replication and Sentinel resources.
     case "${MODE}" in
         ha)
             ;;
@@ -99,16 +115,19 @@ configure_mode() {
 }
 
 get_secret_password() {
+    # Redis auth is stored in the same Secret name for local and HA manifests.
     run_kubectl get secret redis-auth -n "${REDIS_NAMESPACE}" -o go-template='{{.data.password | base64decode}}'
 }
 
 get_running_pod_by_prefix() {
+    # Pick one running pod as the kubectl exec anchor for redis-cli commands.
     local prefix="$1"
     run_kubectl get pods -n "${REDIS_NAMESPACE}" --no-headers \
         | awk -v prefix="${prefix}" '$1 ~ ("^" prefix) && $3 == "Running" {print $1; exit}'
 }
 
 redis_exec() {
+    # Execute redis-cli inside a Redis pod while targeting a service alias.
     local host="$1"
     shift
     run_kubectl exec -n "${REDIS_NAMESPACE}" "${EXEC_POD}" -c "${REDIS_CONTAINER_NAME}" -- \
@@ -116,22 +135,26 @@ redis_exec() {
 }
 
 redis_local_exec() {
+    # Execute a command directly inside a named Redis pod.
     local pod_name="$1"
     shift
     run_kubectl exec -n "${REDIS_NAMESPACE}" "${pod_name}" -c "${REDIS_CONTAINER_NAME}" -- "$@"
 }
 
 redis_exec_raw() {
+    # Escape hatch for commands that should not go through redis-cli wrappers.
     run_kubectl exec -n "${REDIS_NAMESPACE}" "${EXEC_POD}" -c "${REDIS_CONTAINER_NAME}" -- "$@"
 }
 
 sentinel_exec() {
+    # Execute redis-cli against the Sentinel service from a Sentinel pod.
     shift 0
     run_kubectl exec -n "${REDIS_NAMESPACE}" "${SENTINEL_EXEC_POD}" -c "${REDIS_SENTINEL_CONTAINER_NAME}" -- \
         redis-cli -h "${REDIS_SENTINEL_SERVICE}" -p "${REDIS_SENTINEL_PORT}" -a "${REDIS_PASSWORD}" --no-auth-warning "$@"
 }
 
 cleanup() {
+    # Remove the validation key unless the caller intentionally kept it.
     if [[ -n "${TEST_KEY}" && "${KEEP_TEST_KEY}" != "true" && -n "${EXEC_POD}" ]]; then
         redis_exec "${REDIS_WRITE_SERVICE}" DEL "${TEST_KEY}" >/dev/null 2>&1 || true
     fi
@@ -140,6 +163,7 @@ cleanup() {
 trap cleanup EXIT
 
 show_context() {
+    # Print the exact cluster resources this validation run is about to touch.
     print_section "Cluster Context"
     echo_info "Mode                 : ${MODE}"
     echo_info "Namespace            : ${REDIS_NAMESPACE}"
@@ -155,6 +179,8 @@ show_context() {
 }
 
 load_runtime_context() {
+    # Resolve credentials and exec pods once so later checks fail consistently if
+    # the deployment is not ready.
     REDIS_PASSWORD="$(get_secret_password)"
     EXEC_POD="$(get_running_pod_by_prefix "${REDIS_REPLICATION_NAME}-")"
 
@@ -179,6 +205,7 @@ load_runtime_context() {
 }
 
 show_overview() {
+    # Show CR and pod inventory before testing traffic paths.
     print_section "Overview"
     echo_info "Exec pod             : ${EXEC_POD}"
     if [[ "${REDIS_SENTINEL_ENABLED}" == "true" ]]; then
@@ -202,6 +229,7 @@ show_overview() {
 }
 
 show_service_overview() {
+    # Confirm the client-facing aliases point at the expected generated services.
     local service_name
     local service_type
     local external_name
@@ -235,6 +263,8 @@ show_service_overview() {
 }
 
 show_replication_roles() {
+    # Read INFO replication from every Redis pod so master/replica roles are
+    # visible even if the operator status is stale.
     local redis_pods
     local pod_name
     local role_line
@@ -256,6 +286,7 @@ show_replication_roles() {
 }
 
 check_alias_connectivity() {
+    # PING all service aliases before attempting a write/read validation.
     print_section "Alias Connectivity"
 
     echo_info "Pinging write alias ${REDIS_WRITE_SERVICE}"
@@ -273,6 +304,8 @@ check_alias_connectivity() {
 }
 
 run_write_read_validation() {
+    # Write through the write alias and read through the read alias. This catches
+    # broken ExternalName targets and replica lag beyond the configured retries.
     local read_result=""
     local attempt
 
@@ -322,6 +355,7 @@ run_write_read_validation() {
 }
 
 show_sentinel_state() {
+    # Compare Sentinel's master view with the RedisReplication status.
     local sentinel_master_reply
     local expected_master
 
@@ -348,6 +382,8 @@ show_sentinel_state() {
 }
 
 main() {
+    # Run increasingly specific checks: cluster context, resources, service
+    # aliases, an actual write/read, then Sentinel state when enabled.
     require_command kubectl
     check_kubectl_is_available
     configure_mode

@@ -2,8 +2,20 @@
 
 set -euo pipefail
 
+# Inspect RedisReplication/Sentinel rollout state without writing Redis data.
+#
+# Typical scenarios:
+#   1. Print a one-shot rollout snapshot:
+#        ./check_redis_rollout_status.sh once
+#   2. Wait until Redis and Sentinel StatefulSets are ready:
+#        ./check_redis_rollout_status.sh wait
+#   3. Use a longer timeout for slow image pulls or storage attachment:
+#        WAIT_TIMEOUT_SECONDS=1200 ./check_redis_rollout_status.sh wait
+#   4. Show more recent Kubernetes events during investigation:
+#        EVENT_LINES=100 ./check_redis_rollout_status.sh once
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../common.sh"
 
 MODE="${1:-once}"
 REDIS_NAMESPACE="${REDIS_NAMESPACE:-recommendation-engine-redis}"
@@ -15,6 +27,8 @@ WAIT_INTERVAL_SECONDS="${WAIT_INTERVAL_SECONDS:-5}"
 EVENT_LINES="${EVENT_LINES:-40}"
 
 usage() {
+    # This script is read-only; use check_redis_functionality.sh for live
+    # write/read validation after rollout is complete.
     cat <<EOF
 Usage:
   $(basename "$0") [once|wait]
@@ -56,12 +70,14 @@ run_kubectl() {
 }
 
 resource_exists() {
+    # Keep jsonpath helpers quiet when optional CRDs/resources are absent.
     local kind="$1"
     local name="$2"
     run_kubectl get "${kind}" "${name}" -n "${REDIS_NAMESPACE}" >/dev/null 2>&1
 }
 
 jsonpath_or_na() {
+    # Read one Kubernetes jsonpath and normalize missing/empty values to n/a.
     local kind="$1"
     local name="$2"
     local jsonpath="$3"
@@ -81,6 +97,7 @@ jsonpath_or_na() {
 }
 
 show_context() {
+    # Print resource names first so copied logs are self-describing.
     print_section "Cluster Context"
     echo_info "Namespace           : ${REDIS_NAMESPACE}"
     echo_info "RedisReplication    : ${REDIS_REPLICATION_NAME}"
@@ -92,6 +109,7 @@ show_context() {
 }
 
 show_namespace_overview() {
+    # Show the custom resources and StatefulSets that drive the rollout.
     print_section "Namespace Overview"
     run_kubectl get namespace "${REDIS_NAMESPACE}" || true
 
@@ -106,6 +124,7 @@ show_namespace_overview() {
 }
 
 show_status_summary() {
+    # Summarize operator-observed state and StatefulSet readiness in one block.
     local redis_generation
     local redis_observed_generation
     local redis_master
@@ -137,11 +156,14 @@ show_status_summary() {
 }
 
 show_pod_layout() {
+    # Pod placement and IPs help spot scheduling and node-local failures.
     print_section "Pod Layout"
     run_kubectl get pods -n "${REDIS_NAMESPACE}" -o wide || true
 }
 
 show_service_and_storage() {
+    # Services tell clients where to connect; PVCs explain pending pods caused by
+    # volume scheduling or attachment issues.
     print_section "Services"
     run_kubectl get svc -n "${REDIS_NAMESPACE}" -o wide || true
 
@@ -161,6 +183,8 @@ show_service_and_storage() {
 }
 
 show_config_resources() {
+    # Missing Secret/ConfigMap objects usually means the manifest set was only
+    # partially applied.
     print_section "Config Resources"
     run_kubectl get secret redis-auth -n "${REDIS_NAMESPACE}" >/dev/null 2>&1 && \
         echo_info "Secret redis-auth exists." || \
@@ -175,6 +199,7 @@ show_config_resources() {
 }
 
 show_not_ready_pod_details() {
+    # Describe only non-ready pods to keep the happy-path output short.
     local not_ready_pods
 
     not_ready_pods="$(
@@ -203,11 +228,15 @@ show_not_ready_pod_details() {
 }
 
 show_recent_events() {
+    # Recent events provide the timeline around scheduling, image, and probe
+    # failures. tail keeps the output bounded.
     print_section "Recent Events"
     run_kubectl get events -n "${REDIS_NAMESPACE}" --sort-by=.lastTimestamp | tail -n "${EVENT_LINES}" || true
 }
 
 is_rollout_complete() {
+    # Rollout is complete when both Redis and Sentinel StatefulSets report every
+    # desired replica as ready.
     local redis_desired
     local redis_ready
     local sentinel_desired
@@ -225,6 +254,8 @@ is_rollout_complete() {
 }
 
 wait_for_rollout() {
+    # Poll readiness until completion or timeout, then the caller prints a fresh
+    # status summary so final logs include the terminal state.
     local start_ts
     local now_ts
     local elapsed
@@ -261,6 +292,8 @@ wait_for_rollout() {
 }
 
 main() {
+    # once: read-only snapshot. wait: snapshot, poll readiness, then print the
+    # latest summary/layout/events again.
     if [[ "${MODE}" == "--help" || "${MODE}" == "-h" ]]; then
         usage
         exit 0

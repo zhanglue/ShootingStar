@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+"""
+Write generated item similarity rows into Redis sorted sets.
+"""
 from __future__ import annotations
 
 import argparse
@@ -16,11 +18,21 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 @dataclass(frozen=True)
 class RedisWriteStats:
+    """
+    Counters returned after validating or writing similarity rows.
+    """
     item_count: int
     neighbor_count: int
 
 
 class RedisWriter:
+    """
+    Store each item's neighbors under one Redis sorted-set key.
+
+    The final key is ``<key_prefix>:<item_id>``. Each sorted-set member is the
+    neighbor item id and the score is the similarity value.
+    """
+
     DEFAULT_CONFIG: dict[str, Any] = {
         "redis_host": "localhost",
         "redis_port": 6379,
@@ -41,6 +53,9 @@ class RedisWriter:
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """
+        Merge caller overrides with defaults and normalize config values.
+        """
         merged = dict(self.DEFAULT_CONFIG)
         if config:
             merged.update(config)
@@ -49,6 +64,9 @@ class RedisWriter:
 
     @classmethod
     def _normalize_config(cls, config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Coerce CLI/env-style values into Redis writer settings.
+        """
         normalized = dict(config)
         normalized["redis_host"] = str(normalized["redis_host"])
         normalized["redis_port"] = int(normalized["redis_port"])
@@ -84,6 +102,9 @@ class RedisWriter:
 
     @classmethod
     def build_arg_parser(cls) -> argparse.ArgumentParser:
+        """
+        Create the standalone CLI parser for Redis writes.
+        """
         parser = argparse.ArgumentParser(
             description="Write item similarity data into Redis sorted sets."
         )
@@ -155,6 +176,9 @@ class RedisWriter:
 
     @classmethod
     def config_from_args(cls, args: argparse.Namespace) -> dict[str, Any]:
+        """
+        Return only CLI arguments that should override defaults.
+        """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
             if key in {"ssl", "replace_existing", "dry_run"}:
@@ -168,6 +192,9 @@ class RedisWriter:
         value: Any,
         env_name: str | None = None,
     ) -> str | None:
+        """
+        Read optional auth values from explicit values first, then env vars.
+        """
         candidate = value
         if candidate in (None, "") and env_name:
             candidate = os.getenv(env_name)
@@ -176,6 +203,9 @@ class RedisWriter:
         return str(candidate)
 
     def iter_documents(self) -> Iterable[dict[str, Any]]:
+        """
+        Stream similarity documents from JSON Lines or a JSON array file.
+        """
         input_path = self.config["input_path"]
         if self.config["input_format"] == "json":
             with input_path.open(encoding="utf-8") as handle:
@@ -192,6 +222,9 @@ class RedisWriter:
                 yield json.loads(line)
 
     def write_documents(self, documents: Iterable[dict[str, Any]]) -> RedisWriteStats:
+        """
+        Validate or write similarity documents in Redis pipeline batches.
+        """
         if self.config["dry_run"]:
             item_count = 0
             neighbor_count = 0
@@ -218,6 +251,8 @@ class RedisWriter:
         batch: list[dict[str, Any]] = []
 
         for document in documents:
+            # Accumulate item rows before touching Redis so each pipeline execute
+            # has enough work to amortize network round trips.
             batch.append(document)
             if len(batch) < self.config["batch_size"]:
                 continue
@@ -250,11 +285,17 @@ class RedisWriter:
         return total
 
     def run(self) -> RedisWriteStats:
+        """
+        Validate the input file and run the configured write path.
+        """
         self.logger.info("RedisWriter run started.")
         self._validate_input_file()
         return self.write_documents(self.iter_documents())
 
     def _create_client(self) -> Any:
+        """
+        Create the Redis client lazily so dry-run mode needs no connection.
+        """
         try:
             import redis
         except ImportError as exc:
@@ -275,6 +316,9 @@ class RedisWriter:
         )
 
     def _validate_input_file(self) -> None:
+        """
+        Fail fast if the input file is missing, not a file, or empty.
+        """
         input_path = self.config["input_path"]
         if not input_path.exists():
             raise FileNotFoundError(f"Input file does not exist: {input_path}")
@@ -284,9 +328,15 @@ class RedisWriter:
             raise RuntimeError(f"Input file is empty: {input_path}")
 
     def _redis_key(self, item_id: int) -> str:
+        """
+        Build the Redis sorted-set key for one item.
+        """
         return f"{self.config['key_prefix']}:{item_id}"
 
     def _write_batch(self, client: Any, batch: list[dict[str, Any]]) -> RedisWriteStats:
+        """
+        Write one batch of item neighbor sets through a Redis pipeline.
+        """
         pipeline = client.pipeline(transaction=False)
         item_count = 0
         neighbor_count = 0
@@ -296,6 +346,8 @@ class RedisWriter:
             neighbors = document.get("neighbors", [])
             key = self._redis_key(item_id)
 
+            # Replace by default so rerunning the job cannot leave stale
+            # neighbors from a previous run with a different top_k/min score.
             if self.config["replace_existing"]:
                 pipeline.delete(key)
 
@@ -317,6 +369,9 @@ class RedisWriter:
 
 
 def main() -> None:
+    """
+    CLI entrypoint for running only the Redis writer.
+    """
     parser = RedisWriter.build_arg_parser()
     args = parser.parse_args()
     log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
@@ -330,4 +385,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Direct writer-only run example, after port-forwarding Redis to localhost:6379:
+    #   REDIS_PASSWORD=... \
+    #   python3 tools/offline_data_processing/src/writers/redis_writer.py \
+    #     --input tools/offline_data_processing/item_similarity.jsonl \
+    #     --redis-host localhost --redis-port 6379 --redis-db 0
     main()

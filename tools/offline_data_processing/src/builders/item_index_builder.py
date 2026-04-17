@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+"""
+Build Elasticsearch-ready item index documents from MovieLens CSV files.
+"""
 from __future__ import annotations
 
 import argparse
@@ -22,6 +24,14 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 class ItemIndexBuilder:
+    """
+    Convert MovieLens movies/tags/links/ratings CSVs into item documents.
+
+    The builder keeps all final item documents in memory because the expected
+    item cardinality is movie-sized, while the potentially large ratings file is
+    streamed when aggregating rating statistics.
+    """
+
     DEFAULT_CONFIG: dict[str, Any] = {
         "movies_path": ROOT_DIR / "demo_movies.csv",
         "tags_path": ROOT_DIR / "demo_tags.csv",
@@ -36,6 +46,9 @@ class ItemIndexBuilder:
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """
+        Merge caller overrides with defaults and normalize config values.
+        """
         merged = dict(self.DEFAULT_CONFIG)
         if config:
             merged.update(config)
@@ -44,6 +57,9 @@ class ItemIndexBuilder:
 
     @classmethod
     def _normalize_config(cls, config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Coerce CLI/env-style values into the concrete types used internally.
+        """
         normalized = dict(config)
         path_keys = (
             "movies_path",
@@ -67,6 +83,9 @@ class ItemIndexBuilder:
 
     @classmethod
     def build_arg_parser(cls) -> argparse.ArgumentParser:
+        """
+        Create the standalone CLI parser for the item-index build step.
+        """
         parser = argparse.ArgumentParser(
             description="Build item index documents from MovieLens-style CSV inputs."
         )
@@ -113,6 +132,9 @@ class ItemIndexBuilder:
 
     @classmethod
     def config_from_args(cls, args: argparse.Namespace) -> dict[str, Any]:
+        """
+        Return only CLI arguments that were explicitly provided.
+        """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
             if value is not None:
@@ -121,10 +143,16 @@ class ItemIndexBuilder:
 
     @staticmethod
     def normalize_spaces(text: str) -> str:
+        """
+        Collapse repeated whitespace after trimming the input text.
+        """
         return MULTI_SPACE_RE.sub(" ", text.strip())
 
     @staticmethod
     def move_trailing_article(title: str) -> str:
+        """
+        Convert MovieLens titles like 'Matrix, The' into 'The Matrix'.
+        """
         match = TRAILING_ARTICLE_RE.match(title)
         if not match:
             return title
@@ -132,12 +160,18 @@ class ItemIndexBuilder:
 
     @staticmethod
     def parse_genres(raw_genres: str) -> list[str]:
+        """
+        Split the MovieLens pipe-delimited genre field into a list.
+        """
         if not raw_genres or raw_genres == "(no genres listed)":
             return []
         return [genre for genre in raw_genres.split("|") if genre]
 
     @staticmethod
     def format_imdb_id(raw_imdb_id: str) -> str | None:
+        """
+        Normalize MovieLens IMDb IDs into the canonical 'tt0000000' shape.
+        """
         value = raw_imdb_id.strip()
         if not value:
             return None
@@ -149,6 +183,9 @@ class ItemIndexBuilder:
 
     @staticmethod
     def format_tmdb_id(raw_tmdb_id: str) -> int | None:
+        """
+        Parse TMDb IDs, returning None for blank or malformed values.
+        """
         value = raw_tmdb_id.strip()
         if not value:
             return None
@@ -158,21 +195,33 @@ class ItemIndexBuilder:
             return None
 
     def normalize_tag(self, text: str) -> str:
+        """
+        Normalize user-provided tags for grouping and scoring.
+        """
         normalized = unicodedata.normalize("NFKC", text).lower()
         return self.normalize_spaces(normalized)
 
     def normalize_search_text(self, text: str) -> str:
+        """
+        Normalize text fields into token-friendly search text.
+        """
         normalized = unicodedata.normalize("NFKC", text).lower()
         normalized = NON_WORD_RE.sub(" ", normalized)
         return self.normalize_spaces(normalized)
 
     def parse_title_and_year(self, title_raw: str) -> tuple[str, int | None]:
+        """
+        Extract a trailing release year from a MovieLens title when present.
+        """
         match = TITLE_YEAR_RE.match(title_raw)
         if not match:
             return self.move_trailing_article(title_raw), None
         return self.move_trailing_article(match.group("title")), int(match.group("year"))
 
     def read_movies(self) -> list[dict[str, str]]:
+        """
+        Load the movie rows that define the final item universe.
+        """
         self.logger.info("Loading movies from %s.", self.config["movies_path"])
         movies: list[dict[str, str]] = []
         with self.config["movies_path"].open(newline="", encoding="utf-8") as handle:
@@ -182,6 +231,9 @@ class ItemIndexBuilder:
         return movies
 
     def build_links_map(self) -> dict[int, dict[str, Any]]:
+        """
+        Build per-movie external ID metadata from links.csv.
+        """
         self.logger.info("Loading links from %s.", self.config["links_path"])
         links: dict[int, dict[str, Any]] = {}
         with self.config["links_path"].open(newline="", encoding="utf-8") as handle:
@@ -195,6 +247,9 @@ class ItemIndexBuilder:
         return links
 
     def build_ratings_map(self) -> dict[int, dict[str, Any]]:
+        """
+        Stream ratings.csv and compute average rating/count per movie.
+        """
         self.logger.info("Aggregating ratings from %s.", self.config["ratings_path"])
         totals: dict[int, float] = defaultdict(float)
         counts: Counter[int] = Counter()
@@ -218,6 +273,9 @@ class ItemIndexBuilder:
     def collect_tags(
         self, valid_movie_ids: set[int]
     ) -> tuple[dict[int, Counter[str]], dict[int, dict[str, set[str]]]]:
+        """
+        Collect raw tag counts and unique tag-user sets for known movies.
+        """
         self.logger.info(
             "Collecting tags from %s for %s valid movies.",
             self.config["tags_path"],
@@ -252,6 +310,9 @@ class ItemIndexBuilder:
     def compute_top_tags(
         self, tag_user_sets: dict[int, dict[str, set[str]]]
     ) -> dict[int, list[dict[str, Any]]]:
+        """
+        Score movie tags with a simple TF-IDF variant and keep top tags.
+        """
         self.logger.info(
             "Computing top tags with top_k=%s, min_weight=%s, min_relative_weight=%s.",
             self.config["top_k"],
@@ -308,6 +369,9 @@ class ItemIndexBuilder:
     def build_search_fields(
         self, title_norm: str, genres: list[str], top_tags: list[dict[str, Any]]
     ) -> dict[str, str]:
+        """
+        Assemble denormalized search strings consumed by the ES mapping.
+        """
         genre_text = " ".join(self.normalize_search_text(genre) for genre in genres)
         tag_text = " ".join(tag["tag"] for tag in top_tags)
         all_text = self.normalize_spaces(
@@ -319,7 +383,11 @@ class ItemIndexBuilder:
         }
 
     def build_items(self) -> list[dict[str, Any]]:
+        """
+        Run all input transforms and assemble the final item documents.
+        """
         self.logger.info("Starting item document build.")
+        # Load side data first so each movie row can be assembled in one pass.
         movies = self.read_movies()
         valid_movie_ids = {int(row["movieId"]) for row in movies}
         links_map = self.build_links_map()
@@ -329,6 +397,7 @@ class ItemIndexBuilder:
 
         items: list[dict[str, Any]] = []
         for row in movies:
+            # Preserve raw title/IDs, but also write normalized search fields.
             movie_id = int(row["movieId"])
             title_raw = row["title"]
             title, year = self.parse_title_and_year(title_raw)
@@ -364,6 +433,9 @@ class ItemIndexBuilder:
         return items
 
     def write_output(self, items: list[dict[str, Any]]) -> Path:
+        """
+        Write item documents as JSON Lines or a single JSON array.
+        """
         output_path = self.config["output_path"]
         self.logger.info(
             "Writing %s items to %s as %s.",
@@ -386,6 +458,9 @@ class ItemIndexBuilder:
         return output_path
 
     def run(self) -> tuple[list[dict[str, Any]], Path]:
+        """
+        Build item documents and write them to disk.
+        """
         self.logger.info("ItemIndexBuilder run started.")
         items = self.build_items()
         output_path = self.write_output(items)
@@ -394,6 +469,9 @@ class ItemIndexBuilder:
 
 
 def main() -> None:
+    """
+    CLI entrypoint for running only the item-index builder.
+    """
     parser = ItemIndexBuilder.build_arg_parser()
     args = parser.parse_args()
     log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
@@ -404,4 +482,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Direct builder-only run example:
+    #   python3 tools/offline_data_processing/src/builders/item_index_builder.py \
+    #     --movies /Volumes/DataBase/Work/raw_dataset_32m_rating/movies.csv \
+    #     --tags /Volumes/DataBase/Work/raw_dataset_32m_rating/tags.csv \
+    #     --links /Volumes/DataBase/Work/raw_dataset_32m_rating/links.csv \
+    #     --ratings /Volumes/DataBase/Work/raw_dataset_32m_rating/ratings.csv \
+    #     --output tools/offline_data_processing/item_index.jsonl
     main()

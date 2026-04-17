@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+"""
+Build item-item collaborative filtering neighbors from MovieLens ratings.
+"""
 from __future__ import annotations
 
 import argparse
@@ -18,6 +20,14 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 class ItemSimilarityBuilder:
+    """
+    Compute item similarity rows using sharded pair-reduction.
+
+    The ratings file can be large, so this builder streams ratings and writes
+    intermediate pair/neighbor CSV shards instead of keeping every pair in
+    memory. The final output contains one row per item with its top neighbors.
+    """
+
     DEFAULT_CONFIG: dict[str, Any] = {
         "ratings_path": ROOT_DIR / "demo_ratings.csv",
         "output_path": ROOT_DIR / "item_similarity.jsonl",
@@ -39,6 +49,9 @@ class ItemSimilarityBuilder:
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """
+        Merge caller overrides with defaults and normalize config values.
+        """
         merged = dict(self.DEFAULT_CONFIG)
         if config:
             merged.update(config)
@@ -47,6 +60,9 @@ class ItemSimilarityBuilder:
 
     @classmethod
     def _normalize_config(cls, config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Coerce incoming config values and validate tunables.
+        """
         normalized = dict(config)
         normalized["ratings_path"] = Path(normalized["ratings_path"])
         normalized["output_path"] = Path(normalized["output_path"])
@@ -83,6 +99,9 @@ class ItemSimilarityBuilder:
 
     @classmethod
     def build_arg_parser(cls) -> argparse.ArgumentParser:
+        """
+        Create the standalone CLI parser for similarity generation.
+        """
         parser = argparse.ArgumentParser(
             description="Build item-item similarity data from MovieLens ratings."
         )
@@ -185,6 +204,9 @@ class ItemSimilarityBuilder:
 
     @classmethod
     def config_from_args(cls, args: argparse.Namespace) -> dict[str, Any]:
+        """
+        Return only CLI arguments that were explicitly provided.
+        """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
             if key in {"use_rating_weight", "ratings_sorted_by_user"}:
@@ -194,6 +216,9 @@ class ItemSimilarityBuilder:
         return config
 
     def build_item_stats(self) -> tuple[set[int], dict[int, float], Counter[int]]:
+        """
+        Find valid items and compute vector norms from positive ratings.
+        """
         self.logger.info(
             "Building item stats with min_rating=%s, min_item_users=%s.",
             self.config["min_rating"],
@@ -226,6 +251,9 @@ class ItemSimilarityBuilder:
         valid_items: set[int],
         pair_shard_dir: Path,
     ) -> int:
+        """
+        Map each user's positive items into weighted item-pair shards.
+        """
         self.logger.info(
             "Mapping user interactions to %s pair CSV shards.",
             self.config["shard_count"],
@@ -235,6 +263,8 @@ class ItemSimilarityBuilder:
         pair_contribution_count = 0
 
         if self.config["ratings_sorted_by_user"]:
+            # The full 32M ratings file is sorted by userId, so this path keeps
+            # only one user's interactions in memory at a time.
             current_user_id: int | None = None
             current_interactions: list[tuple[int, float, int]] = []
 
@@ -272,6 +302,8 @@ class ItemSimilarityBuilder:
                 "ratings_unsorted mode groups all users in memory. "
                 "Use sorted ratings for large datasets."
             )
+            # This fallback is convenient for small ad-hoc files, but avoid it
+            # for the full dataset unless memory has been planned carefully.
             user_interactions: dict[int, list[tuple[int, float, int]]] = defaultdict(list)
             for user_id, movie_id, weight, timestamp in self._iter_positive_ratings():
                 if movie_id in valid_items:
@@ -299,6 +331,9 @@ class ItemSimilarityBuilder:
         neighbor_shard_dir: Path,
         item_norm_sq: dict[int, float],
     ) -> int:
+        """
+        Aggregate pair shards into bidirectional scored neighbor rows.
+        """
         self.logger.info("Reducing pair shards into neighbor CSV shards.")
         buffers: list[list[str]] = [[] for _ in range(self.config["shard_count"])]
         buffered_rows = 0
@@ -321,6 +356,8 @@ class ItemSimilarityBuilder:
 
             kept_pair_count = 0
             for (left_movie_id, right_movie_id), cooccurrence in pair_user_counts.items():
+                # Apply all pair-level thresholds before writing two directed
+                # neighbor rows, one for each side of the undirected item pair.
                 if cooccurrence < self.config["min_cooccurrence"]:
                     continue
 
@@ -363,6 +400,9 @@ class ItemSimilarityBuilder:
         return neighbor_row_count
 
     def reduce_neighbor_shards_to_output(self, neighbor_shard_dir: Path) -> int:
+        """
+        Keep top-K neighbors per item and write the final output file.
+        """
         output_path = self.config["output_path"]
         output_format = self.config["output_format"]
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -379,6 +419,8 @@ class ItemSimilarityBuilder:
 
             first_json_item = True
             for shard_id in range(self.config["shard_count"]):
+                # Each neighbor shard owns a disjoint item-id modulo bucket, so
+                # top-K can be computed shard by shard.
                 shard_path = self._neighbor_shard_path(neighbor_shard_dir, shard_id)
                 if not shard_path.exists():
                     continue
@@ -402,6 +444,9 @@ class ItemSimilarityBuilder:
         return output_count
 
     def compute_similarities(self) -> int:
+        """
+        Run the three-stage similarity pipeline: stats, pairs, top-K output.
+        """
         pair_shard_dir, neighbor_shard_dir = self._prepare_temp_dirs()
         valid_items, item_norm_sq, _ = self.build_item_stats()
         self.map_user_pairs_to_pair_shards(valid_items, pair_shard_dir)
@@ -413,6 +458,9 @@ class ItemSimilarityBuilder:
         return self.reduce_neighbor_shards_to_output(neighbor_shard_dir)
 
     def run(self) -> tuple[int, Path]:
+        """
+        Compute similarities and return the output row count/path.
+        """
         self.logger.info("ItemSimilarityBuilder run started.")
         item_count = self.compute_similarities()
         output_path = self.config["output_path"]
@@ -420,6 +468,9 @@ class ItemSimilarityBuilder:
         return item_count, output_path
 
     def _rating_to_weight(self, rating: float) -> float | None:
+        """
+        Convert a rating into a positive-feedback weight or drop it.
+        """
         if rating < self.config["min_rating"]:
             return None
         if not self.config["use_rating_weight"]:
@@ -431,6 +482,9 @@ class ItemSimilarityBuilder:
         return weight
 
     def _iter_positive_ratings(self) -> Iterable[tuple[int, int, float, int]]:
+        """
+        Stream positive ratings as user, movie, weight, timestamp tuples.
+        """
         ratings_path = self.config["ratings_path"]
         self.logger.info("Reading MovieLens ratings from %s.", ratings_path)
         with ratings_path.open(newline="", encoding="utf-8") as handle:
@@ -462,6 +516,9 @@ class ItemSimilarityBuilder:
         self,
         interactions: list[tuple[int, float, int]],
     ) -> list[tuple[int, float]]:
+        """
+        Deduplicate and cap one user's positive item interactions.
+        """
         deduped: dict[int, tuple[float, int]] = {}
         for movie_id, weight, timestamp in interactions:
             existing = deduped.get(movie_id)
@@ -481,6 +538,9 @@ class ItemSimilarityBuilder:
         return sorted((movie_id, weight) for movie_id, weight, _ in ranked)
 
     def _prepare_temp_dirs(self) -> tuple[Path, Path]:
+        """
+        Create fresh pair/neighbor shard directories for this run.
+        """
         temp_dir = self.config["temp_dir"]
         pair_shard_dir = temp_dir / "pair_shards"
         neighbor_shard_dir = temp_dir / "neighbor_shards"
@@ -494,15 +554,27 @@ class ItemSimilarityBuilder:
         return pair_shard_dir, neighbor_shard_dir
 
     def _pair_shard_path(self, pair_shard_dir: Path, shard_id: int) -> Path:
+        """
+        Return the CSV path for a pair shard id.
+        """
         return pair_shard_dir / f"pair_shard_{shard_id:05d}.csv"
 
     def _neighbor_shard_path(self, neighbor_shard_dir: Path, shard_id: int) -> Path:
+        """
+        Return the CSV path for a neighbor shard id.
+        """
         return neighbor_shard_dir / f"neighbor_shard_{shard_id:05d}.csv"
 
     def _pair_shard_id(self, left_movie_id: int, right_movie_id: int) -> int:
+        """
+        Map an undirected item pair to a stable shard id.
+        """
         return ((left_movie_id * 1000003) + right_movie_id) % self.config["shard_count"]
 
     def _neighbor_shard_id(self, item_id: int) -> int:
+        """
+        Map all outgoing neighbors for an item to one shard.
+        """
         return item_id % self.config["shard_count"]
 
     def _flush_pair_buffers(
@@ -510,6 +582,9 @@ class ItemSimilarityBuilder:
         pair_shard_dir: Path,
         buffers: list[list[str]],
     ) -> None:
+        """
+        Append buffered pair rows to their shard files and clear buffers.
+        """
         for shard_id, rows in enumerate(buffers):
             if not rows:
                 continue
@@ -525,6 +600,9 @@ class ItemSimilarityBuilder:
         neighbor_shard_dir: Path,
         buffers: list[list[str]],
     ) -> None:
+        """
+        Append buffered neighbor rows to their shard files and clear buffers.
+        """
         for shard_id, rows in enumerate(buffers):
             if not rows:
                 continue
@@ -541,6 +619,9 @@ class ItemSimilarityBuilder:
         pair_shard_dir: Path,
         buffers: list[list[str]],
     ) -> int:
+        """
+        Write all item pairs contributed by one user into shard buffers.
+        """
         normalized = self._normalize_user_interactions(interactions)
         if len(normalized) < 2:
             return 0
@@ -560,6 +641,9 @@ class ItemSimilarityBuilder:
         self,
         shard_path: Path,
     ) -> list[dict[str, Any]]:
+        """
+        Compute final top-K neighbor JSON rows for one neighbor shard.
+        """
         topk_by_item: dict[int, list[tuple[tuple[float, int, int], int, float, int]]] = (
             defaultdict(list)
         )
@@ -603,6 +687,9 @@ class ItemSimilarityBuilder:
 
 
 def main() -> None:
+    """
+    CLI entrypoint for running only the similarity builder.
+    """
     parser = ItemSimilarityBuilder.build_arg_parser()
     args = parser.parse_args()
     log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
@@ -613,4 +700,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Direct builder-only run example:
+    #   python3 tools/offline_data_processing/src/builders/item_similarity_builder.py \
+    #     --ratings /Volumes/DataBase/Work/raw_dataset_32m_rating/ratings.csv \
+    #     --output tools/offline_data_processing/item_similarity.jsonl \
+    #     --top-k 100 --min-rating 4.0
     main()

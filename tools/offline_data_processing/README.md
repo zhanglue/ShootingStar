@@ -22,6 +22,10 @@ Here is the [README](https://files.grouplens.org/datasets/movielens/ml-32m-READM
 tools/offline_data_processing/
 ├── build_index_and_write_to_es.sh
 ├── build_similarity_and_write_to_redis.sh
+├── check_es_rollout_stats.sh
+├── check_redis_functionality.sh
+├── check_redis_rollout_status.sh
+├── clear_db.sh
 ├── config/
 │   ├── item_index_mapping.json
 │   ├── item_similarity_requirements.txt
@@ -45,6 +49,8 @@ tools/offline_data_processing/
 - `src/writers/` stores middleware writers.
 - `build_index_and_write_to_es.sh` is the one-command local entrypoint for the item-index ES job.
 - `build_similarity_and_write_to_redis.sh` is the one-command local entrypoint for the item-similarity Redis job.
+- `clear_db.sh` clears ES/Redis data before a full validation run.
+- `check_*.sh` scripts inspect ES/Redis rollout and runtime functionality.
 
 ## Environment
 

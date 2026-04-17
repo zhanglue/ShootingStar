@@ -2,8 +2,22 @@
 
 set -euo pipefail
 
+# Clear the offline-processing backing stores before a full validation run.
+#
+# Typical scenarios:
+#   1. Inspect current ES/Redis usage, then confirm each cleanup interactively:
+#        ./clear_db.sh
+#   2. CI/manual reset where confirmations should be skipped:
+#        ./clear_db.sh -y
+#   3. Use non-default local ports or a specific Redis service:
+#        ES_LOCAL_PORT=49201 REDIS_LOCAL_PORT=46380 REDIS_SERVICE_NAME=redis-write ./clear_db.sh
+#   4. Run from a shell where python3 is not the item_index environment:
+#        PYTHON_BIN=/Volumes/DataBase/Work/miniconda3/envs/item_index/bin/python ./clear_db.sh
+
 ASSUME_YES=false
 
+# Elasticsearch connection settings. The script opens its own port-forward so it
+# does not depend on a manually prepared localhost:9200 session.
 ES_NAMESPACE="${ES_NAMESPACE:-recommendation-engine-es}"
 ES_SERVICE_NAME="${ES_SERVICE_NAME:-item-index-es-http}"
 ES_LOCAL_PORT="${ES_LOCAL_PORT:-49200}"
@@ -15,6 +29,8 @@ ES_PASSWORD_SECRET_KEY="${ES_PASSWORD_SECRET_KEY:-elastic}"
 ES_PORT_FORWARD_LOG="${ES_PORT_FORWARD_LOG:-/tmp/clear-db-es-port-forward.log}"
 ES_URL=""
 
+# Redis connection settings. Local port 46379 intentionally avoids the common
+# 6379 port used by ad-hoc manual port-forwards.
 REDIS_NAMESPACE="${REDIS_NAMESPACE:-recommendation-engine-redis}"
 REDIS_SERVICE_NAME="${REDIS_SERVICE_NAME:-}"
 REDIS_LOCAL_PORT="${REDIS_LOCAL_PORT:-46379}"
@@ -28,12 +44,15 @@ REDIS_SSL="${REDIS_SSL:-false}"
 REDIS_SOCKET_TIMEOUT="${REDIS_SOCKET_TIMEOUT:-5}"
 REDIS_PORT_FORWARD_LOG="${REDIS_PORT_FORWARD_LOG:-/tmp/clear-db-redis-port-forward.log}"
 
+# Use the already-activated Python by default. Callers can set PYTHON_BIN when
+# the active shell is not the environment containing the redis package.
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 ES_PORT_FORWARD_PID=""
 REDIS_PORT_FORWARD_PID=""
 
 usage() {
+  # Keep examples near the top-level comments so --help stays compact.
   cat <<EOF
 Usage:
   $(basename "$0") [-y]
@@ -83,6 +102,8 @@ die() {
 }
 
 cleanup() {
+  # Always tear down port-forward subprocesses that this script started,
+  # including early exits caused by failed checks or user cancellation.
   if [[ -n "${ES_PORT_FORWARD_PID}" ]] && kill -0 "${ES_PORT_FORWARD_PID}" >/dev/null 2>&1; then
     kill "${ES_PORT_FORWARD_PID}" >/dev/null 2>&1 || true
     wait "${ES_PORT_FORWARD_PID}" >/dev/null 2>&1 || true
@@ -96,6 +117,8 @@ cleanup() {
 trap cleanup EXIT
 
 parse_args() {
+  # The script intentionally supports only a small flag surface; target details
+  # are controlled via environment variables to match the other shell entrypoints.
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -y|--yes)
@@ -122,6 +145,8 @@ require_command() {
 }
 
 check_environment() {
+  # Fail before opening port-forwards or reading secrets if the local runtime is
+  # missing a required command/library.
   echo_info "Checking local environment..."
   require_command kubectl
   require_command curl
@@ -134,6 +159,7 @@ check_environment() {
 }
 
 read_k8s_secret_value() {
+  # Secrets are read just-in-time instead of being printed or exported.
   local namespace="$1"
   local secret_name="$2"
   local secret_key="$3"
@@ -144,6 +170,8 @@ read_k8s_secret_value() {
 }
 
 load_credentials() {
+  # Environment-provided passwords win, which makes the script usable outside
+  # Kubernetes as long as port-forward targets and credentials are provided.
   echo_info "Loading credentials..."
   if [[ -z "${ES_PASSWORD}" ]]; then
     ES_PASSWORD="$(read_k8s_secret_value "${ES_NAMESPACE}" "${ES_PASSWORD_SECRET_NAME}" "${ES_PASSWORD_SECRET_KEY}")"
@@ -155,6 +183,8 @@ load_credentials() {
 }
 
 probe_es_endpoint() {
+  # This endpoint probe does not authenticate; readiness only means that the
+  # local tunnel accepts TLS connections.
   curl --silent \
     --output /dev/null \
     --connect-timeout 2 \
@@ -164,6 +194,7 @@ probe_es_endpoint() {
 }
 
 start_es_port_forward() {
+  # Run kubectl in the background and wait until the local tunnel is usable.
   : > "${ES_PORT_FORWARD_LOG}"
   echo_info "Starting Elasticsearch port-forward: ${ES_NAMESPACE}/service/${ES_SERVICE_NAME} ${ES_LOCAL_PORT}:${ES_REMOTE_PORT}"
   kubectl -n "${ES_NAMESPACE}" port-forward \
@@ -190,6 +221,8 @@ start_es_port_forward() {
 }
 
 redis_ping() {
+  # Redis auth is verified through Python because this script assumes the redis
+  # Python package, not redis-cli, is available in the active environment.
   REDIS_HOST="${REDIS_HOST}" \
   REDIS_PORT="${REDIS_LOCAL_PORT}" \
   REDIS_DB="${REDIS_DB}" \
@@ -217,6 +250,8 @@ PY
 }
 
 start_redis_port_forward_to_service() {
+  # Try one Redis service name and report failure to the caller so it can fall
+  # through to the next candidate.
   local service_name="$1"
 
   : > "${REDIS_PORT_FORWARD_LOG}"
@@ -250,6 +285,8 @@ start_redis_port_forward_to_service() {
 }
 
 start_redis_port_forward() {
+  # k3s and local manifests can expose different service names, so probe the
+  # common candidates unless the caller pins REDIS_SERVICE_NAME.
   local services=()
   if [[ -n "${REDIS_SERVICE_NAME}" ]]; then
     services=("${REDIS_SERVICE_NAME}")
@@ -274,6 +311,7 @@ start_redis_port_forward() {
 }
 
 es_curl() {
+  # Common wrapper for authenticated, self-signed-friendly ES GET requests.
   local path="$1"
   curl --silent --show-error --fail \
     --insecure \
@@ -282,6 +320,7 @@ es_curl() {
 }
 
 es_curl_request() {
+  # Common wrapper for authenticated ES mutation requests.
   local method="$1"
   local path="$2"
   curl --silent --show-error --fail \
@@ -292,6 +331,8 @@ es_curl_request() {
 }
 
 print_es_stats() {
+  # Print before/after ES state so the operator can see whether anything needs
+  # deletion and whether cleanup changed the expected resources.
   local label="$1"
 
   echo
@@ -309,6 +350,8 @@ print_es_stats() {
 }
 
 print_redis_stats() {
+  # Print Redis DB and memory stats before/after cleanup. Memory can remain
+  # non-zero after FLUSHDB because Redis keeps allocator/process overhead.
   local label="$1"
 
   echo
@@ -348,6 +391,7 @@ PY
 }
 
 redis_dbsize() {
+  # Return only a number so clear_redis can make a skip/delete decision.
   REDIS_HOST="${REDIS_HOST}" \
   REDIS_PORT="${REDIS_LOCAL_PORT}" \
   REDIS_DB="${REDIS_DB}" \
@@ -375,6 +419,8 @@ PY
 }
 
 confirm_action() {
+  # Each backing store confirms independently; this avoids one "yes" clearing
+  # both ES and Redis when only one side needs work.
   local prompt="$1"
 
   if [[ "${ASSUME_YES}" == "true" ]]; then
@@ -392,12 +438,16 @@ confirm_action() {
 }
 
 warn_clear_targets() {
+  # High-level warning printed after usage stats, before any store-specific
+  # prompt or deletion is attempted.
   echo
   echo_warning "This will permanently clear the Elasticsearch cluster data reachable at ${ES_URL}."
   echo_warning "This will permanently FLUSHDB Redis DB ${REDIS_DB} reachable at ${REDIS_HOST}:${REDIS_LOCAL_PORT}."
 }
 
 list_es_data_streams() {
+  # Use the JSON data stream API instead of _cat so the script works across ES
+  # versions where _cat/data_streams may be unavailable or restricted.
   local output
   output="$(es_curl "/_data_stream" 2>/dev/null || true)"
   if [[ -z "${output}" ]]; then
@@ -420,6 +470,8 @@ for data_stream in payload.get("data_streams", []):
 }
 
 list_es_indices() {
+  # Include hidden/system names in the listing so stats are honest; filtering
+  # happens in the user/system split helpers below.
   local output
   output="$(es_curl "/_cat/indices?expand_wildcards=all&h=index" 2>/dev/null || true)"
   printf '%s\n' "${output}" | sed '/^[[:space:]]*$/d'
@@ -442,6 +494,8 @@ list_es_system_indices() {
 }
 
 clear_elasticsearch() {
+  # Only user-created indices/data streams are deleted. Dot-prefixed system
+  # resources such as .security-7 are reported but left intact.
   echo
   echo_info "Clearing Elasticsearch data..."
 
@@ -507,6 +561,8 @@ clear_elasticsearch() {
 }
 
 clear_redis() {
+  # Redis cleanup is an actual FLUSHDB for the selected logical DB. If DBSIZE is
+  # zero, skip the mutation entirely.
   echo
   local before
   before="$(redis_dbsize)"
@@ -556,6 +612,8 @@ PY
 }
 
 main() {
+  # Main flow: check local requirements, open tunnels, show state, confirm per
+  # backing store, clear if needed, then show final state.
   parse_args "$@"
   check_environment
   load_credentials

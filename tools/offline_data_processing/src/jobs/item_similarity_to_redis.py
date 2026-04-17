@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+"""
+Orchestrate item-similarity generation and Redis writes.
+"""
 from __future__ import annotations
 
 import argparse
@@ -17,6 +19,9 @@ from writers.redis_writer import RedisWriter
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
+    """
+    Merge builder and writer CLIs into one end-to-end job parser.
+    """
     parser = argparse.ArgumentParser(
         description="Build item similarity data and optionally write it into Redis."
     )
@@ -36,6 +41,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     existing_option_strings = set()
 
     def add_actions_from(source_parser: argparse.ArgumentParser) -> None:
+        """
+        Copy non-conflicting options from a component parser.
+        """
         for action in source_parser._actions:
             if action.dest == "help":
                 continue
@@ -54,6 +62,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def config_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """
+    Convert parsed CLI args into a sparse config override map.
+    """
     config: dict[str, Any] = {}
     for key, value in vars(args).items():
         if key in {
@@ -74,6 +85,9 @@ def config_from_args(args: argparse.Namespace) -> dict[str, Any]:
 def split_config(
     config: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any], bool, bool]:
+    """
+    Split combined job config into builder config, writer config, and flags.
+    """
     builder_keys = set(ItemSimilarityBuilder.DEFAULT_CONFIG.keys())
     writer_keys = set(RedisWriter.DEFAULT_CONFIG.keys())
 
@@ -83,6 +97,8 @@ def split_config(
     run_write = bool(config.get("run_write", True))
 
     if "input_path" not in writer_config and "output_path" in config:
+        # When build and write are chained, RedisWriter should consume the file
+        # that ItemSimilarityBuilder just emitted unless explicitly overridden.
         writer_config["input_path"] = config["output_path"]
     if "input_format" not in writer_config and "output_format" in config:
         writer_config["input_format"] = config["output_format"]
@@ -91,6 +107,9 @@ def split_config(
 
 
 def main() -> None:
+    """
+    Run the optional build phase followed by the optional Redis write phase.
+    """
     args = build_arg_parser().parse_args()
     log_level_name = str(getattr(args, "log_level", "INFO")).upper()
     log_level = getattr(logging, log_level_name, logging.INFO)
@@ -109,6 +128,8 @@ def main() -> None:
     written_neighbor_count: int | None = None
 
     if run_build:
+        # Build first so the writer sees the exact output path/format from this
+        # run, which matters when callers override --output or --output-format.
         logger.info("Build phase enabled; starting ItemSimilarityBuilder.")
         built_count, output_path = builder.run()
         writer_config["input_path"] = output_path
@@ -117,6 +138,8 @@ def main() -> None:
         logger.info("Build phase skipped.")
 
     if run_write:
+        # Redis writes can also be dry-run validated via RedisWriter's --dry-run
+        # option while still exercising this orchestration path.
         logger.info("Redis write phase enabled; starting RedisWriter.")
         writer = RedisWriter(writer_config)
         stats = writer.run()
