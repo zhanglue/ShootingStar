@@ -65,18 +65,63 @@ class ItemIndexBuilder:
         normalized["log_level"] = str(normalized["log_level"]).upper()
         return normalized
 
+    @classmethod
+    def build_arg_parser(cls) -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(
+            description="Build item index documents from MovieLens-style CSV inputs."
+        )
+        parser.add_argument("--movies", dest="movies_path", help="Path to the movies CSV.")
+        parser.add_argument("--tags", dest="tags_path", help="Path to the tags CSV.")
+        parser.add_argument("--links", dest="links_path", help="Path to the links CSV.")
+        parser.add_argument(
+            "--ratings", dest="ratings_path", help="Path to the ratings CSV."
+        )
+        parser.add_argument(
+            "--output", dest="output_path", help="Path to the output file."
+        )
+        parser.add_argument(
+            "--output-format",
+            dest="output_format",
+            choices=("jsonl", "json"),
+            help="Whether to write line-delimited JSON or a JSON array.",
+        )
+        parser.add_argument(
+            "--top-k",
+            dest="top_k",
+            type=int,
+            help="Maximum number of top tags to keep per movie.",
+        )
+        parser.add_argument(
+            "--min-weight",
+            dest="min_weight",
+            type=float,
+            help="Absolute minimum TF-IDF weight for non-leading tags.",
+        )
+        parser.add_argument(
+            "--min-relative-weight",
+            dest="min_relative_weight",
+            type=float,
+            help="Relative minimum weight versus the strongest tag for non-leading tags.",
+        )
+        parser.add_argument(
+            "--log-level",
+            dest="log_level",
+            choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+            help="Logging level for builder execution.",
+        )
+        return parser
+
+    @classmethod
+    def config_from_args(cls, args: argparse.Namespace) -> dict[str, Any]:
+        config: dict[str, Any] = {}
+        for key, value in vars(args).items():
+            if value is not None:
+                config[key] = value
+        return config
+
     @staticmethod
     def normalize_spaces(text: str) -> str:
         return MULTI_SPACE_RE.sub(" ", text.strip())
-
-    def normalize_tag(self, text: str) -> str:
-        normalized = unicodedata.normalize("NFKC", text).lower()
-        return self.normalize_spaces(normalized)
-
-    def normalize_search_text(self, text: str) -> str:
-        normalized = unicodedata.normalize("NFKC", text).lower()
-        normalized = NON_WORD_RE.sub(" ", normalized)
-        return self.normalize_spaces(normalized)
 
     @staticmethod
     def move_trailing_article(title: str) -> str:
@@ -84,12 +129,6 @@ class ItemIndexBuilder:
         if not match:
             return title
         return f"{match.group('article')} {match.group('base')}"
-
-    def parse_title_and_year(self, title_raw: str) -> tuple[str, int | None]:
-        match = TITLE_YEAR_RE.match(title_raw)
-        if not match:
-            return self.move_trailing_article(title_raw), None
-        return self.move_trailing_article(match.group("title")), int(match.group("year"))
 
     @staticmethod
     def parse_genres(raw_genres: str) -> list[str]:
@@ -117,6 +156,21 @@ class ItemIndexBuilder:
             return int(value)
         except ValueError:
             return None
+
+    def normalize_tag(self, text: str) -> str:
+        normalized = unicodedata.normalize("NFKC", text).lower()
+        return self.normalize_spaces(normalized)
+
+    def normalize_search_text(self, text: str) -> str:
+        normalized = unicodedata.normalize("NFKC", text).lower()
+        normalized = NON_WORD_RE.sub(" ", normalized)
+        return self.normalize_spaces(normalized)
+
+    def parse_title_and_year(self, title_raw: str) -> tuple[str, int | None]:
+        match = TITLE_YEAR_RE.match(title_raw)
+        if not match:
+            return self.move_trailing_article(title_raw), None
+        return self.move_trailing_article(match.group("title")), int(match.group("year"))
 
     def read_movies(self) -> list[dict[str, str]]:
         self.logger.info("Loading movies from %s.", self.config["movies_path"])
@@ -337,60 +391,6 @@ class ItemIndexBuilder:
         output_path = self.write_output(items)
         self.logger.info("ItemIndexBuilder run finished.")
         return items, output_path
-
-    @classmethod
-    def build_arg_parser(cls) -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(
-            description="Build item index documents from MovieLens-style CSV inputs."
-        )
-        parser.add_argument("--movies", dest="movies_path", help="Path to the movies CSV.")
-        parser.add_argument("--tags", dest="tags_path", help="Path to the tags CSV.")
-        parser.add_argument("--links", dest="links_path", help="Path to the links CSV.")
-        parser.add_argument(
-            "--ratings", dest="ratings_path", help="Path to the ratings CSV."
-        )
-        parser.add_argument(
-            "--output", dest="output_path", help="Path to the output file."
-        )
-        parser.add_argument(
-            "--output-format",
-            dest="output_format",
-            choices=("jsonl", "json"),
-            help="Whether to write line-delimited JSON or a JSON array.",
-        )
-        parser.add_argument(
-            "--top-k",
-            dest="top_k",
-            type=int,
-            help="Maximum number of top tags to keep per movie.",
-        )
-        parser.add_argument(
-            "--min-weight",
-            dest="min_weight",
-            type=float,
-            help="Absolute minimum TF-IDF weight for non-leading tags.",
-        )
-        parser.add_argument(
-            "--min-relative-weight",
-            dest="min_relative_weight",
-            type=float,
-            help="Relative minimum weight versus the strongest tag for non-leading tags.",
-        )
-        parser.add_argument(
-            "--log-level",
-            dest="log_level",
-            choices=("DEBUG", "INFO", "WARNING", "ERROR"),
-            help="Logging level for builder execution.",
-        )
-        return parser
-
-    @classmethod
-    def config_from_args(cls, args: argparse.Namespace) -> dict[str, Any]:
-        config: dict[str, Any] = {}
-        for key, value in vars(args).items():
-            if value is not None:
-                config[key] = value
-        return config
 
 
 def main() -> None:

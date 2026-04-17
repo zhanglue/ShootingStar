@@ -82,158 +82,6 @@ class RedisWriter:
             raise ValueError("log_every must be positive")
         return normalized
 
-    @staticmethod
-    def _normalize_optional_string(
-        value: Any,
-        env_name: str | None = None,
-    ) -> str | None:
-        candidate = value
-        if candidate in (None, "") and env_name:
-            candidate = os.getenv(env_name)
-        if candidate in (None, ""):
-            return None
-        return str(candidate)
-
-    def _create_client(self) -> Any:
-        try:
-            import redis
-        except ImportError as exc:
-            raise RuntimeError(
-                "redis package is required for writing. "
-                "Install tools/offline_data_processing/config/requirements.txt first."
-            ) from exc
-
-        return redis.Redis(
-            host=self.config["redis_host"],
-            port=self.config["redis_port"],
-            db=self.config["redis_db"],
-            username=self.config["username"],
-            password=self.config["password"],
-            ssl=self.config["ssl"],
-            socket_timeout=self.config["socket_timeout"],
-            decode_responses=True,
-        )
-
-    def iter_documents(self) -> Iterable[dict[str, Any]]:
-        input_path = self.config["input_path"]
-        if self.config["input_format"] == "json":
-            with input_path.open(encoding="utf-8") as handle:
-                data = json.load(handle)
-            for document in data:
-                yield document
-            return
-
-        with input_path.open(encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if not line:
-                    continue
-                yield json.loads(line)
-
-    def _validate_input_file(self) -> None:
-        input_path = self.config["input_path"]
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file does not exist: {input_path}")
-        if not input_path.is_file():
-            raise RuntimeError(f"Input path is not a regular file: {input_path}")
-        if input_path.stat().st_size <= 0:
-            raise RuntimeError(f"Input file is empty: {input_path}")
-
-    def _redis_key(self, item_id: int) -> str:
-        return f"{self.config['key_prefix']}:{item_id}"
-
-    def _write_batch(self, client: Any, batch: list[dict[str, Any]]) -> RedisWriteStats:
-        pipeline = client.pipeline(transaction=False)
-        item_count = 0
-        neighbor_count = 0
-
-        for document in batch:
-            item_id = int(document["item_id"])
-            neighbors = document.get("neighbors", [])
-            key = self._redis_key(item_id)
-
-            if self.config["replace_existing"]:
-                pipeline.delete(key)
-
-            score_mapping = {
-                str(int(neighbor["item_id"])): float(neighbor["score"])
-                for neighbor in neighbors
-            }
-            if score_mapping:
-                pipeline.zadd(key, score_mapping)
-                neighbor_count += len(score_mapping)
-
-            if self.config["expire_seconds"] > 0:
-                pipeline.expire(key, self.config["expire_seconds"])
-
-            item_count += 1
-
-        pipeline.execute()
-        return RedisWriteStats(item_count=item_count, neighbor_count=neighbor_count)
-
-    def write_documents(self, documents: Iterable[dict[str, Any]]) -> RedisWriteStats:
-        if self.config["dry_run"]:
-            item_count = 0
-            neighbor_count = 0
-            for document in documents:
-                item_count += 1
-                neighbor_count += len(document.get("neighbors", []))
-            self.logger.info(
-                "Dry run: would write %s neighbors for %s items.",
-                neighbor_count,
-                item_count,
-            )
-            return RedisWriteStats(item_count=item_count, neighbor_count=neighbor_count)
-
-        client = self._create_client()
-        client.ping()
-        self.logger.info(
-            "Connected to Redis at %s:%s db=%s.",
-            self.config["redis_host"],
-            self.config["redis_port"],
-            self.config["redis_db"],
-        )
-
-        total = RedisWriteStats(item_count=0, neighbor_count=0)
-        batch: list[dict[str, Any]] = []
-
-        for document in documents:
-            batch.append(document)
-            if len(batch) < self.config["batch_size"]:
-                continue
-
-            stats = self._write_batch(client, batch)
-            total = RedisWriteStats(
-                item_count=total.item_count + stats.item_count,
-                neighbor_count=total.neighbor_count + stats.neighbor_count,
-            )
-            if total.item_count % self.config["log_every"] == 0:
-                self.logger.info(
-                    "Wrote %s items and %s neighbors so far.",
-                    total.item_count,
-                    total.neighbor_count,
-                )
-            batch = []
-
-        if batch:
-            stats = self._write_batch(client, batch)
-            total = RedisWriteStats(
-                item_count=total.item_count + stats.item_count,
-                neighbor_count=total.neighbor_count + stats.neighbor_count,
-            )
-
-        self.logger.info(
-            "Finished Redis write: %s neighbors for %s items.",
-            total.neighbor_count,
-            total.item_count,
-        )
-        return total
-
-    def run(self) -> RedisWriteStats:
-        self.logger.info("RedisWriter run started.")
-        self._validate_input_file()
-        return self.write_documents(self.iter_documents())
-
     @classmethod
     def build_arg_parser(cls) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
@@ -314,6 +162,158 @@ class RedisWriter:
             elif value is not None and value is not False:
                 config[key] = value
         return config
+
+    @staticmethod
+    def _normalize_optional_string(
+        value: Any,
+        env_name: str | None = None,
+    ) -> str | None:
+        candidate = value
+        if candidate in (None, "") and env_name:
+            candidate = os.getenv(env_name)
+        if candidate in (None, ""):
+            return None
+        return str(candidate)
+
+    def iter_documents(self) -> Iterable[dict[str, Any]]:
+        input_path = self.config["input_path"]
+        if self.config["input_format"] == "json":
+            with input_path.open(encoding="utf-8") as handle:
+                data = json.load(handle)
+            for document in data:
+                yield document
+            return
+
+        with input_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                yield json.loads(line)
+
+    def write_documents(self, documents: Iterable[dict[str, Any]]) -> RedisWriteStats:
+        if self.config["dry_run"]:
+            item_count = 0
+            neighbor_count = 0
+            for document in documents:
+                item_count += 1
+                neighbor_count += len(document.get("neighbors", []))
+            self.logger.info(
+                "Dry run: would write %s neighbors for %s items.",
+                neighbor_count,
+                item_count,
+            )
+            return RedisWriteStats(item_count=item_count, neighbor_count=neighbor_count)
+
+        client = self._create_client()
+        client.ping()
+        self.logger.info(
+            "Connected to Redis at %s:%s db=%s.",
+            self.config["redis_host"],
+            self.config["redis_port"],
+            self.config["redis_db"],
+        )
+
+        total = RedisWriteStats(item_count=0, neighbor_count=0)
+        batch: list[dict[str, Any]] = []
+
+        for document in documents:
+            batch.append(document)
+            if len(batch) < self.config["batch_size"]:
+                continue
+
+            stats = self._write_batch(client, batch)
+            total = RedisWriteStats(
+                item_count=total.item_count + stats.item_count,
+                neighbor_count=total.neighbor_count + stats.neighbor_count,
+            )
+            if total.item_count % self.config["log_every"] == 0:
+                self.logger.info(
+                    "Wrote %s items and %s neighbors so far.",
+                    total.item_count,
+                    total.neighbor_count,
+                )
+            batch = []
+
+        if batch:
+            stats = self._write_batch(client, batch)
+            total = RedisWriteStats(
+                item_count=total.item_count + stats.item_count,
+                neighbor_count=total.neighbor_count + stats.neighbor_count,
+            )
+
+        self.logger.info(
+            "Finished Redis write: %s neighbors for %s items.",
+            total.neighbor_count,
+            total.item_count,
+        )
+        return total
+
+    def run(self) -> RedisWriteStats:
+        self.logger.info("RedisWriter run started.")
+        self._validate_input_file()
+        return self.write_documents(self.iter_documents())
+
+    def _create_client(self) -> Any:
+        try:
+            import redis
+        except ImportError as exc:
+            raise RuntimeError(
+                "redis package is required for writing. "
+                "Install tools/offline_data_processing/config/requirements.txt first."
+            ) from exc
+
+        return redis.Redis(
+            host=self.config["redis_host"],
+            port=self.config["redis_port"],
+            db=self.config["redis_db"],
+            username=self.config["username"],
+            password=self.config["password"],
+            ssl=self.config["ssl"],
+            socket_timeout=self.config["socket_timeout"],
+            decode_responses=True,
+        )
+
+    def _validate_input_file(self) -> None:
+        input_path = self.config["input_path"]
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file does not exist: {input_path}")
+        if not input_path.is_file():
+            raise RuntimeError(f"Input path is not a regular file: {input_path}")
+        if input_path.stat().st_size <= 0:
+            raise RuntimeError(f"Input file is empty: {input_path}")
+
+    def _redis_key(self, item_id: int) -> str:
+        return f"{self.config['key_prefix']}:{item_id}"
+
+    def _write_batch(self, client: Any, batch: list[dict[str, Any]]) -> RedisWriteStats:
+        pipeline = client.pipeline(transaction=False)
+        item_count = 0
+        neighbor_count = 0
+
+        for document in batch:
+            item_id = int(document["item_id"])
+            neighbors = document.get("neighbors", [])
+            key = self._redis_key(item_id)
+
+            if self.config["replace_existing"]:
+                pipeline.delete(key)
+
+            score_mapping = {
+                str(int(neighbor["item_id"])): float(neighbor["score"])
+                for neighbor in neighbors
+            }
+            if score_mapping:
+                pipeline.zadd(key, score_mapping)
+                neighbor_count += len(score_mapping)
+
+            if self.config["expire_seconds"] > 0:
+                pipeline.expire(key, self.config["expire_seconds"])
+
+            item_count += 1
+
+        pipeline.execute()
+        return RedisWriteStats(item_count=item_count, neighbor_count=neighbor_count)
 
 
 def main() -> None:
