@@ -2,8 +2,20 @@
 
 set -euo pipefail
 
+# Inspect an ECK-managed Elasticsearch cluster before/after manifest changes.
+#
+# Typical scenarios:
+#   1. Capture a one-shot baseline before applying a manifest:
+#        ES_USERNAME=elastic ES_PASSWORD=secret ./check_es_rollout_stats.sh before
+#   2. Wait for reconciliation and capture post-change details:
+#        ES_USERNAME=elastic ES_PASSWORD=secret ./check_es_rollout_stats.sh after
+#   3. Interactive before/after workflow around a manual kubectl apply:
+#        ES_USERNAME=elastic ES_PASSWORD=secret ./check_es_rollout_stats.sh both
+#   4. Avoid local port conflicts by changing the temporary port-forward:
+#        ES_LOCAL_PORT=49200 ES_USERNAME=elastic ES_PASSWORD=secret ./check_es_rollout_stats.sh before
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../common.sh"
 
 MODE="${1:-both}"
 ES_NAMESPACE="${ES_NAMESPACE:-recommendation-engine-es}"
@@ -18,6 +30,8 @@ WAIT_INTERVAL_SECONDS="${WAIT_INTERVAL_SECONDS:-10}"
 PORT_FORWARD_PID=""
 
 usage() {
+    # Keep the built-in help focused on flags/env vars; richer examples live in
+    # the header comments for people opening the script directly.
     cat <<EOF
 Usage:
   $(basename "$0") [before|after|both]
@@ -38,6 +52,7 @@ EOF
 }
 
 cleanup() {
+    # Close the temporary ES port-forward when the script exits or is cancelled.
     if [[ -n "${PORT_FORWARD_PID}" ]] && kill -0 "${PORT_FORWARD_PID}" >/dev/null 2>&1; then
         kill "${PORT_FORWARD_PID}" >/dev/null 2>&1 || true
         wait "${PORT_FORWARD_PID}" >/dev/null 2>&1 || true
@@ -97,6 +112,8 @@ probe_es_endpoint() {
 }
 
 start_port_forward() {
+    # The ES HTTP service is usually ClusterIP/ExternalName, so local API checks
+    # go through a short-lived kubectl port-forward owned by this script.
     : > "${PORT_FORWARD_LOG}"
 
     echo_info "Starting port-forward to service/${ES_SERVICE_NAME} on localhost:${ES_LOCAL_PORT}..."
@@ -128,6 +145,7 @@ start_port_forward() {
 }
 
 show_curl_failure_hint() {
+    # Authentication or TLS mistakes are easier to debug with a copy-paste curl.
     echo_warning "Elasticsearch endpoint is reachable, but the authenticated API call failed."
     echo_warning "Please verify ES_USERNAME / ES_PASSWORD and whether the service requires different auth settings."
     echo_info "A quick manual check:"
@@ -135,6 +153,7 @@ show_curl_failure_hint() {
 }
 
 show_k8s_overview() {
+    # High-level Kubernetes inventory: custom resource, pods, and storage.
     local label="$1"
 
     print_section "Kubernetes Overview (${label})"
@@ -153,6 +172,8 @@ show_k8s_overview() {
 }
 
 show_top_metrics() {
+    # Resource pressure is often the root cause of slow reconciliation on small
+    # clusters; metrics-server is optional, so failures are warnings.
     local label="$1"
 
     print_section "Resource Usage (${label})"
@@ -167,6 +188,7 @@ show_top_metrics() {
 }
 
 show_recent_events() {
+    # Events usually explain scheduling, storage, or readiness transitions.
     local label="$1"
 
     print_section "Recent Events (${label})"
@@ -176,6 +198,8 @@ show_recent_events() {
 }
 
 show_es_operator_status() {
+    # Summarize the ECK CR status fields that reveal whether the operator has
+    # observed and completed the latest generation.
     local label="$1"
     local es_json
 
@@ -226,6 +250,8 @@ show_es_operator_status() {
 }
 
 wait_for_es_reconciliation() {
+    # Poll ECK status until the desired generation is observed and available.
+    # Timeout is non-fatal for after-mode so the script still prints diagnostics.
     local start_ts
     local now_ts
     local elapsed
@@ -304,6 +330,8 @@ wait_for_es_reconciliation() {
 }
 
 show_es_endpoints() {
+    # Exercise authenticated Elasticsearch APIs through the local tunnel and
+    # print shard/index details that are not present in the Kubernetes CR.
     local label="$1"
     local cluster_health
     local cluster_status
@@ -356,6 +384,8 @@ show_es_endpoints() {
 }
 
 main() {
+    # before: snapshot current state. after: wait then snapshot. both: snapshot,
+    # pause for manual apply, then wait and snapshot again.
     case "${MODE}" in
         before|after|both)
             ;;

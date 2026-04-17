@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
-
+"""
+Orchestrate item document generation and Elasticsearch indexing.
+"""
 from __future__ import annotations
 
 import argparse
 import logging
+import sys
+from pathlib import Path
 from typing import Any
 
-from elasticsearch_writer import ElasticsearchWriter
-from item_index_builder import ItemIndexBuilder
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from builders.item_index_builder import ItemIndexBuilder
+from writers.elasticsearch_writer import ElasticsearchWriter
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
+    """
+    Merge builder and writer CLIs into one end-to-end job parser.
+    """
     parser = argparse.ArgumentParser(
         description="Build item documents and optionally write them into Elasticsearch."
     )
@@ -30,6 +41,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     existing_option_strings = set()
 
     def add_actions_from(source_parser: argparse.ArgumentParser) -> None:
+        """
+        Copy non-conflicting options from a component parser.
+        """
         for action in source_parser._actions:
             if action.dest == "help":
                 continue
@@ -48,9 +62,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def config_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """
+    Convert parsed CLI args into a sparse config override map.
+    """
     config: dict[str, Any] = {}
     for key, value in vars(args).items():
-        if key in {"run_build", "run_index", "verify_certs", "retry_on_timeout"}:
+        if key == "debug":
+            if value:
+                config["log_level"] = "DEBUG"
+        elif key in {"run_build", "run_index", "verify_certs", "retry_on_timeout"}:
             config[key] = value
         elif value is not None and value is not False:
             config[key] = value
@@ -60,6 +80,9 @@ def config_from_args(args: argparse.Namespace) -> dict[str, Any]:
 def split_config(
     config: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any], bool, bool]:
+    """
+    Split combined job config into builder config, writer config, and flags.
+    """
     builder_keys = set(ItemIndexBuilder.DEFAULT_CONFIG.keys())
     writer_keys = set(ElasticsearchWriter.DEFAULT_CONFIG.keys())
 
@@ -69,6 +92,8 @@ def split_config(
     run_index = bool(config.get("run_index", True))
 
     if "input_path" not in writer_config and "output_path" in config:
+        # When build and index are chained, the writer should consume the file
+        # that the builder just wrote unless the caller explicitly overrides it.
         writer_config["input_path"] = config["output_path"]
     if "input_format" not in writer_config and "output_format" in config:
         writer_config["input_format"] = config["output_format"]
@@ -77,14 +102,19 @@ def split_config(
 
 
 def main() -> None:
+    """
+    Run the optional build phase followed by the optional ES indexing phase.
+    """
     args = build_arg_parser().parse_args()
-    log_level_name = str(getattr(args, "log_level", "INFO")).upper()
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
     log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    logger = logging.getLogger("main")
+    logger = logging.getLogger("Main")
     config = config_from_args(args)
     builder_config, writer_config, run_build, run_index = split_config(config)
 
@@ -95,6 +125,8 @@ def main() -> None:
     indexed_count: int | None = None
 
     if run_build:
+        # Build first so indexing receives the exact output path/format emitted
+        # by ItemIndexBuilder in this run.
         logger.info("Build phase enabled; starting ItemIndexBuilder.")
         items, output_path = builder.run()
         built_count = len(items)
@@ -112,7 +144,7 @@ def main() -> None:
     else:
         logger.info("Indexing phase skipped.")
 
-    parts: list[str] = []
+    parts: list[str] = ["\n"]
     if built_count is not None:
         parts.append(f"built {built_count} items -> {builder.config['output_path']}")
     if indexed_count is not None:
@@ -123,7 +155,7 @@ def main() -> None:
             f"{writer.config['cloud_id'] or writer.config['es_url']}/"
             f"{writer.config['index_name']}"
         )
-    print(", ".join(parts) if parts else "No work executed.")
+    print("\n".join(parts) if parts else "No work executed.")
 
 
 if __name__ == "__main__":

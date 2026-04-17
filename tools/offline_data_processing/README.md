@@ -1,9 +1,9 @@
-# Item Index on Elasticsearch
+# Offline Data Processing
 
-This directory is used for two things:
+This directory stores offline data processing jobs that build serving data and write it to middleware. The current jobs are:
 
-1. Build movie item-index documents from MovieLens-style CSV files.
-2. Write the generated documents into Elasticsearch.
+1. Build movie item-index documents from MovieLens-style CSV files and write them into Elasticsearch.
+2. Build item similarity neighbors from MovieLens-style ratings and write them into Redis.
 
 The current default target index name is `movielens_32m_rating_index`.
 
@@ -19,30 +19,47 @@ Here is the [README](https://files.grouplens.org/datasets/movielens/ml-32m-READM
 ## Folder Layout
 
 ```text
-tools/item_index_es/
+tools/offline_data_processing/
 ├── build_index_and_write_to_es.sh
+├── build_similarity_and_write_to_redis.sh
+├── check_es_rollout_stats.sh
+├── check_redis_functionality.sh
+├── check_redis_rollout_status.sh
+├── clear_db.sh
 ├── config/
 │   ├── item_index_mapping.json
+│   ├── item_similarity_requirements.txt
 │   ├── requirements.txt
 │   └── schema.json
 └── src/
-    ├── item_index_builder.py
-    ├── elasticsearch_writer.py
-    └── main.py
+    ├── builders/
+    │   ├── item_index_builder.py
+    │   └── item_similarity_builder.py
+    ├── jobs/
+    │   ├── item_index_to_es.py
+    │   └── item_similarity_to_redis.py
+    └── writers/
+        ├── elasticsearch_writer.py
+        └── redis_writer.py
 ```
 
 - `config/` stores configuration-like files.
-- `src/` stores the Python implementation.
-- `build_index_and_write_to_es.sh` is the one-command local entrypoint.
+- `src/jobs/` stores end-to-end offline jobs.
+- `src/builders/` stores data builders.
+- `src/writers/` stores middleware writers.
+- `build_index_and_write_to_es.sh` is the one-command local entrypoint for the item-index ES job.
+- `build_similarity_and_write_to_redis.sh` is the one-command local entrypoint for the item-similarity Redis job.
+- `clear_db.sh` clears ES/Redis data before a full validation run.
+- `check_*.sh` scripts inspect ES/Redis rollout and runtime functionality.
 
 ## Environment
 
 Create a dedicated environment and install dependencies first:
 
 ```bash
-conda create -n item_index_es python=3.11 -y
-conda activate item_index_es
-pip install -r tools/item_index_es/config/requirements.txt
+conda create -n offline_data_processing python=3.11 -y
+conda activate offline_data_processing
+pip install -r tools/offline_data_processing/config/requirements.txt
 ```
 
 If you need to write to Elasticsearch, prepare credentials via environment variables:
@@ -54,9 +71,9 @@ export ES_PASSWORD='your-password'
 
 ## Main Entry
 
-File: [src/main.py](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/src/main.py)
+File: [src/jobs/item_index_to_es.py](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/src/jobs/item_index_to_es.py)
 
-`main.py` orchestrates the two workers:
+`item_index_to_es.py` orchestrates the two workers:
 
 - build phase: calls `ItemIndexBuilder`
 - index phase: calls `ElasticsearchWriter`
@@ -108,27 +125,29 @@ Common entrypoint parameters:
   Refresh the index after bulk indexing
 - `--log-level`
   Logging level
-- `--log-every`
+- `--rating-log-every`
+  Emit a progress log every N scanned rating rows during item-index building
+- `--es-log-every`
   Emit a progress log every N indexed documents
 
 Example: write an existing `jsonl` file into ES
 
 ```bash
-python3 tools/item_index_es/src/main.py \
+python3 tools/offline_data_processing/src/jobs/item_index_to_es.py \
   --skip-build \
-  --input /Volumes/DataBase/Work/ShootingStar/tools/item_index_es/item_index.jsonl \
+  --input /Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/item_index.jsonl \
   --input-format jsonl \
   --es-url https://localhost:9200 \
   --index-name movielens_32m_rating_index \
   --ensure-index \
   --no-verify-certs \
   --log-level INFO \
-  --log-every 5000
+  --es-log-every 5000
 ```
 
 ## Shell Wrapper
 
-File: [build_index_and_write_to_es.sh](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/build_index_and_write_to_es.sh)
+File: [build_index_and_write_to_es.sh](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/build_index_and_write_to_es.sh)
 
 This script lists the common parameters near the top of the file and is meant to be used as a convenient local wrapper. The usual flow is:
 
@@ -137,14 +156,14 @@ This script lists the common parameters near the top of the file and is meant to
 3. Run the script
 
 ```bash
-tools/item_index_es/build_index_and_write_to_es.sh
+tools/offline_data_processing/build_index_and_write_to_es.sh
 ```
 
 ## Workers
 
 ### `ItemIndexBuilder`
 
-File: [src/item_index_builder.py](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/src/item_index_builder.py)
+File: [src/builders/item_index_builder.py](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/src/builders/item_index_builder.py)
 
 Responsibilities:
 
@@ -152,7 +171,7 @@ Responsibilities:
 - Parse title, year, genres, and external IDs
 - Aggregate rating statistics
 - Compute `top_tags`
-- Generate item documents matching [config/schema.json](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/config/schema.json)
+- Generate item documents matching [config/schema.json](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/config/schema.json)
 - Write output as `jsonl` or `json`
 
 Implementation summary:
@@ -173,7 +192,7 @@ Implementation summary:
 This worker can be run independently:
 
 ```bash
-python3 tools/item_index_es/src/item_index_builder.py \
+python3 tools/offline_data_processing/src/builders/item_index_builder.py \
   --movies /path/to/movies.csv \
   --tags /path/to/tags.csv \
   --links /path/to/links.csv \
@@ -184,7 +203,7 @@ python3 tools/item_index_es/src/item_index_builder.py \
 
 ### `ElasticsearchWriter`
 
-File: [src/elasticsearch_writer.py](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/src/elasticsearch_writer.py)
+File: [src/writers/elasticsearch_writer.py](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/src/writers/elasticsearch_writer.py)
 
 Responsibilities:
 
@@ -204,23 +223,24 @@ Implementation summary:
   - cluster health
   - whether the target index exists
 - If the target index does not exist and `--ensure-index` is not provided, the program refuses to continue to avoid accidental dynamic mapping
-- The default mapping file is [config/item_index_mapping.json](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/config/item_index_mapping.json)
+- The default mapping file is [config/item_index_mapping.json](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/config/item_index_mapping.json)
 
 This worker can also be run independently:
 
 ```bash
-python3 tools/item_index_es/src/elasticsearch_writer.py \
+python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
   --input /path/to/item_index.jsonl \
   --input-format jsonl \
   --es-url https://localhost:9200 \
   --index-name movielens_32m_rating_index \
   --ensure-index \
-  --no-verify-certs
+  --no-verify-certs \
+  --es-log-every 5000
 ```
 
 ## Mapping Notes
 
-The explicit mapping file is: [config/item_index_mapping.json](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/config/item_index_mapping.json)
+The explicit mapping file is: [config/item_index_mapping.json](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/config/item_index_mapping.json)
 
 Important design choices:
 
@@ -258,11 +278,11 @@ Many field-type decisions cannot be changed in place once the index has been cre
 - `text -> keyword`
 - `object -> nested`
 
-For that reason, confirm [config/item_index_mapping.json](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/config/item_index_mapping.json) before creating the final index.
+For that reason, confirm [config/item_index_mapping.json](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/config/item_index_mapping.json) before creating the final index.
 
-### 3. `main.py --help` requires dependencies to be installed
+### 3. `item_index_to_es.py --help` requires dependencies to be installed
 
-`main.py` imports `ElasticsearchWriter`, and `ElasticsearchWriter` depends on the official `elasticsearch` package. If [config/requirements.txt](/Volumes/DataBase/Work/ShootingStar/tools/item_index_es/config/requirements.txt) has not been installed yet, `main.py` and `elasticsearch_writer.py` will not run.
+`item_index_to_es.py` imports `ElasticsearchWriter`, and `ElasticsearchWriter` depends on the official `elasticsearch` package. If [config/requirements.txt](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/config/requirements.txt) has not been installed yet, `item_index_to_es.py` and `elasticsearch_writer.py` will not run.
 
 ### 4. `--no-verify-certs` warnings
 
