@@ -12,7 +12,7 @@ from typing import Any, Iterable
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT_DIR / "config"
 
 

@@ -1,1 +1,2 @@
 elasticsearch>=9,<10
+redis>=7,<8

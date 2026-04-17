@@ -31,7 +31,7 @@ LOG_EVERY=5000
 export ES_USERNAME=elastic
 export ES_PASSWORD=$(kubectl get secret -n recommendation-engine-es item-index-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
 
-python3 "${SCRIPT_DIR}/src/main.py" \
+python3 "${SCRIPT_DIR}/src/jobs/item_index_to_es.py" \
   --movies "${MOVIES_PATH}" \
   --tags "${TAGS_PATH}" \
   --links "${LINKS_PATH}" \

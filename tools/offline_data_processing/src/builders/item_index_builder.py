@@ -18,7 +18,7 @@ TITLE_YEAR_RE = re.compile(r"^(?P<title>.+?)\s+\((?P<year>\d{4})\)$")
 TRAILING_ARTICLE_RE = re.compile(r"^(?P<base>.+), (?P<article>The|A|An)$")
 MULTI_SPACE_RE = re.compile(r"\s+")
 NON_WORD_RE = re.compile(r"[^\w\s]+", re.UNICODE)
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 class ItemIndexBuilder:

@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
+from pathlib import Path
 from typing import Any
 
-from elasticsearch_writer import ElasticsearchWriter
-from item_index_builder import ItemIndexBuilder
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from builders.item_index_builder import ItemIndexBuilder
+from writers.elasticsearch_writer import ElasticsearchWriter
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -84,7 +90,7 @@ def main() -> None:
         level=log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    logger = logging.getLogger("main")
+    logger = logging.getLogger("item_index_to_es")
     config = config_from_args(args)
     builder_config, writer_config, run_build, run_index = split_config(config)
 
