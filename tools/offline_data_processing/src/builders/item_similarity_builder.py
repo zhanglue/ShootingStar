@@ -10,6 +10,7 @@ import heapq
 import json
 import logging
 import math
+import subprocess
 from collections import Counter, defaultdict
 from itertools import combinations
 from pathlib import Path
@@ -45,7 +46,10 @@ class ItemSimilarityBuilder:
         "temp_dir": ROOT_DIR / "temp",
         "ratings_sorted_by_user": True,
         "log_level": "INFO",
-        "log_every": 1000000,
+        "item_stats_log_every": 2000000,
+        "pair_mapping_log_every": 200000,
+        "shard_log_divisor": 32,
+        "user_log_every": 30000,
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
@@ -57,6 +61,7 @@ class ItemSimilarityBuilder:
             merged.update(config)
         self.config = self._normalize_config(merged)
         self.logger = logging.getLogger(self.__class__.__name__)
+        self._rating_row_count: int | None = None
 
     @classmethod
     def _normalize_config(cls, config: dict[str, Any]) -> dict[str, Any]:
@@ -83,7 +88,10 @@ class ItemSimilarityBuilder:
         normalized["temp_dir"] = Path(normalized["temp_dir"])
         normalized["ratings_sorted_by_user"] = bool(normalized["ratings_sorted_by_user"])
         normalized["log_level"] = str(normalized["log_level"]).upper()
-        normalized["log_every"] = int(normalized["log_every"])
+        normalized["item_stats_log_every"] = int(normalized["item_stats_log_every"])
+        normalized["pair_mapping_log_every"] = int(normalized["pair_mapping_log_every"])
+        normalized["shard_log_divisor"] = int(normalized["shard_log_divisor"])
+        normalized["user_log_every"] = int(normalized["user_log_every"])
 
         if normalized["top_k"] <= 0:
             raise ValueError("top_k must be positive")
@@ -95,6 +103,14 @@ class ItemSimilarityBuilder:
             raise ValueError("shard_count must be positive")
         if normalized["shard_buffer_rows"] <= 0:
             raise ValueError("shard_buffer_rows must be positive")
+        if normalized["item_stats_log_every"] <= 0:
+            raise ValueError("item_stats_log_every must be positive")
+        if normalized["pair_mapping_log_every"] <= 0:
+            raise ValueError("pair_mapping_log_every must be positive")
+        if normalized["shard_log_divisor"] <= 0:
+            raise ValueError("shard_log_divisor must be positive")
+        if normalized["user_log_every"] <= 0:
+            raise ValueError("user_log_every must be positive")
         return normalized
 
     @classmethod
@@ -195,10 +211,34 @@ class ItemSimilarityBuilder:
             help="Logging level for builder execution.",
         )
         parser.add_argument(
-            "--log-every",
-            dest="log_every",
+            "--debug",
+            dest="debug",
+            action="store_true",
+            help="Shortcut for --log-level DEBUG.",
+        )
+        parser.add_argument(
+            "--item-stats-log-every",
+            dest="item_stats_log_every",
             type=int,
-            help="Emit a progress log every N scanned rating rows.",
+            help="Emit an item-stats progress log every N scanned rating rows.",
+        )
+        parser.add_argument(
+            "--pair-mapping-log-every",
+            dest="pair_mapping_log_every",
+            type=int,
+            help="Emit a pair-mapping progress log every N scanned rating rows.",
+        )
+        parser.add_argument(
+            "--shard-log-divisor",
+            dest="shard_log_divisor",
+            type=int,
+            help="Emit shard-reduction progress every total_shards / N processed shards.",
+        )
+        parser.add_argument(
+            "--user-log-every",
+            dest="user_log_every",
+            type=int,
+            help="Emit a pair-generation progress log every N processed users.",
         )
         return parser
 
@@ -209,7 +249,10 @@ class ItemSimilarityBuilder:
         """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
-            if key in {"use_rating_weight", "ratings_sorted_by_user"}:
+            if key == "debug":
+                if value:
+                    config["log_level"] = "DEBUG"
+            elif key in {"use_rating_weight", "ratings_sorted_by_user"}:
                 config[key] = value
             elif value is not None and value is not False:
                 config[key] = value
@@ -228,7 +271,10 @@ class ItemSimilarityBuilder:
         item_user_counts: Counter[int] = Counter()
         positive_rating_count = 0
 
-        for _, movie_id, weight, _ in self._iter_positive_ratings():
+        for _, movie_id, weight, _ in self._iter_positive_ratings(
+            "item stats",
+            self.config["item_stats_log_every"],
+        ):
             item_user_counts[movie_id] += 1
             item_norm_sq[movie_id] += weight * weight
             positive_rating_count += 1
@@ -261,6 +307,7 @@ class ItemSimilarityBuilder:
         buffers: list[list[str]] = [[] for _ in range(self.config["shard_count"])]
         buffered_rows = 0
         pair_contribution_count = 0
+        processed_user_count = 0
 
         if self.config["ratings_sorted_by_user"]:
             # The full 32M ratings file is sorted by userId, so this path keeps
@@ -268,7 +315,10 @@ class ItemSimilarityBuilder:
             current_user_id: int | None = None
             current_interactions: list[tuple[int, float, int]] = []
 
-            for user_id, movie_id, weight, timestamp in self._iter_positive_ratings():
+            for user_id, movie_id, weight, timestamp in self._iter_positive_ratings(
+                "pair shard mapping",
+                self.config["pair_mapping_log_every"],
+            ):
                 if movie_id not in valid_items:
                     continue
 
@@ -280,23 +330,35 @@ class ItemSimilarityBuilder:
                         pair_shard_dir,
                         buffers,
                     )
+                    processed_user_count += 1
                     pair_contribution_count += written_count
                     buffered_rows += written_count
                     if buffered_rows >= self.config["shard_buffer_rows"]:
                         self._flush_pair_buffers(pair_shard_dir, buffers)
                         buffered_rows = 0
+                    self._log_pair_mapping_progress(
+                        processed_user_count,
+                        pair_contribution_count,
+                    )
                     current_user_id = user_id
                     current_interactions = []
 
                 current_interactions.append((movie_id, weight, timestamp))
 
-            written_count = self._write_user_pairs_to_shards(
-                current_interactions,
-                pair_shard_dir,
-                buffers,
-            )
-            pair_contribution_count += written_count
-            buffered_rows += written_count
+            if current_user_id is not None:
+                written_count = self._write_user_pairs_to_shards(
+                    current_interactions,
+                    pair_shard_dir,
+                    buffers,
+                )
+                processed_user_count += 1
+                pair_contribution_count += written_count
+                buffered_rows += written_count
+                self._log_pair_mapping_progress(
+                    processed_user_count,
+                    pair_contribution_count,
+                    force=True,
+                )
         else:
             self.logger.warning(
                 "ratings_unsorted mode groups all users in memory. "
@@ -305,11 +367,19 @@ class ItemSimilarityBuilder:
             # This fallback is convenient for small ad-hoc files, but avoid it
             # for the full dataset unless memory has been planned carefully.
             user_interactions: dict[int, list[tuple[int, float, int]]] = defaultdict(list)
-            for user_id, movie_id, weight, timestamp in self._iter_positive_ratings():
+            for user_id, movie_id, weight, timestamp in self._iter_positive_ratings(
+                "unsorted user grouping",
+                self.config["pair_mapping_log_every"],
+            ):
                 if movie_id in valid_items:
                     user_interactions[user_id].append((movie_id, weight, timestamp))
 
-            for interactions in user_interactions.values():
+            total_users = len(user_interactions)
+            self.logger.info("Grouped positive interactions for %s users.", total_users)
+            for processed_user_count, interactions in enumerate(
+                user_interactions.values(),
+                start=1,
+            ):
                 written_count = self._write_user_pairs_to_shards(
                     interactions,
                     pair_shard_dir,
@@ -320,9 +390,18 @@ class ItemSimilarityBuilder:
                 if buffered_rows >= self.config["shard_buffer_rows"]:
                     self._flush_pair_buffers(pair_shard_dir, buffers)
                     buffered_rows = 0
+                self._log_pair_mapping_progress(
+                    processed_user_count,
+                    pair_contribution_count,
+                    total_users=total_users,
+                )
 
         self._flush_pair_buffers(pair_shard_dir, buffers)
-        self.logger.info("Wrote %s pair contribution rows.", pair_contribution_count)
+        self.logger.info(
+            "Wrote %s pair contribution rows from %s processed users.",
+            pair_contribution_count,
+            processed_user_count,
+        )
         return pair_contribution_count
 
     def reduce_pair_shards_to_neighbor_shards(
@@ -334,16 +413,26 @@ class ItemSimilarityBuilder:
         """
         Aggregate pair shards into bidirectional scored neighbor rows.
         """
-        self.logger.info("Reducing pair shards into neighbor CSV shards.")
+        pair_shard_paths = [
+            (shard_id, self._pair_shard_path(pair_shard_dir, shard_id))
+            for shard_id in range(self.config["shard_count"])
+            if self._pair_shard_path(pair_shard_dir, shard_id).exists()
+        ]
+        total_pair_shards = len(pair_shard_paths)
+        self.logger.info(
+            "Reducing %s existing pair shards out of %s configured shards into neighbor CSV shards.",
+            total_pair_shards,
+            self.config["shard_count"],
+        )
         buffers: list[list[str]] = [[] for _ in range(self.config["shard_count"])]
         buffered_rows = 0
         neighbor_row_count = 0
+        shard_progress_every = self._progress_interval(total_pair_shards)
 
-        for shard_id in range(self.config["shard_count"]):
-            shard_path = self._pair_shard_path(pair_shard_dir, shard_id)
-            if not shard_path.exists():
-                continue
-
+        for processed_shard_count, (shard_id, shard_path) in enumerate(
+            pair_shard_paths,
+            start=1,
+        ):
             pair_weight_sums: dict[tuple[int, int], float] = defaultdict(float)
             pair_user_counts: Counter[tuple[int, int]] = Counter()
 
@@ -388,12 +477,27 @@ class ItemSimilarityBuilder:
                     self._flush_neighbor_buffers(neighbor_shard_dir, buffers)
                     buffered_rows = 0
 
-            self.logger.info(
+            self.logger.debug(
                 "Reduced pair shard %s: %s unique pairs, %s kept pairs.",
                 shard_id,
                 len(pair_user_counts),
                 kept_pair_count,
             )
+            if (
+                processed_shard_count % shard_progress_every == 0
+                or processed_shard_count == total_pair_shards
+            ):
+                percent = self._percent(processed_shard_count, total_pair_shards)
+                self.logger.info(
+                    (
+                        "Reduced %s/%s pair shards so far (%.1f%%); "
+                        "wrote %s neighbor candidate rows."
+                    ),
+                    processed_shard_count,
+                    total_pair_shards,
+                    percent,
+                    neighbor_row_count,
+                )
 
         self._flush_neighbor_buffers(neighbor_shard_dir, buffers)
         self.logger.info("Wrote %s neighbor candidate rows.", neighbor_row_count)
@@ -407,8 +511,20 @@ class ItemSimilarityBuilder:
         output_format = self.config["output_format"]
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        neighbor_shard_paths = [
+            (shard_id, self._neighbor_shard_path(neighbor_shard_dir, shard_id))
+            for shard_id in range(self.config["shard_count"])
+            if self._neighbor_shard_path(neighbor_shard_dir, shard_id).exists()
+        ]
+        total_neighbor_shards = len(neighbor_shard_paths)
+        shard_progress_every = self._progress_interval(total_neighbor_shards)
         self.logger.info(
-            "Reducing neighbor shards to final %s output at %s.",
+            (
+                "Reducing %s existing neighbor shards out of %s configured shards "
+                "to final %s output at %s."
+            ),
+            total_neighbor_shards,
+            self.config["shard_count"],
             output_format,
             output_path,
         )
@@ -418,13 +534,12 @@ class ItemSimilarityBuilder:
                 handle.write("[\n")
 
             first_json_item = True
-            for shard_id in range(self.config["shard_count"]):
+            for processed_shard_count, (shard_id, shard_path) in enumerate(
+                neighbor_shard_paths,
+                start=1,
+            ):
                 # Each neighbor shard owns a disjoint item-id modulo bucket, so
                 # top-K can be computed shard by shard.
-                shard_path = self._neighbor_shard_path(neighbor_shard_dir, shard_id)
-                if not shard_path.exists():
-                    continue
-
                 rows = self._topk_rows_for_neighbor_shard(shard_path)
                 for row in rows:
                     if output_format == "json":
@@ -436,6 +551,22 @@ class ItemSimilarityBuilder:
                         handle.write(json.dumps(row, ensure_ascii=False))
                         handle.write("\n")
                     output_count += 1
+
+                if (
+                    processed_shard_count % shard_progress_every == 0
+                    or processed_shard_count == total_neighbor_shards
+                ):
+                    percent = self._percent(processed_shard_count, total_neighbor_shards)
+                    self.logger.info(
+                        (
+                            "Reduced %s/%s neighbor shards so far (%.1f%%); "
+                            "wrote output rows for %s items."
+                        ),
+                        processed_shard_count,
+                        total_neighbor_shards,
+                        percent,
+                        output_count,
+                    )
 
             if output_format == "json":
                 handle.write("\n]\n")
@@ -481,12 +612,104 @@ class ItemSimilarityBuilder:
             return None
         return weight
 
-    def _iter_positive_ratings(self) -> Iterable[tuple[int, int, float, int]]:
+    @staticmethod
+    def count_csv_data_rows(path: Path) -> int:
+        """
+        Count CSV data rows with wc -l, excluding the header row.
+        """
+        try:
+            result = subprocess.run(
+                ["wc", "-l", str(path)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            row_count = int(result.stdout.strip().split()[0])
+            return max(row_count - 1, 0)
+        except (FileNotFoundError, IndexError, ValueError, subprocess.CalledProcessError):
+            logging.getLogger(ItemSimilarityBuilder.__name__).warning(
+                "Failed to count rows with wc -l; falling back to Python line scan."
+            )
+
+        with path.open(newline="", encoding="utf-8") as handle:
+            row_count = sum(1 for _ in csv.reader(handle))
+        return max(row_count - 1, 0)
+
+    def get_rating_row_count(self) -> int:
+        """
+        Return the cached ratings.csv data-row count.
+        """
+        if self._rating_row_count is None:
+            self.logger.info("Counting rating rows from %s.", self.config["ratings_path"])
+            self._rating_row_count = self.count_csv_data_rows(self.config["ratings_path"])
+        return self._rating_row_count
+
+    @staticmethod
+    def _percent(part: int, total: int) -> float:
+        """
+        Return a display-safe progress percentage.
+        """
+        if total <= 0:
+            return 100.0
+        return part / total * 100.0
+
+    def _progress_interval(self, total: int) -> int:
+        """
+        Pick an INFO progress interval from the configured shard divisor.
+        """
+        return max(1, total // self.config["shard_log_divisor"])
+
+    def _log_pair_mapping_progress(
+        self,
+        processed_user_count: int,
+        pair_contribution_count: int,
+        total_users: int | None = None,
+        force: bool = False,
+    ) -> None:
+        """
+        Log user-pair generation progress at the configured user interval.
+        """
+        if not force and processed_user_count % self.config["user_log_every"] != 0:
+            return
+
+        if total_users is None:
+            self.logger.info(
+                "Processed %s users for pair mapping; wrote %s pair contribution rows so far.",
+                processed_user_count,
+                pair_contribution_count,
+            )
+            return
+
+        self.logger.info(
+            (
+                "Processed %s/%s users for pair mapping (%.1f%%); "
+                "wrote %s pair contribution rows so far."
+            ),
+            processed_user_count,
+            total_users,
+            self._percent(processed_user_count, total_users),
+            pair_contribution_count,
+        )
+
+    def _iter_positive_ratings(
+        self,
+        stage_name: str,
+        log_every: int,
+    ) -> Iterable[tuple[int, int, float, int]]:
         """
         Stream positive ratings as user, movie, weight, timestamp tuples.
         """
         ratings_path = self.config["ratings_path"]
-        self.logger.info("Reading MovieLens ratings from %s.", ratings_path)
+        total_rating_rows = self.get_rating_row_count()
+        self.logger.info(
+            "Reading %s rating rows from %s for %s; progress every %s rows.",
+            total_rating_rows,
+            ratings_path,
+            stage_name,
+            log_every,
+        )
+        scanned_rating_count = 0
+        positive_rating_count = 0
         with ratings_path.open(newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
             expected_fields = {"userId", "movieId", "rating", "timestamp"}
@@ -497,20 +720,39 @@ class ItemSimilarityBuilder:
                 )
 
             for row_index, row in enumerate(reader, start=1):
-                if row_index % self.config["log_every"] == 0:
-                    self.logger.info("Scanned %s rating rows.", row_index)
+                scanned_rating_count = row_index
+                if row_index % log_every == 0:
+                    self.logger.info(
+                        (
+                            "Scanned %s/%s rating rows for %s (%.1f%%); "
+                            "yielded %s positive ratings."
+                        ),
+                        row_index,
+                        total_rating_rows,
+                        stage_name,
+                        self._percent(row_index, total_rating_rows),
+                        positive_rating_count,
+                    )
 
                 rating = float(row["rating"])
                 weight = self._rating_to_weight(rating)
                 if weight is None:
                     continue
 
+                positive_rating_count += 1
                 yield (
                     int(row["userId"]),
                     int(row["movieId"]),
                     weight,
                     int(row["timestamp"]),
                 )
+
+        self.logger.info(
+            "Finished scanning %s rating rows for %s; yielded %s positive ratings.",
+            scanned_rating_count,
+            stage_name,
+            positive_rating_count,
+        )
 
     def _normalize_user_interactions(
         self,
@@ -692,7 +934,10 @@ def main() -> None:
     """
     parser = ItemSimilarityBuilder.build_arg_parser()
     args = parser.parse_args()
-    log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
+    log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     builder = ItemSimilarityBuilder(ItemSimilarityBuilder.config_from_args(args))
     item_count, output_path = builder.run()
@@ -704,5 +949,8 @@ if __name__ == "__main__":
     #   python3 tools/offline_data_processing/src/builders/item_similarity_builder.py \
     #     --ratings /Volumes/DataBase/Work/raw_dataset_32m_rating/ratings.csv \
     #     --output tools/offline_data_processing/item_similarity.jsonl \
-    #     --top-k 100 --min-rating 4.0
+    #     --top-k 100 --min-rating 4.0 \
+    #     --item-stats-log-every 2000000 \
+    #     --pair-mapping-log-every 200000 \
+    #     --shard-log-divisor 32
     main()

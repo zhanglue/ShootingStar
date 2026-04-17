@@ -18,6 +18,21 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT_DIR / "config"
 
 
+class ElasticTransportDebugFilter(logging.Filter):
+    """
+    Demote elastic-transport request logs so they only appear in debug runs.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Rewrite noisy per-request INFO records as DEBUG records.
+        """
+        if record.name == "elastic_transport.transport" and record.levelno == logging.INFO:
+            record.levelno = logging.DEBUG
+            record.levelname = "DEBUG"
+        return True
+
+
 class ElasticsearchWriter:
     """
     Validate, create-if-needed, and bulk-index item documents.
@@ -62,6 +77,7 @@ class ElasticsearchWriter:
             merged.update(config)
         self.config = self._normalize_config(merged)
         self.logger = logging.getLogger(self.__class__.__name__)
+        self._configure_dependency_loggers()
         self.client = self._create_client()
 
     @classmethod
@@ -216,10 +232,22 @@ class ElasticsearchWriter:
             help="Logging level for writer execution.",
         )
         parser.add_argument(
-            "--log-every",
+            "--debug",
+            dest="debug",
+            action="store_true",
+            help="Shortcut for --log-level DEBUG.",
+        )
+        parser.add_argument(
+            "--es-log-every",
             dest="log_every",
             type=int,
             help="Emit a progress log every N indexed documents.",
+        )
+        parser.add_argument(
+            "--log-every",
+            dest="log_every",
+            type=int,
+            help=argparse.SUPPRESS,
         )
         return parser
 
@@ -230,7 +258,10 @@ class ElasticsearchWriter:
         """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
-            if key in {"verify_certs", "retry_on_timeout"}:
+            if key == "debug":
+                if value:
+                    config["log_level"] = "DEBUG"
+            elif key in {"verify_certs", "retry_on_timeout"}:
                 config[key] = value
             elif value is not None and value is not False:
                 config[key] = value
@@ -353,17 +384,28 @@ class ElasticsearchWriter:
                 action["_id"] = document_id
             yield action
 
-    def preflight_for_file(self) -> None:
+    def preflight_for_file(self) -> int:
         """
         Validate the input file, cluster connection, and target index.
         """
         self.logger.info("Starting Elasticsearch preflight for file-based indexing.")
         self._log_input_file()
+        self.logger.info("Counting input documents from %s.", self.config["input_path"])
+        document_count = self._count_input_documents()
+        if document_count <= 0:
+            raise RuntimeError(
+                f"Input file contains no documents: {self.config['input_path']}"
+            )
+        self.logger.info(
+            "Input file contains %s documents for indexing.",
+            document_count,
+        )
         self._log_cluster_status()
         self.ensure_index()
         self._log_index_status()
+        return document_count
 
-    def preflight_for_items(self, item_count: int) -> None:
+    def preflight_for_items(self, item_count: int) -> int:
         """
         Validate cluster/index state before writing in-memory items.
         """
@@ -372,22 +414,23 @@ class ElasticsearchWriter:
         self._log_cluster_status()
         self.ensure_index()
         self._log_index_status()
+        return item_count
 
     def write_file(self) -> int:
         """
         Index documents from the configured input file.
         """
         self.logger.info("ElasticsearchWriter file write started.")
-        self.preflight_for_file()
-        return self._bulk_write(self.iter_documents())
+        document_count = self.preflight_for_file()
+        return self._bulk_write(self.iter_documents(), total_count=document_count)
 
     def write_items(self, items: list[dict[str, Any]]) -> int:
         """
         Index already-built item documents without rereading from disk.
         """
         self.logger.info("ElasticsearchWriter in-memory write started.")
-        self.preflight_for_items(len(items))
-        return self._bulk_write(items)
+        document_count = self.preflight_for_items(len(items))
+        return self._bulk_write(items, total_count=document_count)
 
     def run(self) -> int:
         """
@@ -407,6 +450,12 @@ class ElasticsearchWriter:
             "verify_certs": self.config["verify_certs"],
         }
 
+        if not self.config["verify_certs"]:
+            # Local validation usually reaches ECK through kubectl port-forward
+            # and a self-signed certificate. --no-verify-certs is explicit, so
+            # suppress the otherwise repeated urllib3 warning per bulk request.
+            client_kwargs["ssl_show_warn"] = False
+
         if self.config["ca_certs"] is not None:
             client_kwargs["ca_certs"] = str(self.config["ca_certs"])
 
@@ -422,6 +471,22 @@ class ElasticsearchWriter:
             return Elasticsearch(cloud_id=self.config["cloud_id"], **client_kwargs)
 
         return Elasticsearch(self.config["es_url"], **client_kwargs)
+
+    def _configure_dependency_loggers(self) -> None:
+        """
+        Keep per-request elastic-transport logs out of the default INFO output.
+        """
+        transport_logger = logging.getLogger("elastic_transport.transport")
+        if not any(
+            isinstance(existing_filter, ElasticTransportDebugFilter)
+            for existing_filter in transport_logger.filters
+        ):
+            transport_logger.addFilter(ElasticTransportDebugFilter())
+
+        if self.config["log_level"] == "DEBUG":
+            transport_logger.setLevel(logging.DEBUG)
+        else:
+            transport_logger.setLevel(logging.WARNING)
 
     def _log_input_file(self) -> None:
         """
@@ -443,6 +508,25 @@ class ElasticsearchWriter:
             self._format_bytes(file_size),
             self.config["input_format"],
         )
+
+    def _count_input_documents(self) -> int:
+        """
+        Count the documents that will be streamed into bulk indexing.
+        """
+        input_path = self.config["input_path"]
+        if self.config["input_format"] == "json":
+            with input_path.open(encoding="utf-8") as handle:
+                data = json.load(handle)
+            if not isinstance(data, list):
+                raise RuntimeError(f"JSON input must be an array: {input_path}")
+            return len(data)
+
+        count = 0
+        with input_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    count += 1
+        return count
 
     def _log_cluster_status(self) -> None:
         """
@@ -476,13 +560,98 @@ class ElasticsearchWriter:
             count,
         )
 
-    def _bulk_write(self, documents: Iterable[dict[str, Any]]) -> int:
+    def _log_es_usage_snapshot(self) -> None:
+        """
+        Log a compact storage/doc-count snapshot after bulk indexing.
+        """
+        self.logger.info("Elasticsearch usage stats after bulk write:")
+        try:
+            target_root_count = self.client.count(index=self.config["index_name"]).get(
+                "count",
+                0,
+            )
+            target_stats = self.client.indices.stats(
+                index=self.config["index_name"],
+                metric="docs,store",
+            )
+            all_stats = self.client.indices.stats(
+                index="_all",
+                metric="docs,store",
+                expand_wildcards="all",
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging path.
+            self.logger.warning("Failed to load Elasticsearch usage stats: %s", exc)
+            return
+
+        self._log_stats_total(
+            label=f"Target index '{self.config['index_name']}'",
+            stats=target_stats,
+            root_docs=target_root_count,
+        )
+        self._log_stats_total(label="All Elasticsearch indices", stats=all_stats)
+
+    def _log_stats_total(
+        self,
+        label: str,
+        stats: dict[str, Any],
+        root_docs: int | None = None,
+    ) -> None:
+        """
+        Log docs and store totals from an Elasticsearch indices.stats response.
+        """
+        total = stats.get("_all", {}).get("total", {})
+        docs = total.get("docs", {})
+        store = total.get("store", {})
+        store_size = int(store.get("size_in_bytes", 0))
+        total_data_set_size = int(store.get("total_data_set_size_in_bytes", 0))
+        if root_docs is not None:
+            self.logger.info(
+                (
+                    "%s usage: root_docs=%s, lucene_docs=%s, "
+                    "deleted_lucene_docs=%s, store=%s, dataset=%s."
+                ),
+                label,
+                root_docs,
+                docs.get("count", 0),
+                docs.get("deleted", 0),
+                self._format_bytes(store_size),
+                self._format_bytes(total_data_set_size),
+            )
+            return
+
+        self.logger.info(
+            "%s usage: lucene_docs=%s, deleted_lucene_docs=%s, store=%s, dataset=%s.",
+            label,
+            docs.get("count", 0),
+            docs.get("deleted", 0),
+            self._format_bytes(store_size),
+            self._format_bytes(total_data_set_size),
+        )
+
+    def _bulk_write(
+        self,
+        documents: Iterable[dict[str, Any]],
+        total_count: int | None = None,
+    ) -> int:
         """
         Stream documents through Elasticsearch helpers.streaming_bulk.
         """
         indexed_count = 0
         progress_interval = max(self.config["bulk_size"], self.config["log_every"])
         next_progress = progress_interval
+        if total_count is None:
+            self.logger.info(
+                "Starting bulk write into '%s'; progress every %s documents.",
+                self.config["index_name"],
+                progress_interval,
+            )
+        else:
+            self.logger.info(
+                "Starting bulk write of %s documents into '%s'; progress every %s documents.",
+                total_count,
+                self.config["index_name"],
+                progress_interval,
+            )
         for ok, result in streaming_bulk(
             client=self.client,
             actions=self.iter_bulk_actions(documents),
@@ -495,11 +664,25 @@ class ElasticsearchWriter:
                 raise RuntimeError(f"Bulk indexing failed: {result}")
             indexed_count += 1
             if indexed_count >= next_progress:
-                self.logger.info(
-                    "Indexed %s documents into '%s' so far.",
-                    indexed_count,
-                    self.config["index_name"],
-                )
+                if total_count is None:
+                    self.logger.info(
+                        "Indexed %s documents into '%s' so far.",
+                        indexed_count,
+                        self.config["index_name"],
+                    )
+                else:
+                    percent = (
+                        indexed_count / total_count * 100.0
+                        if total_count
+                        else 100.0
+                    )
+                    self.logger.info(
+                        "Indexed %s/%s documents into '%s' so far (%.1f%%).",
+                        indexed_count,
+                        total_count,
+                        self.config["index_name"],
+                        percent,
+                    )
                 next_progress += progress_interval
 
         if self.config["refresh"]:
@@ -512,6 +695,7 @@ class ElasticsearchWriter:
             self.config["index_name"],
         )
         self._log_index_status()
+        self._log_es_usage_snapshot()
 
         return indexed_count
 
@@ -522,7 +706,10 @@ def main() -> None:
     """
     parser = ElasticsearchWriter.build_arg_parser()
     args = parser.parse_args()
-    log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
+    log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     writer = ElasticsearchWriter(ElasticsearchWriter.config_from_args(args))
     indexed_count = writer.run()
@@ -540,5 +727,6 @@ if __name__ == "__main__":
     #     --input tools/offline_data_processing/item_index.jsonl \
     #     --es-url https://localhost:9200 \
     #     --index-name movielens_32m_rating_index \
-    #     --ensure-index --no-verify-certs
+    #     --ensure-index --no-verify-certs \
+    #     --es-log-every 5000
     main()

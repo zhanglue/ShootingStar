@@ -67,7 +67,10 @@ def config_from_args(args: argparse.Namespace) -> dict[str, Any]:
     """
     config: dict[str, Any] = {}
     for key, value in vars(args).items():
-        if key in {"run_build", "run_index", "verify_certs", "retry_on_timeout"}:
+        if key == "debug":
+            if value:
+                config["log_level"] = "DEBUG"
+        elif key in {"run_build", "run_index", "verify_certs", "retry_on_timeout"}:
             config[key] = value
         elif value is not None and value is not False:
             config[key] = value
@@ -103,13 +106,15 @@ def main() -> None:
     Run the optional build phase followed by the optional ES indexing phase.
     """
     args = build_arg_parser().parse_args()
-    log_level_name = str(getattr(args, "log_level", "INFO")).upper()
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
     log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    logger = logging.getLogger("item_index_to_es")
+    logger = logging.getLogger("Main")
     config = config_from_args(args)
     builder_config, writer_config, run_build, run_index = split_config(config)
 
@@ -139,7 +144,7 @@ def main() -> None:
     else:
         logger.info("Indexing phase skipped.")
 
-    parts: list[str] = []
+    parts: list[str] = ["\n"]
     if built_count is not None:
         parts.append(f"built {built_count} items -> {builder.config['output_path']}")
     if indexed_count is not None:
@@ -150,7 +155,7 @@ def main() -> None:
             f"{writer.config['cloud_id'] or writer.config['es_url']}/"
             f"{writer.config['index_name']}"
         )
-    print(", ".join(parts) if parts else "No work executed.")
+    print("\n".join(parts) if parts else "No work executed.")
 
 
 if __name__ == "__main__":

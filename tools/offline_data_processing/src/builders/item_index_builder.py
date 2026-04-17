@@ -10,6 +10,7 @@ import json
 import logging
 import math
 import re
+import subprocess
 import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -43,6 +44,7 @@ class ItemIndexBuilder:
         "min_weight": 0.0,
         "min_relative_weight": 0.3,
         "log_level": "INFO",
+        "rating_log_every": 2000000,
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
@@ -79,6 +81,9 @@ class ItemIndexBuilder:
         normalized["min_weight"] = float(normalized["min_weight"])
         normalized["min_relative_weight"] = float(normalized["min_relative_weight"])
         normalized["log_level"] = str(normalized["log_level"]).upper()
+        normalized["rating_log_every"] = int(normalized["rating_log_every"])
+        if normalized["rating_log_every"] <= 0:
+            raise ValueError("rating_log_every must be positive")
         return normalized
 
     @classmethod
@@ -128,6 +133,18 @@ class ItemIndexBuilder:
             choices=("DEBUG", "INFO", "WARNING", "ERROR"),
             help="Logging level for builder execution.",
         )
+        parser.add_argument(
+            "--debug",
+            dest="debug",
+            action="store_true",
+            help="Shortcut for --log-level DEBUG.",
+        )
+        parser.add_argument(
+            "--rating-log-every",
+            dest="rating_log_every",
+            type=int,
+            help="Emit a progress log every N scanned rating rows.",
+        )
         return parser
 
     @classmethod
@@ -137,7 +154,10 @@ class ItemIndexBuilder:
         """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
-            if value is not None:
+            if key == "debug":
+                if value:
+                    config["log_level"] = "DEBUG"
+            elif value is not None:
                 config[key] = value
         return config
 
@@ -246,21 +266,70 @@ class ItemIndexBuilder:
         self.logger.info("Built links map for %s movies.", len(links))
         return links
 
+    @staticmethod
+    def count_csv_data_rows(path: Path) -> int:
+        """
+        Count CSV data rows, excluding the header row.
+        """
+        try:
+            result = subprocess.run(
+                ["wc", "-l", str(path)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            row_count = int(result.stdout.strip().split()[0])
+            return max(row_count - 1, 0)
+        except (FileNotFoundError, IndexError, ValueError, subprocess.CalledProcessError):
+            logging.getLogger(ItemIndexBuilder.__name__).warning(
+                "Failed to count rows with wc -l; falling back to Python line scan."
+            )
+
+        with path.open(newline="", encoding="utf-8") as handle:
+            row_count = sum(1 for _ in csv.reader(handle))
+        return max(row_count - 1, 0)
+
     def build_ratings_map(self) -> dict[int, dict[str, Any]]:
         """
         Stream ratings.csv and compute average rating/count per movie.
         """
-        self.logger.info("Aggregating ratings from %s.", self.config["ratings_path"])
+        self.logger.info("Counting rating rows from %s.", self.config["ratings_path"])
+        total_rating_rows = self.count_csv_data_rows(self.config["ratings_path"])
+        self.logger.info(
+            "Aggregating %s rating rows from %s; progress every %s rows.",
+            total_rating_rows,
+            self.config["ratings_path"],
+            self.config["rating_log_every"],
+        )
         totals: dict[int, float] = defaultdict(float)
         counts: Counter[int] = Counter()
+        scanned_rating_count = 0
 
         with self.config["ratings_path"].open(newline="", encoding="utf-8") as handle:
-            for row in csv.DictReader(handle):
+            for row_index, row in enumerate(csv.DictReader(handle), start=1):
+                scanned_rating_count = row_index
                 movie_id = int(row["movieId"])
                 rating = float(row["rating"])
                 totals[movie_id] += rating
                 counts[movie_id] += 1
+                if row_index % self.config["rating_log_every"] == 0:
+                    percent = (
+                        row_index / total_rating_rows * 100.0
+                        if total_rating_rows
+                        else 100.0
+                    )
+                    self.logger.info(
+                        "Aggregated %s/%s rating rows so far from %s (%.1f%%).",
+                        row_index,
+                        total_rating_rows,
+                        self.config["ratings_path"],
+                        percent,
+                    )
 
+        self.logger.info(
+            "Finished scanning %s rating rows; computing per-movie rating stats.",
+            scanned_rating_count,
+        )
         ratings: dict[int, dict[str, Any]] = {}
         for movie_id, count in counts.items():
             ratings[movie_id] = {
@@ -474,7 +543,10 @@ def main() -> None:
     """
     parser = ItemIndexBuilder.build_arg_parser()
     args = parser.parse_args()
-    log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
+    log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     builder = ItemIndexBuilder(ItemIndexBuilder.config_from_args(args))
     items, output_path = builder.run()

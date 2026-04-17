@@ -125,7 +125,9 @@ Common entrypoint parameters:
   Refresh the index after bulk indexing
 - `--log-level`
   Logging level
-- `--log-every`
+- `--rating-log-every`
+  Emit a progress log every N scanned rating rows during item-index building
+- `--es-log-every`
   Emit a progress log every N indexed documents
 
 Example: write an existing `jsonl` file into ES
@@ -140,7 +142,7 @@ python3 tools/offline_data_processing/src/jobs/item_index_to_es.py \
   --ensure-index \
   --no-verify-certs \
   --log-level INFO \
-  --log-every 5000
+  --es-log-every 5000
 ```
 
 ## Shell Wrapper
@@ -232,7 +234,8 @@ python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
   --es-url https://localhost:9200 \
   --index-name movielens_32m_rating_index \
   --ensure-index \
-  --no-verify-certs
+  --no-verify-certs \
+  --es-log-every 5000
 ```
 
 ## Mapping Notes

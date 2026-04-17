@@ -31,6 +31,7 @@ OUTPUT_FORMAT="jsonl"
 TOP_K=10
 MIN_WEIGHT=0.0
 MIN_RELATIVE_WEIGHT=0.3
+RATING_LOG_EVERY=2000000
 
 # Elasticsearch settings. --ensure-index below creates the target index when it
 # is missing, using the mapping file configured in ElasticsearchWriter.
@@ -41,7 +42,7 @@ INPUT_FORMAT="${OUTPUT_FORMAT}"
 BULK_SIZE=500
 TIMEOUT=30
 LOG_LEVEL="INFO"
-LOG_EVERY=5000
+ES_LOG_EVERY=5000
 
 # Load the elastic user's password from the ECK-managed Kubernetes Secret.
 # Callers may still pass writer CLI flags after "$@" below for one-off changes.
@@ -61,6 +62,7 @@ python3 "${SCRIPT_DIR}/src/jobs/item_index_to_es.py" \
   --top-k "${TOP_K}" \
   --min-weight "${MIN_WEIGHT}" \
   --min-relative-weight "${MIN_RELATIVE_WEIGHT}" \
+  --rating-log-every "${RATING_LOG_EVERY}" \
   --input "${INPUT_PATH}" \
   --input-format "${INPUT_FORMAT}" \
   --es-url "${ES_URL}" \
@@ -70,5 +72,5 @@ python3 "${SCRIPT_DIR}/src/jobs/item_index_to_es.py" \
   --ensure-index \
   --no-verify-certs \
   --log-level "${LOG_LEVEL}" \
-  --log-every "${LOG_EVERY}" \
+  --es-log-every "${ES_LOG_EVERY}" \
   "$@"

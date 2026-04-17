@@ -49,7 +49,7 @@ class RedisWriter:
         "replace_existing": True,
         "dry_run": False,
         "log_level": "INFO",
-        "log_every": 5000,
+        "redis_log_every": 300000,
     }
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
@@ -92,12 +92,12 @@ class RedisWriter:
         normalized["replace_existing"] = bool(normalized["replace_existing"])
         normalized["dry_run"] = bool(normalized["dry_run"])
         normalized["log_level"] = str(normalized["log_level"]).upper()
-        normalized["log_every"] = int(normalized["log_every"])
+        normalized["redis_log_every"] = int(normalized["redis_log_every"])
 
         if normalized["batch_size"] <= 0:
             raise ValueError("batch_size must be positive")
-        if normalized["log_every"] <= 0:
-            raise ValueError("log_every must be positive")
+        if normalized["redis_log_every"] <= 0:
+            raise ValueError("redis_log_every must be positive")
         return normalized
 
     @classmethod
@@ -167,8 +167,14 @@ class RedisWriter:
             help="Logging level for writer execution.",
         )
         parser.add_argument(
-            "--log-every",
-            dest="log_every",
+            "--debug",
+            dest="debug",
+            action="store_true",
+            help="Shortcut for --log-level DEBUG.",
+        )
+        parser.add_argument(
+            "--redis-log-every",
+            dest="redis_log_every",
             type=int,
             help="Emit a progress log every N written item keys.",
         )
@@ -181,7 +187,10 @@ class RedisWriter:
         """
         config: dict[str, Any] = {}
         for key, value in vars(args).items():
-            if key in {"ssl", "replace_existing", "dry_run"}:
+            if key == "debug":
+                if value:
+                    config["log_level"] = "DEBUG"
+            elif key in {"ssl", "replace_existing", "dry_run"}:
                 config[key] = value
             elif value is not None and value is not False:
                 config[key] = value
@@ -262,7 +271,7 @@ class RedisWriter:
                 item_count=total.item_count + stats.item_count,
                 neighbor_count=total.neighbor_count + stats.neighbor_count,
             )
-            if total.item_count % self.config["log_every"] == 0:
+            if total.item_count % self.config["redis_log_every"] == 0:
                 self.logger.info(
                     "Wrote %s items and %s neighbors so far.",
                     total.item_count,
@@ -374,7 +383,10 @@ def main() -> None:
     """
     parser = RedisWriter.build_arg_parser()
     args = parser.parse_args()
-    log_level = getattr(logging, str(getattr(args, "log_level", "INFO")).upper(), logging.INFO)
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
+    log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     writer = RedisWriter(RedisWriter.config_from_args(args))
     stats = writer.run()

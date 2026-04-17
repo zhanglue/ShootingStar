@@ -67,7 +67,10 @@ def config_from_args(args: argparse.Namespace) -> dict[str, Any]:
     """
     config: dict[str, Any] = {}
     for key, value in vars(args).items():
-        if key in {
+        if key == "debug":
+            if value:
+                config["log_level"] = "DEBUG"
+        elif key in {
             "run_build",
             "run_write",
             "use_rating_weight",
@@ -111,13 +114,15 @@ def main() -> None:
     Run the optional build phase followed by the optional Redis write phase.
     """
     args = build_arg_parser().parse_args()
-    log_level_name = str(getattr(args, "log_level", "INFO")).upper()
+    log_level_name = (
+        "DEBUG" if getattr(args, "debug", False) else str(getattr(args, "log_level", "INFO")).upper()
+    )
     log_level = getattr(logging, log_level_name, logging.INFO)
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    logger = logging.getLogger("item_similarity_to_redis")
+    logger = logging.getLogger("Main")
 
     config = config_from_args(args)
     builder_config, writer_config, run_build, run_write = split_config(config)
@@ -148,7 +153,7 @@ def main() -> None:
     else:
         logger.info("Redis write phase skipped.")
 
-    parts: list[str] = []
+    parts: list[str] = ["\n"]
     if built_count is not None:
         parts.append(f"built {built_count} item rows -> {builder.config['output_path']}")
     if written_item_count is not None and written_neighbor_count is not None:
@@ -164,7 +169,7 @@ def main() -> None:
                 f"{writer_config.get('redis_host', RedisWriter.DEFAULT_CONFIG['redis_host'])}:"
                 f"{writer_config.get('redis_port', RedisWriter.DEFAULT_CONFIG['redis_port'])}"
             )
-    print(", ".join(parts) if parts else "No work executed.")
+    print("\n".join(parts) if parts else "No work executed.")
 
 
 if __name__ == "__main__":

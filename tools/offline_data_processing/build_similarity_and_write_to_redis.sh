@@ -37,6 +37,13 @@ SHARD_COUNT=512
 SHARD_BUFFER_ROWS=100000
 TEMP_DIR="${SCRIPT_DIR}/temp"
 
+# Similarity progress settings. Different stages have very different costs, so
+# keep their progress cadence separate instead of sharing one generic interval.
+ITEM_STATS_LOG_EVERY=2000000
+PAIR_MAPPING_LOG_EVERY=200000
+SHARD_LOG_DIVISOR=32
+USER_LOG_EVERY=30000
+
 # Redis settings. For local runs, port-forward Redis and leave REDIS_HOST=localhost.
 # KEY_PREFIX is part of the serving contract: final keys are
 # "${KEY_PREFIX}:<item_id>" sorted sets.
@@ -47,7 +54,7 @@ KEY_PREFIX="${KEY_PREFIX:-rec:item_cf:v1:neighbors}"
 BATCH_SIZE=500
 SOCKET_TIMEOUT=5
 LOG_LEVEL="INFO"
-LOG_EVERY=5000
+REDIS_LOG_EVERY=300000
 
 # Load Redis auth automatically from Kubernetes when REDIS_PASSWORD was not
 # provided by the caller. This keeps the common local workflow one-command.
@@ -83,5 +90,9 @@ python3 "${SCRIPT_DIR}/src/jobs/item_similarity_to_redis.py" \
   --batch-size "${BATCH_SIZE}" \
   --socket-timeout "${SOCKET_TIMEOUT}" \
   --log-level "${LOG_LEVEL}" \
-  --log-every "${LOG_EVERY}" \
+  --redis-log-every "${REDIS_LOG_EVERY}" \
+  --item-stats-log-every "${ITEM_STATS_LOG_EVERY}" \
+  --pair-mapping-log-every "${PAIR_MAPPING_LOG_EVERY}" \
+  --user-log-every "${USER_LOG_EVERY}" \
+  --shard-log-divisor "${SHARD_LOG_DIVISOR}" \
   "$@"
