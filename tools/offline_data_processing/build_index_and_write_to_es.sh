@@ -36,7 +36,7 @@ RATING_LOG_EVERY=2000000
 # Elasticsearch settings. --ensure-index below creates the target index when it
 # is missing, using the mapping file configured in ElasticsearchWriter.
 ES_URL="https://localhost:9200"
-INDEX_NAME="movielens_32m_rating_index"
+INDEX_NAME="movielens_32m_item_index"
 INPUT_PATH="${OUTPUT_PATH}"
 INPUT_FORMAT="${OUTPUT_FORMAT}"
 BULK_SIZE=500

@@ -5,7 +5,7 @@ This directory stores offline data processing jobs that build serving data and w
 1. Build movie item-index documents from MovieLens-style CSV files and write them into Elasticsearch.
 2. Build item similarity neighbors from MovieLens-style ratings and write them into Redis.
 
-The current default target index name is `movielens_32m_rating_index`.
+The current default target index name is `movielens_32m_item_index`.
 
 ## Data Source
 
@@ -138,7 +138,7 @@ python3 tools/offline_data_processing/src/jobs/item_index_to_es.py \
   --input /Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/item_index.jsonl \
   --input-format jsonl \
   --es-url https://localhost:9200 \
-  --index-name movielens_32m_rating_index \
+  --index-name movielens_32m_item_index \
   --ensure-index \
   --no-verify-certs \
   --log-level INFO \
@@ -232,7 +232,7 @@ python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
   --input /path/to/item_index.jsonl \
   --input-format jsonl \
   --es-url https://localhost:9200 \
-  --index-name movielens_32m_rating_index \
+  --index-name movielens_32m_item_index \
   --ensure-index \
   --no-verify-certs \
   --es-log-every 5000
@@ -337,7 +337,7 @@ During validation we observed a small number of tags that look like historical e
 After indexing, these commands are useful:
 
 ```bash
-curl -u "elastic:$ES_PASSWORD" -k https://localhost:9200/movielens_32m_rating_index/_count?pretty
-curl -u "elastic:$ES_PASSWORD" -k https://localhost:9200/movielens_32m_rating_index/_mapping?pretty
-curl -u "elastic:$ES_PASSWORD" -k 'https://localhost:9200/movielens_32m_rating_index/_doc/1?pretty'
+curl -u "elastic:$ES_PASSWORD" -k https://localhost:9200/movielens_32m_item_index/_count?pretty
+curl -u "elastic:$ES_PASSWORD" -k https://localhost:9200/movielens_32m_item_index/_mapping?pretty
+curl -u "elastic:$ES_PASSWORD" -k 'https://localhost:9200/movielens_32m_item_index/_doc/1?pretty'
 ```

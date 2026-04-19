@@ -8,13 +8,17 @@ import argparse
 import csv
 import json
 import logging
-import math
 import re
 import subprocess
 import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
+
+try:
+    from builders.common import collect_movie_tag_evidence, compute_movie_top_tags
+except ModuleNotFoundError:
+    from common import collect_movie_tag_evidence, compute_movie_top_tags
 
 
 TITLE_YEAR_RE = re.compile(r"^(?P<title>.+?)\s+\((?P<year>\d{4})\)$")
@@ -214,13 +218,6 @@ class ItemIndexBuilder:
         except ValueError:
             return None
 
-    def normalize_tag(self, text: str) -> str:
-        """
-        Normalize user-provided tags for grouping and scoring.
-        """
-        normalized = unicodedata.normalize("NFKC", text).lower()
-        return self.normalize_spaces(normalized)
-
     def normalize_search_text(self, text: str) -> str:
         """
         Normalize text fields into token-friendly search text.
@@ -345,36 +342,11 @@ class ItemIndexBuilder:
         """
         Collect raw tag counts and unique tag-user sets for known movies.
         """
-        self.logger.info(
-            "Collecting tags from %s for %s valid movies.",
-            self.config["tags_path"],
-            len(valid_movie_ids),
+        return collect_movie_tag_evidence(
+            tags_path=self.config["tags_path"],
+            valid_movie_ids=valid_movie_ids,
+            logger=self.logger,
         )
-        tag_row_counts: dict[int, Counter[str]] = defaultdict(Counter)
-        tag_user_sets: dict[int, dict[str, set[str]]] = defaultdict(
-            lambda: defaultdict(set)
-        )
-
-        with self.config["tags_path"].open(newline="", encoding="utf-8") as handle:
-            for row in csv.DictReader(handle):
-                movie_id = int(row["movieId"])
-                if movie_id not in valid_movie_ids:
-                    continue
-
-                tag = self.normalize_tag(row.get("tag", ""))
-                if not tag:
-                    continue
-
-                user_id = row.get("userId", "").strip()
-                tag_row_counts[movie_id][tag] += 1
-                if user_id:
-                    tag_user_sets[movie_id][tag].add(user_id)
-
-        self.logger.info(
-            "Collected tags for %s movies with tag data.",
-            len(tag_user_sets),
-        )
-        return tag_row_counts, tag_user_sets
 
     def compute_top_tags(
         self, tag_user_sets: dict[int, dict[str, set[str]]]
@@ -382,58 +354,14 @@ class ItemIndexBuilder:
         """
         Score movie tags with a simple TF-IDF variant and keep top tags.
         """
-        self.logger.info(
-            "Computing top tags with top_k=%s, min_weight=%s, min_relative_weight=%s.",
-            self.config["top_k"],
-            self.config["min_weight"],
-            self.config["min_relative_weight"],
+        return compute_movie_top_tags(
+            tag_user_sets=tag_user_sets,
+            top_k=self.config["top_k"],
+            min_weight=self.config["min_weight"],
+            min_relative_weight=self.config["min_relative_weight"],
+            round_digits=4,
+            logger=self.logger,
         )
-        document_frequency: Counter[str] = Counter()
-        for movie_tags in tag_user_sets.values():
-            for tag in movie_tags:
-                document_frequency[tag] += 1
-
-        document_count = max(len(tag_user_sets), 1)
-        results: dict[int, list[dict[str, Any]]] = {}
-
-        for movie_id, movie_tags in tag_user_sets.items():
-            scored_tags: list[tuple[str, float, int]] = []
-            for tag, users in movie_tags.items():
-                user_count = max(len(users), 1)
-                tf = 1.0 + math.log(user_count)
-                idf = (
-                    math.log((1.0 + document_count) / (1.0 + document_frequency[tag]))
-                    + 1.0
-                )
-                score = tf * idf
-                scored_tags.append((tag, score, user_count))
-
-            scored_tags.sort(key=lambda item: (-item[1], -item[2], item[0]))
-            if not scored_tags:
-                results[movie_id] = []
-                continue
-
-            top_score = scored_tags[0][1]
-            relative_cutoff = top_score * self.config["min_relative_weight"]
-            kept_tags: list[dict[str, Any]] = []
-
-            for index, (tag, score, _) in enumerate(scored_tags):
-                if index >= self.config["top_k"]:
-                    break
-                if index > 0 and score < self.config["min_weight"]:
-                    continue
-                if index > 0 and score < relative_cutoff:
-                    continue
-                kept_tags.append({"tag": tag, "weight": round(score, 4)})
-
-            if not kept_tags:
-                tag, score, _ = scored_tags[0]
-                kept_tags.append({"tag": tag, "weight": round(score, 4)})
-
-            results[movie_id] = kept_tags
-
-        self.logger.info("Computed top tags for %s movies.", len(results))
-        return results
 
     def build_search_fields(
         self, title_norm: str, genres: list[str], top_tags: list[dict[str, Any]]
