@@ -102,8 +102,8 @@ TEST_F(PBDataHandlerTest, JsonToPBDataDrivenFromJsonFile) {
           profile.social().following_size(),
           static_cast<int>(expected_fields.at("following_size").number_value()));
       EXPECT_EQ(
-          profile.behaviors().positive_items_size(),
-          static_cast<int>(expected_fields.at("positive_items_size").number_value()));
+          profile.behaviors().liked_items_size(),
+          static_cast<int>(expected_fields.at("liked_items_size").number_value()));
       EXPECT_EQ(
           profile.interests().tags_size(),
           static_cast<int>(expected_fields.at("tag_size").number_value()));
@@ -140,7 +140,7 @@ TEST_F(PBDataHandlerTest, PBToJsonWritesProtoFieldNames) {
   ASSERT_TRUE(PBDataHandler::PBToJson(profile, &json, &error)) << error;
   EXPECT_NE(json.find("\"user_id\""), std::string::npos);
   EXPECT_NE(json.find("\"username\""), std::string::npos);
-  EXPECT_NE(json.find("\"positive_items\""), std::string::npos);
+  EXPECT_NE(json.find("\"liked_items\""), std::string::npos);
 }
 
 TEST_F(PBDataHandlerTest, PBToJsonFailsForNullOutput) {
@@ -159,7 +159,7 @@ TEST_F(PBDataHandlerTest, JsonFileToPBAndPBToJsonFileRoundTrip) {
   std::string error;
   ASSERT_TRUE(PBDataHandler::JsonFileToPB(json_input.string(), &from_file, &error)) << error;
   EXPECT_EQ(from_file.user_id(), 3001);
-  EXPECT_EQ(from_file.behaviors().seen_items_size(), 2);
+  EXPECT_EQ(from_file.behaviors().rated_items_size(), 2);
 
   ASSERT_TRUE(PBDataHandler::PBToJsonFile(from_file, json_output.string(), &error)) << error;
 

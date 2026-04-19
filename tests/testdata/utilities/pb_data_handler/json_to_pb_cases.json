@@ -18,30 +18,24 @@
         "interests": {
           "genres": [
             {
-              "genre_id": 5,
-              "genre_name": "Comedy",
+          "genre": "Comedy",
               "weight": 0.8,
               "confidence": 0.9,
-              "update_time": 1703710000,
-              "source": "ratings_movies"
+              "update_time": 1703710000
             }
           ],
           "tags": [
             {
-              "tag_id": 101,
-              "tag_name": "mind-bending",
+          "tag": "mind-bending",
               "weight": 0.75,
               "confidence": 0.8,
-              "update_time": 1703710000,
-              "source": "ratings_tags"
+              "update_time": 1703710000
             },
             {
-              "tag_id": 205,
-              "tag_name": "time travel",
+          "tag": "time travel",
               "weight": 0.55,
               "confidence": 0.6,
-              "update_time": 1703710000,
-              "source": "ratings_tags"
+              "update_time": 1703710000
             }
           ]
         },
@@ -51,7 +45,7 @@
               "item_id": 503,
               "weight": 0.9,
               "event_time": 1703690000,
-              "source": "rating",
+              "source": 1,
               "confidence": 0.9,
               "raw_score": 1.5
             }
@@ -60,37 +54,37 @@
           "tags": []
         },
         "behaviors": {
-          "positive_items": [
+          "liked_items": [
             {
               "item_id": 502,
               "weight": 1.0,
               "event_time": 1703710000,
-              "source": "rating",
+              "source": 1,
               "confidence": 1.0,
               "raw_score": 5.0
             }
           ],
-          "recent_positive_items": [
+          "recent_liked_items": [
             {
               "item_id": 502,
               "weight": 1.0,
               "event_time": 1703710000,
-              "source": "rating",
+              "source": 1,
               "confidence": 1.0,
               "raw_score": 5.0
             }
           ],
-          "weak_positive_items": [
+          "interested_items": [
             {
               "item_id": 501,
               "weight": 0.5,
               "event_time": 1703700000,
-              "source": "rating",
+              "source": 1,
               "confidence": 0.7,
               "raw_score": 3.5
             }
           ],
-          "seen_items": [501, 502]
+          "rated_items": [501, 502]
         },
         "stats": {
           "rating_count": 3,
@@ -112,7 +106,7 @@
         "user_id": 1001,
         "username": "user_1001",
         "following_size": 2,
-        "positive_items_size": 1,
+        "liked_items_size": 1,
         "tag_size": 2,
         "negative_items_size": 1,
         "active_timeframe": 29000,

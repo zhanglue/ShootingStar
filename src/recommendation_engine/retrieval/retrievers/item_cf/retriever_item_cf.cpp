@@ -14,19 +14,19 @@ using ::std::vector;
 using ::std::unordered_set;
 
 void AppendSeenItems(const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
-                     ::std::unordered_set<uint64_t>* seen_items) {
+                     ::std::unordered_set<uint64_t>* rated_items) {
   for (const WeightedItem& item : items) {
     if (item.item_id() > 0) {
-      seen_items->insert(static_cast<uint64_t>(item.item_id()));
+      rated_items->insert(static_cast<uint64_t>(item.item_id()));
     }
   }
 }
 
 void AppendSeenItems(const ::google::protobuf::RepeatedField<::int64_t>& items,
-                     ::std::unordered_set<uint64_t>* seen_items) {
+                     ::std::unordered_set<uint64_t>* rated_items) {
   for (const int64_t item_id : items) {
     if (item_id > 0) {
-      seen_items->insert(static_cast<uint64_t>(item_id));
+      rated_items->insert(static_cast<uint64_t>(item_id));
     }
   }
 }
@@ -109,23 +109,23 @@ vector<RetrieverItemCf::TriggerSeed> RetrieverItemCf::CollectTriggerSeeds(
         }
       };
 
-  append_trigger_seeds(profile.behaviors().recent_positive_items(), 1.0);
-  append_trigger_seeds(profile.behaviors().positive_items(), 0.5);
-  append_trigger_seeds(profile.behaviors().weak_positive_items(), 0.3);
+  append_trigger_seeds(profile.behaviors().recent_liked_items(), 1.0);
+  append_trigger_seeds(profile.behaviors().liked_items(), 0.5);
+  append_trigger_seeds(profile.behaviors().interested_items(), 0.3);
 
   return trigger_seeds;
 }
 
 unordered_set<uint64_t> RetrieverItemCf::CollectSeenItems(const Profile& profile) {
-  unordered_set<uint64_t> seen_items;
+  unordered_set<uint64_t> rated_items;
 
-  AppendSeenItems(profile.behaviors().recent_positive_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().positive_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().weak_positive_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().seen_items(), &seen_items);
-  AppendSeenItems(profile.negative_feedbacks().items(), &seen_items);
+  AppendSeenItems(profile.behaviors().recent_liked_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().liked_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().interested_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().rated_items(), &rated_items);
+  AppendSeenItems(profile.negative_feedbacks().items(), &rated_items);
 
-  return seen_items;
+  return rated_items;
 }
 
 uint64_t RetrieverItemCf::BuildCandidateItemId(uint64_t trigger_item_id,

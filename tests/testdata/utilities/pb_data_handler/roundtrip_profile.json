@@ -14,12 +14,10 @@
   "interests": {
     "genres": [
       {
-        "genre_id": 8,
-        "genre_name": "Drama",
+          "genre": "Drama",
         "weight": 0.72,
         "confidence": 0.8,
-        "update_time": 1700000000,
-        "source": "ratings_movies"
+        "update_time": 1700000000
       }
     ],
     "tags": []
@@ -30,37 +28,37 @@
     "tags": []
   },
   "behaviors": {
-    "positive_items": [
+    "liked_items": [
       {
         "item_id": 7002,
         "weight": 1.0,
         "event_time": 1700000000,
-        "source": "rating",
+        "source": 1,
         "confidence": 1.0,
         "raw_score": 5.0
       }
     ],
-    "recent_positive_items": [
+    "recent_liked_items": [
       {
         "item_id": 7002,
         "weight": 1.0,
         "event_time": 1700000000,
-        "source": "rating",
+        "source": 1,
         "confidence": 1.0,
         "raw_score": 5.0
       }
     ],
-    "weak_positive_items": [
+    "interested_items": [
       {
         "item_id": 7001,
         "weight": 0.5,
         "event_time": 1699999900,
-        "source": "rating",
+        "source": 1,
         "confidence": 0.7,
         "raw_score": 3.5
       }
     ],
-    "seen_items": [7001, 7002]
+    "rated_items": [7001, 7002]
   },
   "stats": {
     "rating_count": 2,

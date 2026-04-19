@@ -60,10 +60,10 @@ message NegativeFeedback {
 }
 
 message Behaviors {
-  repeated WeightedItem positive_items = 1;
-  repeated WeightedItem recent_positive_items = 2;
-  repeated WeightedItem weak_positive_items = 3;
-  repeated int64 seen_items = 4;
+  repeated WeightedItem liked_items = 1;
+  repeated WeightedItem recent_liked_items = 2;
+  repeated WeightedItem interested_items = 3;
+  repeated int64 rated_items = 4;
 }
 
 message EmbeddingSet {
@@ -88,28 +88,29 @@ message ProfileStats {
 }
 
 message GenreInterest {
-  int32 genre_id = 1;
-  string genre_name = 2;
-  float weight = 3;
-  float confidence = 4;
-  int64 update_time = 5;
-  string source = 6;
+  string genre = 1;
+  float weight = 2;
+  float confidence = 3;
+  int64 update_time = 4;
 }
 
 message TagInterest {
-  int32 tag_id = 1;
-  string tag_name = 2;
-  float weight = 3;
-  float confidence = 4;
-  int64 update_time = 5;
-  string source = 6;
+  string tag = 1;
+  float weight = 2;
+  float confidence = 3;
+  int64 update_time = 4;
 }
 
 message WeightedItem {
   int64 item_id = 1;
   float weight = 2;
   int64 event_time = 3;
-  string source = 4;
+  WeightedItemSource source = 4;
   float confidence = 5;
   float raw_score = 6;
+}
+
+enum WeightedItemSource {
+  WEIGHTED_ITEM_SOURCE_UNSPECIFIED = 0;
+  WEIGHTED_ITEM_SOURCE_RATING = 1;
 }

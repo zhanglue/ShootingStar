@@ -33,7 +33,7 @@ TEST_F(LocalFileProfileStoreTest, LoadsProfilesFromJsonFile) {
   EXPECT_EQ(profile->demographics().username(), "user_1002");
   EXPECT_EQ(profile->demographics().location_id(), 2);
   EXPECT_EQ(profile->social().following_size(), 1);
-  EXPECT_EQ(profile->behaviors().positive_items_size(), 1);
+  EXPECT_EQ(profile->behaviors().liked_items_size(), 1);
   EXPECT_EQ(profile->interests().tags_size(), 2);
   EXPECT_EQ(profile->negative_feedbacks().items_size(), 1);
   EXPECT_EQ(profile->stats().last_event_time(), 1703718800);

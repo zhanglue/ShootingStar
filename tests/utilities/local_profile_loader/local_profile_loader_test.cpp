@@ -37,7 +37,7 @@ TEST_F(LocalProfileLoaderTest, LoadsProfileForExistingUser) {
   EXPECT_EQ(profile.user_id(), 1001);
   EXPECT_EQ(profile.demographics().display_name(), "Demo User 1001");
   EXPECT_EQ(profile.social().following_size(), 3);
-  EXPECT_EQ(profile.behaviors().positive_items_size(), 1);
+  EXPECT_EQ(profile.behaviors().liked_items_size(), 1);
   EXPECT_EQ(profile.interests().tags_size(), 3);
   EXPECT_EQ(profile.negative_feedbacks().items_size(), 1);
   EXPECT_EQ(profile.stats().positive_rating_count(), 1);
