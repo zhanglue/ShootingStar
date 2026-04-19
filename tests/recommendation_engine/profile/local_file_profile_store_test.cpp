@@ -30,9 +30,13 @@ TEST_F(LocalFileProfileStoreTest, LoadsProfilesFromJsonFile) {
   const auto* profile = store.FindByUserId(1002);
   ASSERT_NE(profile, nullptr);
   EXPECT_EQ(profile->user_id(), 1002);
+  EXPECT_EQ(profile->demographics().username(), "user_1002");
   EXPECT_EQ(profile->demographics().location_id(), 2);
-  EXPECT_EQ(profile->interests().tag_ids_size(), 2);
-  EXPECT_EQ(profile->session().recent_clicked_items_size(), 1);
+  EXPECT_EQ(profile->social().following_size(), 1);
+  EXPECT_EQ(profile->behaviors().liked_items_size(), 1);
+  EXPECT_EQ(profile->interests().tags_size(), 2);
+  EXPECT_EQ(profile->negative_feedbacks().items_size(), 1);
+  EXPECT_EQ(profile->stats().last_event_time(), 1703718800);
 }
 
 TEST_F(LocalFileProfileStoreTest, ReturnsNullptrWhenUserIdDoesNotExist) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Write generated item index documents into Elasticsearch.
+Write generated JSON documents into Elasticsearch.
 """
 from __future__ import annotations
 
@@ -11,8 +11,12 @@ import os
 from pathlib import Path
 from typing import Any, Iterable
 
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import streaming_bulk
+try:
+    from elasticsearch import Elasticsearch
+    from elasticsearch.helpers import streaming_bulk
+except ModuleNotFoundError:
+    Elasticsearch = None
+    streaming_bulk = None
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT_DIR / "config"
@@ -35,7 +39,7 @@ class ElasticTransportDebugFilter(logging.Filter):
 
 class ElasticsearchWriter:
     """
-    Validate, create-if-needed, and bulk-index item documents.
+    Validate, create-if-needed, and bulk-index JSON documents.
 
     The writer deliberately refuses to rely on dynamic mappings unless
     ``ensure_index`` is enabled, so mapping mistakes are caught before a full
@@ -45,7 +49,7 @@ class ElasticsearchWriter:
     DEFAULT_CONFIG: dict[str, Any] = {
         "es_url": "http://localhost:9200",
         "cloud_id": None,
-        "index_name": "movielens_32m_rating_index",
+        "index_name": "movielens_32m_item_index",
         "input_path": ROOT_DIR / "item_index.jsonl",
         "input_format": "jsonl",
         "id_field": "item_id",
@@ -132,7 +136,7 @@ class ElasticsearchWriter:
         Create the standalone CLI parser for Elasticsearch writes.
         """
         parser = argparse.ArgumentParser(
-            description="Write item documents into Elasticsearch."
+            description="Write JSON documents into Elasticsearch."
         )
         parser.add_argument("--es-url", dest="es_url", help="Elasticsearch base URL.")
         parser.add_argument(
@@ -142,7 +146,7 @@ class ElasticsearchWriter:
         )
         parser.add_argument("--index-name", dest="index_name", help="Index name.")
         parser.add_argument(
-            "--input", dest="input_path", help="Path to the generated item data file."
+            "--input", dest="input_path", help="Path to the generated data file."
         )
         parser.add_argument(
             "--input-format",
@@ -371,7 +375,7 @@ class ElasticsearchWriter:
         self, documents: Iterable[dict[str, Any]]
     ) -> Iterable[dict[str, Any]]:
         """
-        Convert item documents into Elasticsearch bulk API actions.
+        Convert documents into Elasticsearch bulk API actions.
         """
         for document in documents:
             action: dict[str, Any] = {
@@ -426,7 +430,7 @@ class ElasticsearchWriter:
 
     def write_items(self, items: list[dict[str, Any]]) -> int:
         """
-        Index already-built item documents without rereading from disk.
+        Index already-built documents without rereading from disk.
         """
         self.logger.info("ElasticsearchWriter in-memory write started.")
         document_count = self.preflight_for_items(len(items))
@@ -443,6 +447,13 @@ class ElasticsearchWriter:
         """
         Create the Elasticsearch client with auth, TLS, and retry settings.
         """
+        if Elasticsearch is None:
+            raise RuntimeError(
+                "The 'elasticsearch' Python package is required for indexing. "
+                "Install the offline processing requirements or run in the Conda "
+                "environment that contains them."
+            )
+
         client_kwargs: dict[str, Any] = {
             "request_timeout": self.config["timeout"],
             "max_retries": self.config["max_retries"],
@@ -652,6 +663,10 @@ class ElasticsearchWriter:
                 self.config["index_name"],
                 progress_interval,
             )
+        if streaming_bulk is None:
+            raise RuntimeError(
+                "The 'elasticsearch' Python package is required for bulk indexing."
+            )
         for ok, result in streaming_bulk(
             client=self.client,
             actions=self.iter_bulk_actions(documents),
@@ -726,7 +741,7 @@ if __name__ == "__main__":
     #   python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
     #     --input tools/offline_data_processing/item_index.jsonl \
     #     --es-url https://localhost:9200 \
-    #     --index-name movielens_32m_rating_index \
+    #     --index-name movielens_32m_item_index \
     #     --ensure-index --no-verify-certs \
     #     --es-log-every 5000
     main()

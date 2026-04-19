@@ -97,21 +97,25 @@ TEST_F(PBDataHandlerTest, JsonToPBDataDrivenFromJsonFile) {
       const auto& expected_fields = expected_it->second.struct_value().fields();
 
       EXPECT_EQ(profile.user_id(), static_cast<int64_t>(expected_fields.at("user_id").number_value()));
-      EXPECT_EQ(
-          profile.demographics().birth_year(),
-          static_cast<int32_t>(expected_fields.at("birth_year").number_value()));
+      EXPECT_EQ(profile.demographics().username(), expected_fields.at("username").string_value());
       EXPECT_EQ(
           profile.social().following_size(),
           static_cast<int>(expected_fields.at("following_size").number_value()));
       EXPECT_EQ(
-          profile.interests().tag_ids_size(),
-          static_cast<int>(expected_fields.at("tag_ids_size").number_value()));
+          profile.behaviors().liked_items_size(),
+          static_cast<int>(expected_fields.at("liked_items_size").number_value()));
       EXPECT_EQ(
-          profile.behaviors().active_timeframe(),
+          profile.interests().tags_size(),
+          static_cast<int>(expected_fields.at("tag_size").number_value()));
+      EXPECT_EQ(
+          profile.negative_feedbacks().items_size(),
+          static_cast<int>(expected_fields.at("negative_items_size").number_value()));
+      EXPECT_EQ(
+          profile.stats().active_timeframe(),
           static_cast<int64_t>(expected_fields.at("active_timeframe").number_value()));
       EXPECT_EQ(
-          profile.session().last_login_time(),
-          static_cast<int64_t>(expected_fields.at("last_login_time").number_value()));
+          profile.stats().last_event_time(),
+          static_cast<int64_t>(expected_fields.at("last_event_time").number_value()));
     } else {
       const auto error_contains_it = case_fields.find("error_contains");
       ASSERT_NE(error_contains_it, case_fields.end());
@@ -135,7 +139,8 @@ TEST_F(PBDataHandlerTest, PBToJsonWritesProtoFieldNames) {
   std::string json;
   ASSERT_TRUE(PBDataHandler::PBToJson(profile, &json, &error)) << error;
   EXPECT_NE(json.find("\"user_id\""), std::string::npos);
-  EXPECT_NE(json.find("\"location_id\""), std::string::npos);
+  EXPECT_NE(json.find("\"username\""), std::string::npos);
+  EXPECT_NE(json.find("\"liked_items\""), std::string::npos);
 }
 
 TEST_F(PBDataHandlerTest, PBToJsonFailsForNullOutput) {
@@ -154,7 +159,7 @@ TEST_F(PBDataHandlerTest, JsonFileToPBAndPBToJsonFileRoundTrip) {
   std::string error;
   ASSERT_TRUE(PBDataHandler::JsonFileToPB(json_input.string(), &from_file, &error)) << error;
   EXPECT_EQ(from_file.user_id(), 3001);
-  EXPECT_EQ(from_file.session().recent_viewed_items_size(), 2);
+  EXPECT_EQ(from_file.behaviors().rated_items_size(), 2);
 
   ASSERT_TRUE(PBDataHandler::PBToJsonFile(from_file, json_output.string(), &error)) << error;
 
@@ -162,6 +167,7 @@ TEST_F(PBDataHandlerTest, JsonFileToPBAndPBToJsonFileRoundTrip) {
   ASSERT_TRUE(PBDataHandler::JsonFileToPB(json_output.string(), &roundtrip, &error)) << error;
   EXPECT_EQ(roundtrip.user_id(), 3001);
   EXPECT_EQ(roundtrip.demographics().location_id(), 9);
+  EXPECT_EQ(roundtrip.stats().rating_count(), 2);
 
   std::error_code ec;
   fs::remove(json_output, ec);

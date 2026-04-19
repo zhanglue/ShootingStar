@@ -13,11 +13,20 @@ using ::std::format;
 using ::std::vector;
 using ::std::unordered_set;
 
+void AppendSeenItems(const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
+                     ::std::unordered_set<uint64_t>* rated_items) {
+  for (const WeightedItem& item : items) {
+    if (item.item_id() > 0) {
+      rated_items->insert(static_cast<uint64_t>(item.item_id()));
+    }
+  }
+}
+
 void AppendSeenItems(const ::google::protobuf::RepeatedField<::int64_t>& items,
-                     ::std::unordered_set<uint64_t>* seen_items) {
+                     ::std::unordered_set<uint64_t>* rated_items) {
   for (const int64_t item_id : items) {
     if (item_id > 0) {
-      seen_items->insert(static_cast<uint64_t>(item_id));
+      rated_items->insert(static_cast<uint64_t>(item_id));
     }
   }
 }
@@ -80,41 +89,43 @@ vector<RetrieverItemCf::TriggerSeed> RetrieverItemCf::CollectTriggerSeeds(
 
   const auto append_trigger_seeds =
       [&seen_triggers, &trigger_seeds](
-          const ::google::protobuf::RepeatedField<::int64_t>& items, double base_score) {
+          const ::google::protobuf::RepeatedPtrField<WeightedItem>& items, double base_score) {
         int rank = 0;
-        for (const int64_t item_id : items) {
+        for (const WeightedItem& item : items) {
           ++rank;
-          if (item_id <= 0) {
+          if (item.item_id() <= 0) {
             continue;
           }
 
-          const uint64_t trigger_item_id = static_cast<uint64_t>(item_id);
+          const uint64_t trigger_item_id = static_cast<uint64_t>(item.item_id());
           if (!seen_triggers.insert(trigger_item_id).second) {
             continue;
           }
 
+          const double item_weight = item.weight() > 0.0 ? item.weight() : 1.0;
           trigger_seeds.push_back(
-              TriggerSeed{trigger_item_id, base_score / static_cast<double>(rank)});
+              TriggerSeed{trigger_item_id,
+                          base_score * item_weight / static_cast<double>(rank)});
         }
       };
 
-  append_trigger_seeds(profile.session().recent_clicked_items(), 1.0);
-  append_trigger_seeds(profile.session().recent_viewed_items(), 0.7);
-  append_trigger_seeds(profile.behaviors().clicked_items(), 0.5);
-  append_trigger_seeds(profile.behaviors().viewed_items(), 0.3);
+  append_trigger_seeds(profile.behaviors().recent_liked_items(), 1.0);
+  append_trigger_seeds(profile.behaviors().liked_items(), 0.5);
+  append_trigger_seeds(profile.behaviors().interested_items(), 0.3);
 
   return trigger_seeds;
 }
 
 unordered_set<uint64_t> RetrieverItemCf::CollectSeenItems(const Profile& profile) {
-  unordered_set<uint64_t> seen_items;
+  unordered_set<uint64_t> rated_items;
 
-  AppendSeenItems(profile.session().recent_clicked_items(), &seen_items);
-  AppendSeenItems(profile.session().recent_viewed_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().clicked_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().viewed_items(), &seen_items);
+  AppendSeenItems(profile.behaviors().recent_liked_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().liked_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().interested_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().rated_items(), &rated_items);
+  AppendSeenItems(profile.negative_feedbacks().items(), &rated_items);
 
-  return seen_items;
+  return rated_items;
 }
 
 uint64_t RetrieverItemCf::BuildCandidateItemId(uint64_t trigger_item_id,

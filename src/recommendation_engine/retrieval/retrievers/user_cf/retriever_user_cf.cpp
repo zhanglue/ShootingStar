@@ -13,11 +13,20 @@ using ::std::format;
 using ::std::unordered_set;
 using ::std::vector;
 
+void AppendSeenItems(const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
+                     unordered_set<uint64_t>* rated_items) {
+  for (const WeightedItem& item : items) {
+    if (item.item_id() > 0) {
+      rated_items->insert(static_cast<uint64_t>(item.item_id()));
+    }
+  }
+}
+
 void AppendSeenItems(const ::google::protobuf::RepeatedField<::int64_t>& items,
-                     unordered_set<uint64_t>* seen_items) {
+                     unordered_set<uint64_t>* rated_items) {
   for (const int64_t item_id : items) {
     if (item_id > 0) {
-      seen_items->insert(static_cast<uint64_t>(item_id));
+      rated_items->insert(static_cast<uint64_t>(item_id));
     }
   }
 }
@@ -105,14 +114,15 @@ vector<RetrieverUserCf::TriggerSeed> RetrieverUserCf::CollectTriggerSeeds(
 }
 
 unordered_set<uint64_t> RetrieverUserCf::CollectSeenItems(const Profile& profile) {
-  unordered_set<uint64_t> seen_items;
+  unordered_set<uint64_t> rated_items;
 
-  AppendSeenItems(profile.session().recent_clicked_items(), &seen_items);
-  AppendSeenItems(profile.session().recent_viewed_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().clicked_items(), &seen_items);
-  AppendSeenItems(profile.behaviors().viewed_items(), &seen_items);
+  AppendSeenItems(profile.behaviors().recent_liked_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().liked_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().interested_items(), &rated_items);
+  AppendSeenItems(profile.behaviors().rated_items(), &rated_items);
+  AppendSeenItems(profile.negative_feedbacks().items(), &rated_items);
 
-  return seen_items;
+  return rated_items;
 }
 
 uint64_t RetrieverUserCf::BuildCandidateItemId(uint64_t author_id,
