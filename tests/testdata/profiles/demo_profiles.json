@@ -2,6 +2,8 @@
   {
     "user_id": 1001,
     "demographics": {
+      "username": "user_1001",
+      "display_name": "Demo User 1001",
       "birth_year": 1990,
       "gender": "male",
       "location_id": 1
@@ -11,27 +13,97 @@
       "followers": [3001, 3002]
     },
     "interests": {
-      "category_ids": [10, 12],
-      "tag_ids": [101, 205, 330]
+      "genres": [
+        {
+          "genre_id": 5,
+          "genre_name": "Comedy",
+          "weight": 0.82,
+          "confidence": 0.9,
+          "update_time": 1703710000,
+          "source": "ratings_movies"
+        },
+        {
+          "genre_id": 15,
+          "genre_name": "Sci-Fi",
+          "weight": 0.58,
+          "confidence": 0.7,
+          "update_time": 1703710000,
+          "source": "ratings_movies"
+        }
+      ],
+      "tags": [
+        {
+          "tag_id": 101,
+          "tag_name": "mind-bending",
+          "weight": 0.76,
+          "confidence": 0.8,
+          "update_time": 1703710000,
+          "source": "ratings_tags"
+        },
+        {
+          "tag_id": 205,
+          "tag_name": "time travel",
+          "weight": 0.52,
+          "confidence": 0.6,
+          "update_time": 1703710000,
+          "source": "ratings_tags"
+        },
+        {
+          "tag_id": 330,
+          "tag_name": "classic",
+          "weight": 0.44,
+          "confidence": 0.5,
+          "update_time": 1703710000,
+          "source": "ratings_tags"
+        }
+      ]
     },
-    "feedbacks": [
-      {
-        "type": "category",
-        "target_id": 12,
-        "feedback_time": 1703700000,
-        "reason": "not_interested"
-      },
-      {
-        "type": "user",
-        "target_id": 3009,
-        "feedback_time": 1703710000,
-        "reason": "spammy"
-      }
-    ],
+    "negative_feedbacks": {
+      "items": [
+        {
+          "item_id": 503,
+          "weight": 0.8,
+          "event_time": 1703690000,
+          "source": "rating",
+          "confidence": 0.9,
+          "raw_score": 1.5
+        }
+      ],
+      "genres": [],
+      "tags": []
+    },
     "behaviors": {
-      "viewed_items": [501, 502, 503],
-      "clicked_items": [502],
-      "active_timeframe": 2700
+      "positive_items": [
+        {
+          "item_id": 502,
+          "weight": 1.0,
+          "event_time": 1703710000,
+          "source": "rating",
+          "confidence": 1.0,
+          "raw_score": 5.0
+        }
+      ],
+      "recent_positive_items": [
+        {
+          "item_id": 502,
+          "weight": 1.0,
+          "event_time": 1703710000,
+          "source": "rating",
+          "confidence": 1.0,
+          "raw_score": 5.0
+        }
+      ],
+      "weak_positive_items": [
+        {
+          "item_id": 501,
+          "weight": 0.45,
+          "event_time": 1703700000,
+          "source": "rating",
+          "confidence": 0.7,
+          "raw_score": 3.5
+        }
+      ],
+      "seen_items": [501, 502, 503]
     },
     "embedding_sets": [
       {
@@ -41,15 +113,25 @@
         "active": true
       }
     ],
-    "session": {
-      "last_login_time": 1703719000,
-      "recent_viewed_items": [501],
-      "recent_clicked_items": [502]
+    "stats": {
+      "rating_count": 3,
+      "positive_rating_count": 1,
+      "weak_positive_rating_count": 1,
+      "negative_rating_count": 1,
+      "avg_rating": 3.3333,
+      "rating_stddev": 1.4337,
+      "first_event_time": 1703690000,
+      "last_event_time": 1703710000,
+      "active_timeframe": 20000,
+      "profile_confidence": 0.8,
+      "interest_entropy": 0.42
     }
   },
   {
     "user_id": 1002,
     "demographics": {
+      "username": "user_1002",
+      "display_name": "Demo User 1002",
       "birth_year": 1985,
       "gender": "female",
       "location_id": 2
@@ -59,21 +141,90 @@
       "followers": [3201, 3202, 3203, 3204]
     },
     "interests": {
-      "category_ids": [11, 14, 20],
-      "tag_ids": [150, 201]
+      "genres": [
+        {
+          "genre_id": 8,
+          "genre_name": "Drama",
+          "weight": 0.7,
+          "confidence": 0.75,
+          "update_time": 1703718800,
+          "source": "ratings_movies"
+        }
+      ],
+      "tags": [
+        {
+          "tag_id": 150,
+          "tag_name": "character study",
+          "weight": 0.64,
+          "confidence": 0.7,
+          "update_time": 1703718800,
+          "source": "ratings_tags"
+        },
+        {
+          "tag_id": 201,
+          "tag_name": "slow burn",
+          "weight": 0.39,
+          "confidence": 0.5,
+          "update_time": 1703718800,
+          "source": "ratings_tags"
+        }
+      ]
     },
-    "feedbacks": [
-      {
-        "type": "tag",
-        "target_id": 330,
-        "feedback_time": 1703650000,
-        "reason": "irrelevant"
-      }
-    ],
+    "negative_feedbacks": {
+      "items": [
+        {
+          "item_id": 602,
+          "weight": 0.6,
+          "event_time": 1703660000,
+          "source": "rating",
+          "confidence": 0.85,
+          "raw_score": 2.0
+        }
+      ],
+      "genres": [],
+      "tags": [
+        {
+          "tag_id": 330,
+          "tag_name": "irrelevant",
+          "weight": 0.4,
+          "confidence": 0.5,
+          "update_time": 1703660000,
+          "source": "ratings_tags"
+        }
+      ]
+    },
     "behaviors": {
-      "viewed_items": [601, 602, 603, 604],
-      "clicked_items": [603],
-      "active_timeframe": 1200
+      "positive_items": [
+        {
+          "item_id": 603,
+          "weight": 0.9,
+          "event_time": 1703718800,
+          "source": "rating",
+          "confidence": 1.0,
+          "raw_score": 4.5
+        }
+      ],
+      "recent_positive_items": [
+        {
+          "item_id": 603,
+          "weight": 0.9,
+          "event_time": 1703718800,
+          "source": "rating",
+          "confidence": 1.0,
+          "raw_score": 4.5
+        }
+      ],
+      "weak_positive_items": [
+        {
+          "item_id": 601,
+          "weight": 0.5,
+          "event_time": 1703650000,
+          "source": "rating",
+          "confidence": 0.6,
+          "raw_score": 3.5
+        }
+      ],
+      "seen_items": [601, 602, 603, 604]
     },
     "embedding_sets": [
       {
@@ -89,15 +240,25 @@
         "active": false
       }
     ],
-    "session": {
-      "last_login_time": 1703718800,
-      "recent_viewed_items": [603],
-      "recent_clicked_items": [603]
+    "stats": {
+      "rating_count": 4,
+      "positive_rating_count": 1,
+      "weak_positive_rating_count": 1,
+      "negative_rating_count": 1,
+      "avg_rating": 3.125,
+      "rating_stddev": 0.9601,
+      "first_event_time": 1703650000,
+      "last_event_time": 1703718800,
+      "active_timeframe": 68800,
+      "profile_confidence": 0.75,
+      "interest_entropy": 0.35
     }
   },
   {
     "user_id": 1003,
     "demographics": {
+      "username": "user_1003",
+      "display_name": "Demo User 1003",
       "birth_year": 2000,
       "gender": "male",
       "location_id": 3
@@ -107,14 +268,63 @@
       "followers": [3301]
     },
     "interests": {
-      "category_ids": [9],
-      "tag_ids": [401, 402]
+      "genres": [
+        {
+          "genre_id": 9,
+          "genre_name": "Fantasy",
+          "weight": 0.6,
+          "confidence": 0.55,
+          "update_time": 1703724000,
+          "source": "ratings_movies"
+        }
+      ],
+      "tags": [
+        {
+          "tag_id": 401,
+          "tag_name": "dreamlike",
+          "weight": 0.47,
+          "confidence": 0.45,
+          "update_time": 1703724000,
+          "source": "ratings_tags"
+        },
+        {
+          "tag_id": 402,
+          "tag_name": "visual",
+          "weight": 0.33,
+          "confidence": 0.4,
+          "update_time": 1703724000,
+          "source": "ratings_tags"
+        }
+      ]
     },
-    "feedbacks": [],
+    "negative_feedbacks": {
+      "items": [],
+      "genres": [],
+      "tags": []
+    },
     "behaviors": {
-      "viewed_items": [701],
-      "clicked_items": [],
-      "active_timeframe": 300
+      "positive_items": [
+        {
+          "item_id": 701,
+          "weight": 0.75,
+          "event_time": 1703724000,
+          "source": "rating",
+          "confidence": 0.9,
+          "raw_score": 4.0
+        }
+      ],
+      "recent_positive_items": [
+        {
+          "item_id": 701,
+          "weight": 0.75,
+          "event_time": 1703724000,
+          "source": "rating",
+          "confidence": 0.9,
+          "raw_score": 4.0
+        }
+      ],
+      "weak_positive_items": [],
+      "seen_items": [701]
     },
     "embedding_sets": [
       {
@@ -124,10 +334,18 @@
         "active": true
       }
     ],
-    "session": {
-      "last_login_time": 1703724000,
-      "recent_viewed_items": [701],
-      "recent_clicked_items": []
+    "stats": {
+      "rating_count": 1,
+      "positive_rating_count": 1,
+      "weak_positive_rating_count": 0,
+      "negative_rating_count": 0,
+      "avg_rating": 4.0,
+      "rating_stddev": 0.0,
+      "first_event_time": 1703724000,
+      "last_event_time": 1703724000,
+      "active_timeframe": 0,
+      "profile_confidence": 0.4,
+      "interest_entropy": 0.0
     }
   }
 ]

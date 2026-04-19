@@ -5,6 +5,8 @@
       "input": {
         "user_id": 1001,
         "demographics": {
+          "username": "user_1001",
+          "display_name": "Case User",
           "birth_year": 1990,
           "gender": "male",
           "location_id": 1
@@ -14,29 +16,107 @@
           "followers": [3001]
         },
         "interests": {
-          "category_ids": [10, 12],
-          "tag_ids": [101, 205]
+          "genres": [
+            {
+              "genre_id": 5,
+              "genre_name": "Comedy",
+              "weight": 0.8,
+              "confidence": 0.9,
+              "update_time": 1703710000,
+              "source": "ratings_movies"
+            }
+          ],
+          "tags": [
+            {
+              "tag_id": 101,
+              "tag_name": "mind-bending",
+              "weight": 0.75,
+              "confidence": 0.8,
+              "update_time": 1703710000,
+              "source": "ratings_tags"
+            },
+            {
+              "tag_id": 205,
+              "tag_name": "time travel",
+              "weight": 0.55,
+              "confidence": 0.6,
+              "update_time": 1703710000,
+              "source": "ratings_tags"
+            }
+          ]
+        },
+        "negative_feedbacks": {
+          "items": [
+            {
+              "item_id": 503,
+              "weight": 0.9,
+              "event_time": 1703690000,
+              "source": "rating",
+              "confidence": 0.9,
+              "raw_score": 1.5
+            }
+          ],
+          "genres": [],
+          "tags": []
         },
         "behaviors": {
-          "viewed_items": [501, 502],
-          "clicked_items": [502],
-          "active_timeframe": 3600
+          "positive_items": [
+            {
+              "item_id": 502,
+              "weight": 1.0,
+              "event_time": 1703710000,
+              "source": "rating",
+              "confidence": 1.0,
+              "raw_score": 5.0
+            }
+          ],
+          "recent_positive_items": [
+            {
+              "item_id": 502,
+              "weight": 1.0,
+              "event_time": 1703710000,
+              "source": "rating",
+              "confidence": 1.0,
+              "raw_score": 5.0
+            }
+          ],
+          "weak_positive_items": [
+            {
+              "item_id": 501,
+              "weight": 0.5,
+              "event_time": 1703700000,
+              "source": "rating",
+              "confidence": 0.7,
+              "raw_score": 3.5
+            }
+          ],
+          "seen_items": [501, 502]
         },
-        "session": {
-          "last_login_time": 1703719000,
-          "recent_viewed_items": [501],
-          "recent_clicked_items": [502]
+        "stats": {
+          "rating_count": 3,
+          "positive_rating_count": 1,
+          "weak_positive_rating_count": 1,
+          "negative_rating_count": 1,
+          "avg_rating": 3.3333,
+          "rating_stddev": 1.4337,
+          "first_event_time": 1703690000,
+          "last_event_time": 1703719000,
+          "active_timeframe": 29000,
+          "profile_confidence": 0.8,
+          "interest_entropy": 0.42
         },
         "unknown_field_should_be_ignored": "ignored"
       },
       "expect_success": true,
       "expected": {
         "user_id": 1001,
-        "birth_year": 1990,
+        "username": "user_1001",
         "following_size": 2,
-        "tag_ids_size": 2,
-        "active_timeframe": 3600,
-        "last_login_time": 1703719000
+        "positive_items_size": 1,
+        "tag_size": 2,
+        "negative_items_size": 1,
+        "active_timeframe": 29000,
+        "last_event_time": 1703719000
       }
     },
     {

@@ -17,21 +17,30 @@ message GetProfileResponse {
   Profile profile = 3;
 }
 
+enum ProfileServiceStatus {
+  PROFILE_SUCCESS = 0;
+  PROFILE_INVALID_REQUEST = 1;
+  PROFILE_USER_NOT_FOUND = 2;
+  PROFILE_SYSTEM_ERROR = 3;
+}
+
 message Profile {
   int64 user_id = 1;
   Demographics demographics = 2;
   SocialInfo social = 3;
   Interests interests = 4;
-  repeated NegativeFeedback feedbacks = 5;
+  NegativeFeedback negative_feedbacks = 5;
   Behaviors behaviors = 6;
   repeated EmbeddingSet embedding_sets = 7;
-  SessionContext session = 8;
+  ProfileStats stats = 8;
 }
 
 message Demographics {
-  int32 birth_year = 1;
-  string gender = 2;
-  int32 location_id = 3;
+  string username = 1;
+  string display_name = 2;
+  int32 birth_year = 3;
+  string gender = 4;
+  int32 location_id = 5;
 }
 
 message SocialInfo {
@@ -40,21 +49,21 @@ message SocialInfo {
 }
 
 message Interests {
-  repeated int32 category_ids = 1;
-  repeated int32 tag_ids = 2;
+  repeated GenreInterest genres = 1;
+  repeated TagInterest tags = 2;
 }
 
 message NegativeFeedback {
-  string type = 1;
-  int64 target_id = 2;
-  int64 feedback_time = 3;
-  string reason = 4;
+  repeated WeightedItem items = 1;
+  repeated GenreInterest genres = 2;
+  repeated TagInterest tags = 3;
 }
 
 message Behaviors {
-  repeated int64 viewed_items = 1;
-  repeated int64 clicked_items = 2;
-  int64 active_timeframe = 3;
+  repeated WeightedItem positive_items = 1;
+  repeated WeightedItem recent_positive_items = 2;
+  repeated WeightedItem weak_positive_items = 3;
+  repeated int64 seen_items = 4;
 }
 
 message EmbeddingSet {
@@ -64,15 +73,43 @@ message EmbeddingSet {
   bool active = 4;
 }
 
-message SessionContext {
-  int64 last_login_time = 1;
-  repeated int64 recent_viewed_items = 2;
-  repeated int64 recent_clicked_items = 3;
+message ProfileStats {
+  int32 rating_count = 1;
+  int32 positive_rating_count = 2;
+  int32 weak_positive_rating_count = 3;
+  int32 negative_rating_count = 4;
+  float avg_rating = 5;
+  float rating_stddev = 6;
+  int64 first_event_time = 7;
+  int64 last_event_time = 8;
+  int64 active_timeframe = 9;
+  float profile_confidence = 10;
+  float interest_entropy = 11;
 }
 
-enum ProfileServiceStatus {
-  PROFILE_SUCCESS = 0;
-  PROFILE_INVALID_REQUEST = 1;
-  PROFILE_USER_NOT_FOUND = 2;
-  PROFILE_SYSTEM_ERROR = 3;
+message GenreInterest {
+  int32 genre_id = 1;
+  string genre_name = 2;
+  float weight = 3;
+  float confidence = 4;
+  int64 update_time = 5;
+  string source = 6;
+}
+
+message TagInterest {
+  int32 tag_id = 1;
+  string tag_name = 2;
+  float weight = 3;
+  float confidence = 4;
+  int64 update_time = 5;
+  string source = 6;
+}
+
+message WeightedItem {
+  int64 item_id = 1;
+  float weight = 2;
+  int64 event_time = 3;
+  string source = 4;
+  float confidence = 5;
+  float raw_score = 6;
 }

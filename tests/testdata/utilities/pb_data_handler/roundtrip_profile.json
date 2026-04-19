@@ -1,13 +1,78 @@
 {
   "user_id": 3001,
   "demographics": {
+    "username": "user_3001",
+    "display_name": "Roundtrip User",
     "birth_year": 1995,
     "gender": "female",
     "location_id": 9
   },
-  "session": {
-    "last_login_time": 1700000000,
-    "recent_viewed_items": [7001, 7002],
-    "recent_clicked_items": [7002]
+  "social": {
+    "following": [],
+    "followers": []
+  },
+  "interests": {
+    "genres": [
+      {
+        "genre_id": 8,
+        "genre_name": "Drama",
+        "weight": 0.72,
+        "confidence": 0.8,
+        "update_time": 1700000000,
+        "source": "ratings_movies"
+      }
+    ],
+    "tags": []
+  },
+  "negative_feedbacks": {
+    "items": [],
+    "genres": [],
+    "tags": []
+  },
+  "behaviors": {
+    "positive_items": [
+      {
+        "item_id": 7002,
+        "weight": 1.0,
+        "event_time": 1700000000,
+        "source": "rating",
+        "confidence": 1.0,
+        "raw_score": 5.0
+      }
+    ],
+    "recent_positive_items": [
+      {
+        "item_id": 7002,
+        "weight": 1.0,
+        "event_time": 1700000000,
+        "source": "rating",
+        "confidence": 1.0,
+        "raw_score": 5.0
+      }
+    ],
+    "weak_positive_items": [
+      {
+        "item_id": 7001,
+        "weight": 0.5,
+        "event_time": 1699999900,
+        "source": "rating",
+        "confidence": 0.7,
+        "raw_score": 3.5
+      }
+    ],
+    "seen_items": [7001, 7002]
+  },
+  "stats": {
+    "rating_count": 2,
+    "positive_rating_count": 1,
+    "weak_positive_rating_count": 1,
+    "negative_rating_count": 0,
+    "avg_rating": 4.25,
+    "rating_stddev": 0.75,
+    "first_event_time": 1699999900,
+    "last_event_time": 1700000000,
+    "active_timeframe": 100,
+    "profile_confidence": 0.5,
+    "interest_entropy": 0.0
   }
 }
