@@ -20,6 +20,10 @@ DOCKER_FILE_TO_IMAGE_NAME=(
 namespace=""
 image_tag="latest"
 image_registry="192.168.1.101:55000"
+assume_yes="false"
+skip_build="false"
+skip_tag="false"
+skip_push="false"
 
 compose_registry_image_name() {
     image_name=$1
@@ -98,20 +102,80 @@ tag_target_docker_images() {
     done
 }
 
-list_target_docker_images() {
+confirm_push_target_docker_images() {
+    if [[ "${assume_yes}" == "true" ]]; then
+        return 0
+    fi
+
     echo
-    echo_info "All docker images following have been built successfully:"
+    read -r -p "Docker images will be pushed to ${image_registry}. Continue? [y/N] " answer
+    case "${answer}" in
+        y | Y | yes | YES)
+            return 0
+            ;;
+        *)
+            echo_warning "Skipping Docker image push."
+            return 1
+            ;;
+    esac
+}
+
+push_target_docker_images() {
+    if [[ -z "${image_registry}" ]]; then
+        return
+    fi
+
+    confirm_push_target_docker_images
+    if [[ $? != 0 ]]; then
+        return
+    fi
+
     for config in "${DOCKER_FILE_TO_IMAGE_NAME[@]}"; do
         image_name=$(echo "${config}" | cut -d '|' -f 2 | sed 's/^[[:space:]]*//')
         if [[ -n "${namespace}" && ! "${image_name}" =~ ^${namespace}-.+ ]]; then
             continue
         fi
 
-        echo_info "  * ${image_name}:${image_tag}"
-        if [[ -n "${image_registry}" ]]; then
-            registry_image_name=$(compose_registry_image_name "${image_name}")
-            echo_info "  * ${registry_image_name}:${image_tag}"
+        registry_image_name=$(compose_registry_image_name "${image_name}")
+        echo
+        echo_info "Push docker image ${registry_image_name}:${image_tag}..."
+        echo_warning "${DOCKER_CMD} push ${registry_image_name}:${image_tag}"
+
+        ${DOCKER_CMD} push "${registry_image_name}:${image_tag}"
+
+        if [[ $? != 0 ]]; then
+            echo_error "Failed to push Docker image ${registry_image_name}:${image_tag}."
+            exit 6
         fi
+
+        echo_info "Docker image ${registry_image_name}:${image_tag} pushed successfully."
+    done
+}
+
+list_target_docker_images() {
+    echo
+    echo "Target docker images:"
+    for config in "${DOCKER_FILE_TO_IMAGE_NAME[@]}"; do
+        image_name=$(echo "${config}" | cut -d '|' -f 2 | sed 's/^[[:space:]]*//')
+        if [[ -n "${namespace}" && ! "${image_name}" =~ ^${namespace}-.+ ]]; then
+            continue
+        fi
+
+        echo "  * ${image_name}:${image_tag}"
+    done
+
+    if [[ -z "${image_registry}" ]]; then
+        return
+    fi
+
+    for config in "${DOCKER_FILE_TO_IMAGE_NAME[@]}"; do
+        image_name=$(echo "${config}" | cut -d '|' -f 2 | sed 's/^[[:space:]]*//')
+        if [[ -n "${namespace}" && ! "${image_name}" =~ ^${namespace}-.+ ]]; then
+            continue
+        fi
+
+        registry_image_name=$(compose_registry_image_name "${image_name}")
+        echo "  * ${registry_image_name}:${image_tag}"
     done
 }
 
@@ -119,10 +183,25 @@ _main_flow() {
     builtin cd ${REPO_ROOT_PATH}
 
     check_docker_is_available
-    check_target_docker_images_are_not_in_use
-    remove_target_docker_images
-    build_target_docker_images
-    tag_target_docker_images
+    if [[ "${skip_build}" == "true" ]]; then
+        echo_warning "Skipping Docker image build."
+    else
+        check_target_docker_images_are_not_in_use
+        remove_target_docker_images
+        build_target_docker_images
+    fi
+
+    if [[ "${skip_tag}" == "true" ]]; then
+        echo_warning "Skipping Docker image tag."
+    else
+        tag_target_docker_images
+    fi
+
+    if [[ "${skip_push}" == "true" ]]; then
+        echo_warning "Skipping Docker image push."
+    else
+        push_target_docker_images
+    fi
     list_target_docker_images
 }
 
@@ -143,6 +222,18 @@ while [[ "$#" -gt 0 ]]; do
         -r | --registry | --image-registry)
             shift
             image_registry=$1
+            ;;
+        -y | --yes)
+            assume_yes="true"
+            ;;
+        --skip-build)
+            skip_build="true"
+            ;;
+        --skip-tag)
+            skip_tag="true"
+            ;;
+        --skip-push)
+            skip_push="true"
             ;;
         *)
             echo_error "Unknown argument: $1"
