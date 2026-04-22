@@ -19,6 +19,13 @@ DOCKER_FILE_TO_IMAGE_NAME=(
 )
 namespace=""
 image_tag="latest"
+image_registry="192.168.1.101:55000"
+
+compose_registry_image_name() {
+    image_name=$1
+    normalized_image_registry="${image_registry%/}"
+    echo "${normalized_image_registry}/${image_name}"
+}
 
 check_target_docker_images_are_not_in_use() {
     for config in "${DOCKER_FILE_TO_IMAGE_NAME[@]}"; do
@@ -60,7 +67,34 @@ build_target_docker_images() {
 
         dockerfile_path="${DOCKER_FILES_ROOT_PATH}/${dockerfile_relative_path}"
         echo
-        build_docker_image ${dockerfile_path} ${image_name} ${image_tag}
+        build_docker_image "${dockerfile_path}" "${image_name}" "${image_tag}"
+    done
+}
+
+tag_target_docker_images() {
+    if [[ -z "${image_registry}" ]]; then
+        return
+    fi
+
+    for config in "${DOCKER_FILE_TO_IMAGE_NAME[@]}"; do
+        image_name=$(echo "${config}" | cut -d '|' -f 2 | sed 's/^[[:space:]]*//')
+        if [[ -n "${namespace}" && ! "${image_name}" =~ ^${namespace}-.+ ]]; then
+            continue
+        fi
+
+        registry_image_name=$(compose_registry_image_name "${image_name}")
+        echo
+        echo_info "Tag docker image ${image_name}:${image_tag} as ${registry_image_name}:${image_tag}..."
+        echo_warning "${DOCKER_CMD} tag ${image_name}:${image_tag} ${registry_image_name}:${image_tag}"
+
+        ${DOCKER_CMD} tag "${image_name}:${image_tag}" "${registry_image_name}:${image_tag}"
+
+        if [[ $? != 0 ]]; then
+            echo_error "Failed to tag Docker image ${image_name}:${image_tag} as ${registry_image_name}:${image_tag}."
+            exit 5
+        fi
+
+        echo_info "Docker image ${registry_image_name}:${image_tag} tagged successfully."
     done
 }
 
@@ -74,6 +108,10 @@ list_target_docker_images() {
         fi
 
         echo_info "  * ${image_name}:${image_tag}"
+        if [[ -n "${image_registry}" ]]; then
+            registry_image_name=$(compose_registry_image_name "${image_name}")
+            echo_info "  * ${registry_image_name}:${image_tag}"
+        fi
     done
 }
 
@@ -84,6 +122,7 @@ _main_flow() {
     check_target_docker_images_are_not_in_use
     remove_target_docker_images
     build_target_docker_images
+    tag_target_docker_images
     list_target_docker_images
 }
 
@@ -100,6 +139,10 @@ while [[ "$#" -gt 0 ]]; do
         -t | --image-tag)
             shift
             image_tag=$1
+            ;;
+        -r | --registry | --image-registry)
+            shift
+            image_registry=$1
             ;;
         *)
             echo_error "Unknown argument: $1"
