@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: recommendation-engine
+  name: retrieval-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: retrieval-orchestrator
+  template:
+    metadata:
+      labels:
+        app: retrieval-orchestrator
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: retrieval-orchestrator
+        image: 192.168.1.101:55000/recommendation-engine-retrieval-orchestrator:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - --retriever_item_cf_host=retriever-item-cf.recommendation-engine.svc.cluster.local
+        - --retriever_item_cf_port=50210
+        - --retriever_user_cf_host=retriever-user-cf.recommendation-engine.svc.cluster.local
+        - --retriever_user_cf_port=50211
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        ports:
+        - containerPort: 50200
+          name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: recommendation-engine
+  name: retrieval-orchestrator
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 50200
+  selector:
+    app: retrieval-orchestrator
