@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: recommendation-engine
+  name: retriever-item-cf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: retriever-item-cf
+  template:
+    metadata:
+      labels:
+        app: retriever-item-cf
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: retriever-item-cf
+        image: 192.168.1.101:55000/recommendation-engine-retriever-item-cf:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        ports:
+        - containerPort: 50210
+          name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: recommendation-engine
+  name: retriever-item-cf
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 50210
+  selector:
+    app: retriever-item-cf

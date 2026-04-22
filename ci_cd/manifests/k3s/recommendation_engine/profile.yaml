@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: recommendation-engine
+  name: profile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: profile
+  template:
+    metadata:
+      labels:
+        app: profile
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: profile
+        image: 192.168.1.101:55000/recommendation-engine-profile:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        ports:
+        - containerPort: 50100
+          name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: recommendation-engine
+  name: profile
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 50100
+  selector:
+    app: profile

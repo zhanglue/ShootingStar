@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: weather-forecast
+  name: fetcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fetcher
+  template:
+    metadata:
+      labels:
+        app: fetcher
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: fetcher
+        image: 192.168.1.101:55000/weather-forecast-fetcher:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        ports:
+        - containerPort: 40000
+          name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: weather-forecast
+  name: fetcher
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 40000
+  selector:
+    app: fetcher
