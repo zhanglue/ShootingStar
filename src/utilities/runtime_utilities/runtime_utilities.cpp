@@ -1,14 +1,20 @@
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
+#include <cctype>
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 namespace shooting_star {
 namespace utilities {
 
 using ::std::string;
+using ::std::string_view;
 
 namespace {
+
+constexpr string_view kBase64Chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 string NormalizePath(const ::std::filesystem::path& path) {
   return path.lexically_normal().string();
@@ -30,6 +36,28 @@ void AddAncestorDirectories(
 }
 
 }  // namespace
+
+string Base64Encode(string_view input) {
+  string output;
+  output.reserve(((input.size() + 2) / 3) * 4);
+
+  for (size_t i = 0; i < input.size(); i += 3) {
+    const unsigned char b0 = static_cast<unsigned char>(input[i]);
+    const unsigned char b1 =
+        i + 1 < input.size() ? static_cast<unsigned char>(input[i + 1]) : 0;
+    const unsigned char b2 =
+        i + 2 < input.size() ? static_cast<unsigned char>(input[i + 2]) : 0;
+
+    output.push_back(kBase64Chars[b0 >> 2]);
+    output.push_back(kBase64Chars[((b0 & 0x03) << 4) | (b1 >> 4)]);
+    output.push_back(i + 1 < input.size()
+                         ? kBase64Chars[((b1 & 0x0f) << 2) | (b2 >> 6)]
+                         : '=');
+    output.push_back(i + 2 < input.size() ? kBase64Chars[b2 & 0x3f] : '=');
+  }
+
+  return output;
+}
 
 string ResolveWorkspaceRelativePath(const string& path, const string& executable_path) {
   if (path.empty()) {
@@ -63,6 +91,29 @@ string ResolveWorkspaceRelativePath(const string& path, const string& executable
   }
 
   return NormalizePath(::std::filesystem::current_path() / relative_path);
+}
+
+void TrimLeadingSlashes(string& value) {
+  while (!value.empty() && value.front() == '/') {
+    value.erase(value.begin());
+  }
+}
+
+void TrimTrailingSlashes(string& value) {
+  while (!value.empty() && value.back() == '/') {
+    value.pop_back();
+  }
+}
+
+void TrimWhitespace(string_view& value) {
+  while (!value.empty() &&
+         ::std::isspace(static_cast<unsigned char>(value.front())) != 0) {
+    value.remove_prefix(1);
+  }
+  while (!value.empty() &&
+         ::std::isspace(static_cast<unsigned char>(value.back())) != 0) {
+    value.remove_suffix(1);
+  }
 }
 
 }  // namespace utilities

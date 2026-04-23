@@ -9,6 +9,7 @@ module(
 )
 
 bazel_dep(name = "abseil-cpp", version = "20250814.1")
+bazel_dep(name = "curl", version = "8.8.0")
 bazel_dep(name = "grpc", version = "1.74.1")
 bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "protobuf", version = "33.0")
