@@ -1,6 +1,7 @@
 #include "src/utilities/http_client/curl_http_client.h"
 
 #include <chrono>
+#include <filesystem>
 #include <format>
 #include <memory>
 #include <optional>
@@ -16,6 +17,7 @@ namespace shooting_star {
 namespace utilities {
 
 using ::std::format;
+using ::std::filesystem::path;
 using ::std::invalid_argument;
 using ::std::make_shared;
 using ::std::optional;
@@ -58,6 +60,33 @@ class CurlHeaderList {
 
  private:
   curl_slist* headers_ = nullptr;
+};
+
+class CurlStringList {
+ public:
+  CurlStringList() = default;
+  ~CurlStringList() {
+    if (values_ != nullptr) {
+      curl_slist_free_all(values_);
+    }
+  }
+
+  CurlStringList(const CurlStringList&) = delete;
+  CurlStringList& operator=(const CurlStringList&) = delete;
+
+  bool Append(const string& value) {
+    curl_slist* updated = curl_slist_append(values_, value.c_str());
+    if (updated == nullptr) {
+      return false;
+    }
+    values_ = updated;
+    return true;
+  }
+
+  curl_slist* get() const { return values_; }
+
+ private:
+  curl_slist* values_ = nullptr;
 };
 
 size_t WriteBodyCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
@@ -267,6 +296,13 @@ HttpResult CurlHttpClient::Execute(const HttpRequest& request) {
   SetLongOption(curl, CURLOPT_FOLLOWLOCATION, config_.follow_redirects ? 1L : 0L);
   SetLongOption(curl, CURLOPT_SSL_VERIFYPEER, config_.verify_ssl ? 1L : 0L);
   SetLongOption(curl, CURLOPT_SSL_VERIFYHOST, config_.verify_ssl ? 2L : 0L);
+  if (!config_.ca_cert_path.empty()) {
+    SetStringOption(curl, CURLOPT_CAINFO, config_.ca_cert_path.c_str());
+    const string ca_cert_dir = path(config_.ca_cert_path).parent_path().string();
+    if (!ca_cert_dir.empty()) {
+      SetStringOption(curl, CURLOPT_CAPATH, ca_cert_dir.c_str());
+    }
+  }
   SetLongOption(curl, CURLOPT_CONNECTTIMEOUT_MS,
                 static_cast<long>(config_.connect_timeout.count()));
 
@@ -277,6 +313,17 @@ HttpResult CurlHttpClient::Execute(const HttpRequest& request) {
 
   if (header_list.get() != nullptr) {
     SetHeaderListOption(curl, CURLOPT_HTTPHEADER, header_list.get());
+  }
+
+  CurlStringList resolve_list;
+  for (const string& resolve_host : config_.resolve_hosts) {
+    if (!resolve_list.Append(resolve_host)) {
+      return CreateInvalidArgumentResult(
+          "Failed to allocate curl host resolve list");
+    }
+  }
+  if (resolve_list.get() != nullptr) {
+    SetHeaderListOption(curl, CURLOPT_RESOLVE, resolve_list.get());
   }
 
   ConfigureMethod(curl, request);

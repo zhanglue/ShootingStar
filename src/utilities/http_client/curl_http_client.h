@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "src/utilities/http_client/curl_handle_pool.h"
 #include "src/utilities/http_client/http_client.h"
@@ -20,6 +22,8 @@ class CurlHttpClient : public HttpClient {
     ::std::chrono::milliseconds connect_timeout;
     bool follow_redirects;
     bool verify_ssl;
+    ::std::string ca_cert_path;
+    ::std::vector<::std::string> resolve_hosts;
   };
 
   CurlHttpClient();

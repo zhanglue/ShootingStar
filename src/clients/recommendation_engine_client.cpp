@@ -5,6 +5,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
+#include "src/clients/client_runtime.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -122,6 +123,7 @@ int main(int argc, char** argv) {
 
   const string target_str = ip + ":" + port;
 
+  ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Recommend for user: " << user_id << ::std::endl << ::std::endl;
   cout << "Requested max candidate count: " << max_candidate_count << ::std::endl << ::std::endl;

@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recommendation-engine-es-client
+  namespace: recommendation-engine
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: recommendation-engine-es-client
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: recommendation-engine-es-client
+        image: recommendation-engine-es-client:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: "0.1"
+          limits:
+            memory: 256Mi
+            cpu: "0.5"
+        env:
+        - name: ES_BASE_URL
+          value: https://item-index-es-http.recommendation-engine-es.svc:9200
+        - name: ES_USERNAME
+          value: elastic
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              # Kubernetes Secrets are namespace-scoped. Mirror this ECK secret
+              # from recommendation-engine-es into recommendation-engine before
+              # applying the Job.
+              name: item-index-es-elastic-user
+              key: elastic
+        - name: ES_CA_CERT_PATH
+          value: /mnt/elasticsearch-ca/ca.crt
+        - name: ES_VERIFY_SSL
+          value: "true"
+        - name: ES_PROFILE_INDEX
+          value: movielens_32m_user_profile
+        - name: ES_PROFILE_USER_ID
+          value: "1"
+        volumeMounts:
+        - name: elasticsearch-ca
+          mountPath: /mnt/elasticsearch-ca
+          readOnly: true
+      volumes:
+      - name: elasticsearch-ca
+        secret:
+          # Mirror this ECK public CA secret from recommendation-engine-es into
+          # recommendation-engine before applying the Job.
+          secretName: item-index-es-http-certs-public
