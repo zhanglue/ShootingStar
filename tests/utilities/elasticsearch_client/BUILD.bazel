@@ -1,0 +1,14 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "elasticsearch_client_test",
+    srcs = ["elasticsearch_client_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/utilities/elasticsearch_client:elasticsearch_client",
+        "//src/utilities/http_client:http_client",
+        "@googletest//:gtest_main",
+    ],
+)
