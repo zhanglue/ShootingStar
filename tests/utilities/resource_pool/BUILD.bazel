@@ -1,0 +1,13 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "resource_pool_test",
+    srcs = ["resource_pool_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/utilities/resource_pool:resource_pool",
+        "@googletest//:gtest_main",
+    ],
+)
