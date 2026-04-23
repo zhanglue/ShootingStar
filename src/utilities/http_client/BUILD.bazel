@@ -1,0 +1,30 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "http_client",
+    hdrs = ["http_client.h"],
+)
+
+cc_library(
+    name = "curl_handle_pool",
+    srcs = ["curl_handle_pool.cpp"],
+    hdrs = ["curl_handle_pool.h"],
+    deps = [
+        "//src/utilities/resource_pool:resource_pool",
+        "@curl//:curl",
+    ],
+)
+
+cc_library(
+    name = "curl_http_client",
+    srcs = ["curl_http_client.cpp"],
+    hdrs = ["curl_http_client.h"],
+    deps = [
+        ":curl_handle_pool",
+        ":http_client",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@curl//:curl",
+    ],
+)
