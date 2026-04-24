@@ -30,6 +30,7 @@ using ::std::make_unique;
 using ::std::optional;
 using ::std::string;
 using ::std::string_view;
+using ::std::to_string;
 using ::std::unique_ptr;
 using ::std::chrono::milliseconds;
 using ::std::chrono::seconds;
@@ -112,8 +113,8 @@ unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
         "profile_local_cache_disabled",
         {
             {"reason", "local_cache.capacity must be greater than 0"},
-            {"profile_local_cache_capacity", ::std::to_string(capacity)},
-            {"profile_local_cache_ttl_seconds", ::std::to_string(ttl_seconds)},
+            {"profile_local_cache_capacity", to_string(capacity)},
+            {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
         });
     return profile_store;
   }
@@ -122,18 +123,18 @@ unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
         "profile_local_cache_disabled",
         {
             {"reason", "local_cache.ttl_seconds must be greater than 0"},
-            {"profile_local_cache_capacity", ::std::to_string(capacity)},
-            {"profile_local_cache_ttl_seconds", ::std::to_string(ttl_seconds)},
+            {"profile_local_cache_capacity", to_string(capacity)},
+            {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
         });
     return profile_store;
   }
 
-  logger.Info("profile_local_cache_initialized",
-              {
-                  {"profile_local_cache_capacity", ::std::to_string(capacity)},
-                  {"profile_local_cache_ttl_seconds",
-                   ::std::to_string(ttl_seconds)},
-              });
+  logger.Info(
+      "profile_local_cache_initialized",
+      {
+          {"profile_local_cache_capacity", to_string(capacity)},
+          {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
+      });
   return make_unique<CachingProfileStore>(
       ::std::move(profile_store), static_cast<::std::size_t>(capacity),
       ::std::chrono::duration_cast<milliseconds>(seconds(ttl_seconds)));
@@ -145,11 +146,12 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
   const Logger& logger = LoggerRegistry::Get();
   if (profile_store_type == kLocalStoreType) {
     const string profile_data_path = config.GetString(kDataPathConfigKey);
-    logger.Info("profile_store_initialized",
-                {
-                    {"profile_store_type", profile_store_type},
-                    {"profile_data_path", profile_data_path},
-                });
+    logger.Info(
+        "profile_store_initialized",
+        {
+            {"profile_store_type", profile_store_type},
+            {"profile_data_path", profile_data_path},
+        });
     return make_unique<LocalFileProfileStore>(profile_data_path);
   }
 
@@ -188,10 +190,11 @@ ProfileServiceImpl::ProfileServiceImpl(
   const string profile_store_type =
       config_.GetString(kStoreTypeConfigKey);
 
-  logger.Info("profile_store_selected",
-              {
-                  {"profile_store_type", profile_store_type},
-              });
+  logger.Info(
+      "profile_store_selected",
+      {
+          {"profile_store_type", profile_store_type},
+      });
 
   profile_store_ = CreateProfileStore(config_, profile_store_type);
 }
@@ -200,6 +203,12 @@ Status ProfileServiceImpl::GetProfile(ServerContext* context,
                                       const GetProfileRequest* request,
                                       GetProfileResponse* response) {
   (void)context;
+  const Logger& logger = LoggerRegistry::Get();
+  logger.Info(
+      "get_profile_request_received",
+      {
+          {"user_id", to_string(request->user_id())},
+      });
 
   response->mutable_request()->CopyFrom(*request);
 
@@ -213,13 +222,38 @@ Status ProfileServiceImpl::GetProfile(ServerContext* context,
     profile = profile_store_->FindByUserId(request->user_id());
   } catch (const ::std::exception& ex) {
     response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
+    logger.Info(
+        "get_profile_request_failed",
+        {
+            {"user_id", to_string(request->user_id())},
+            {"reason", "profile store lookup failed"},
+            {"error_message", ex.what()},
+        });
     return Status(StatusCode::INTERNAL, ex.what());
   }
   if (!profile.has_value()) {
     response->set_status(ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
+    logger.Info(
+        "get_profile_user_not_found",
+        {
+            {"user_id", to_string(request->user_id())},
+        });
     return Status(StatusCode::NOT_FOUND,
                   format("User ID of {} not found.", request->user_id()));
   }
+
+  logger.Info(
+      "get_profile_request_succeeded",
+      {
+          {"user_id", to_string(request->user_id())},
+      });
+  logger.Debug(
+      "profile_payload",
+      {
+          {"user_id", to_string(request->user_id())},
+          {"profile_size_bytes", to_string(profile->ByteSizeLong())},
+          {"profile_proto", profile->DebugString()},
+      });
 
   response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
   response->mutable_profile()->CopyFrom(*profile);

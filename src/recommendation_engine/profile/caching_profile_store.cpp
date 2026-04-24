@@ -7,10 +7,16 @@
 #include <stdexcept>
 #include <utility>
 
+#include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
+
 namespace recommendation_engine {
 
+using ::shooting_star::utilities::Logger;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::std::optional;
 using ::std::size_t;
+using ::std::to_string;
 using ::std::unique_ptr;
 
 CachingProfileStore::CachingProfileStore(unique_ptr<ProfileStore> profile_store,
@@ -24,11 +30,23 @@ CachingProfileStore::CachingProfileStore(unique_ptr<ProfileStore> profile_store,
 }
 
 optional<Profile> CachingProfileStore::FindByUserId(int user_id) const {
+  const Logger& logger = LoggerRegistry::Get();
+
   optional<Profile> cached_profile = cache_.Get(user_id);
   if (cached_profile.has_value()) {
+    logger.Info(
+        "profile_cache_hit",
+        {
+            {"user_id", to_string(user_id)},
+        });
     return cached_profile;
   }
 
+  logger.Info(
+      "profile_cache_miss",
+      {
+          {"user_id", to_string(user_id)},
+      });
   optional<Profile> profile = profile_store_->FindByUserId(user_id);
   if (!profile.has_value()) {
     return ::std::nullopt;

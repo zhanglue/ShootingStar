@@ -373,10 +373,11 @@ int main(int argc, char** argv) {
     LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
     const Logger& logger = LoggerRegistry::Get();
-    logger.Info("config_loaded",
-                {
-                    {"config_path", config.GetString(kConfigPathConfigKey)},
-                });
+    logger.Info(
+        "config_loaded",
+        {
+            {"config_path", config.GetString(kConfigPathConfigKey)},
+        });
     LogResolvedConfig(config);
 
     const string server_address =

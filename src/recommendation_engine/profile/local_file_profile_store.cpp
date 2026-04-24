@@ -8,6 +8,9 @@
 #include <google/protobuf/struct.pb.h>
 #include <google/protobuf/util/json_util.h>
 
+#include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
+
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
 
 namespace recommendation_engine {
@@ -15,12 +18,15 @@ namespace recommendation_engine {
 using ::google::protobuf::ListValue;
 using ::google::protobuf::Value;
 using ::google::protobuf::util::MessageToJsonString;
+using ::shooting_star::utilities::Logger;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::PBDataHandler;
 using ::std::ifstream;
 using ::std::istreambuf_iterator;
 using ::std::optional;
 using ::std::runtime_error;
 using ::std::string;
+using ::std::to_string;
 
 LocalFileProfileStore::LocalFileProfileStore(const string& file_path) {
   string error_msg;
@@ -75,10 +81,23 @@ bool LocalFileProfileStore::LoadFromJsonFile(const string& file_path, string* er
 }
 
 optional<Profile> LocalFileProfileStore::FindByUserId(int user_id) const {
+  const Logger& logger = LoggerRegistry::Get();
+
   const auto it = profiles_.find(user_id);
   if (it == profiles_.end()) {
+    logger.Error(
+        "profile_not_found_in_local_file_store",
+        {
+            {"user_id", to_string(user_id)},
+        });
     return ::std::nullopt;
   }
+
+  logger.Info(
+      "profile_read_from_local_file_store",
+      {
+          {"user_id", to_string(user_id)},
+      });
   return it->second;
 }
 

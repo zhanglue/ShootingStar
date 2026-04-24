@@ -8,6 +8,9 @@
 #include <string>
 #include <utility>
 
+#include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
+
 #include "absl/strings/str_format.h"
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
 
@@ -19,10 +22,13 @@ using ::google::protobuf::util::JsonStringToMessage;
 using ::google::protobuf::util::MessageToJsonString;
 using ::shooting_star::utilities::ElasticsearchClient;
 using ::shooting_star::utilities::ElasticsearchResult;
+using ::shooting_star::utilities::Logger;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::PBDataHandler;
 using ::std::optional;
 using ::std::runtime_error;
 using ::std::string;
+using ::std::to_string;
 
 namespace {
 
@@ -52,10 +58,18 @@ ElasticsearchProfileStore::ElasticsearchProfileStore(ElasticsearchClient client,
 }
 
 optional<Profile> ElasticsearchProfileStore::FindByUserId(int user_id) const {
+  const Logger& logger = LoggerRegistry::Get();
+
   const ElasticsearchResult result =
-      client_.Get(index_, ::std::to_string(user_id));
+      client_.Get(index_, to_string(user_id));
   if (!result.ok) {
     if (result.status_code == kHttpNotFoundStatusCode) {
+      logger.Info(
+          "profile_not_found_in_elasticsearch_store",
+          {
+              {"user_id", to_string(user_id)},
+              {"profile_es_index", index_},
+          });
       return ::std::nullopt;
     }
     throw runtime_error(::absl::StrFormat(
@@ -69,6 +83,12 @@ optional<Profile> ElasticsearchProfileStore::FindByUserId(int user_id) const {
     return ::std::nullopt;
   }
 
+  logger.Info(
+      "profile_read_from_elasticsearch_store",
+      {
+          {"user_id", to_string(user_id)},
+          {"profile_es_index", index_},
+      });
   return profile;
 }
 
