@@ -66,6 +66,10 @@ LogLevel ParseLogLevel(string_view value) {
   if (value == "info" || value == "INFO" || value == "Info") {
     return LogLevel::kInfo;
   }
+  if (value == "warning" || value == "WARNING" || value == "Warning" ||
+      value == "warn" || value == "WARN" || value == "Warn") {
+    return LogLevel::kWarning;
+  }
   if (value == "error" || value == "ERROR" || value == "Error") {
     return LogLevel::kError;
   }
@@ -79,6 +83,9 @@ bool ShouldLog(LogLevel message_log_level, LogLevel min_log_level) {
 LogLevel LogLevelFromSeverity(string_view severity) {
   if (severity == "debug") {
     return LogLevel::kDebug;
+  }
+  if (severity == "warning") {
+    return LogLevel::kWarning;
   }
   if (severity == "error") {
     return LogLevel::kError;
@@ -515,6 +522,11 @@ void Logger::Debug(string_view event, initializer_list<LogField> fields) const {
 
 void Logger::Info(string_view event, initializer_list<LogField> fields) const {
   LogStructured(min_log_level_, "info", service_name_, event, fields);
+}
+
+void Logger::Warning(string_view event,
+                     initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "warning", service_name_, event, fields);
 }
 
 void Logger::Error(string_view event, initializer_list<LogField> fields) const {

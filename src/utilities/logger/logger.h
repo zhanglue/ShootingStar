@@ -21,7 +21,8 @@ struct LogField {
 enum class LogLevel {
   kDebug = 0,
   kInfo = 1,
-  kError = 2,
+  kWarning = 2,
+  kError = 3,
 };
 
 class Logger {
@@ -35,6 +36,8 @@ class Logger {
              ::std::initializer_list<LogField> fields = {}) const;
   void Info(::std::string_view event,
             ::std::initializer_list<LogField> fields = {}) const;
+  void Warning(::std::string_view event,
+               ::std::initializer_list<LogField> fields = {}) const;
   void Error(::std::string_view event,
              ::std::initializer_list<LogField> fields = {}) const;
 
