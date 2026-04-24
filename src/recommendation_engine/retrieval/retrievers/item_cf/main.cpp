@@ -10,7 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/retriever_item_cf.h"
-#include "src/utilities/grpc_logger/grpc_logger.h"
+#include "src/utilities/logger/logger.h"
 
 ABSL_FLAG(uint16_t, port, 50210, "Server port for the service");
 

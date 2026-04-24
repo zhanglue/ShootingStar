@@ -10,7 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/recommendation_engine/retrieval/orchestrator/retrieval_orchestrator.h"
-#include "src/utilities/grpc_logger/grpc_logger.h"
+#include "src/utilities/logger/logger.h"
 
 ABSL_FLAG(uint16_t, port, 50200, "Server port for the service");
 ABSL_FLAG(::std::string, retriever_item_cf_host, "localhost", "Item CF retriever host");

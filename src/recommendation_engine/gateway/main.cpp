@@ -10,7 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/recommendation_engine/gateway/gateway_service.h"
-#include "src/utilities/grpc_logger/grpc_logger.h"
+#include "src/utilities/logger/logger.h"
 
 ABSL_FLAG(uint16_t, port, 50000, "Server port for the service");
 ABSL_FLAG(::std::string, profile_service_host, "localhost", "Profile service host");

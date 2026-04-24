@@ -29,7 +29,7 @@ cc_binary(
     ],
     deps = [
         ":gateway_lib",
-        "//src/utilities/grpc_logger:grpc_logger",
+        "//src/utilities/logger:logger",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/strings:str_format",
