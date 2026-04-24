@@ -35,9 +35,9 @@ TEST(YamlConfigHelperTest, LoadsNestedYamlAsDotSeparatedKeys) {
   const path config_path = TestFilePath("nested_config.yaml");
   WriteFile(config_path, "server:\n"
                          "  port: 50101\n"
-                         "profile:\n"
-                         "  store_type: local\n"
-                         "  data_path: tests/testdata/profiles.json\n"
+                         "store_type: local\n"
+                         "data_path: tests/testdata/profiles.json\n"
+                         "cache:\n"
                          "  enabled: true\n");
 
   YamlConfigHelper config;
@@ -45,10 +45,9 @@ TEST(YamlConfigHelperTest, LoadsNestedYamlAsDotSeparatedKeys) {
 
   EXPECT_TRUE(config.Has("server.port"));
   EXPECT_EQ(config.GetUInt16("server.port", 0), 50101);
-  EXPECT_EQ(config.GetString("profile.store_type"), "local");
-  EXPECT_EQ(config.GetString("profile.data_path"),
-            "tests/testdata/profiles.json");
-  EXPECT_TRUE(config.GetBool("profile.enabled", false));
+  EXPECT_EQ(config.GetString("store_type"), "local");
+  EXPECT_EQ(config.GetString("data_path"), "tests/testdata/profiles.json");
+  EXPECT_TRUE(config.GetBool("cache.enabled", false));
 }
 
 TEST(YamlConfigHelperTest, LoadsSequenceIndexesAsKeys) {
