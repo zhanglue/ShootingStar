@@ -347,10 +347,11 @@ bool IsSensitiveConfigKey(string_view key) {
 void LogResolvedConfig(const Logger& logger, const YamlConfigHelper& config) {
   vector<LogField> fields;
   for (const auto& [key, value] : config.values()) {
-    fields.push_back({
-        key,
-        IsSensitiveConfigKey(key) ? string(kRedactedValue) : value,
-    });
+    if (IsSensitiveConfigKey(key)) {
+      fields.push_back({key, kRedactedValue});
+      continue;
+    }
+    fields.push_back({key, value});
   }
   logger.Info("resolved_config", fields);
 }
