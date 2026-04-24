@@ -310,9 +310,10 @@ void WriteLogLine(string line) {
   std::cout << line << std::endl;
 }
 
+template <typename Fields>
 void LogStructured(LogLevel min_log_level, string_view severity,
                    string_view service_name, string_view event,
-                   initializer_list<LogField> fields) {
+                   const Fields& fields) {
   if (!ShouldLog(LogLevelFromSeverity(severity), min_log_level)) {
     return;
   }
@@ -520,7 +521,15 @@ void Logger::Debug(string_view event, initializer_list<LogField> fields) const {
   LogStructured(min_log_level_, "debug", service_name_, event, fields);
 }
 
+void Logger::Debug(string_view event, const vector<LogField>& fields) const {
+  LogStructured(min_log_level_, "debug", service_name_, event, fields);
+}
+
 void Logger::Info(string_view event, initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "info", service_name_, event, fields);
+}
+
+void Logger::Info(string_view event, const vector<LogField>& fields) const {
   LogStructured(min_log_level_, "info", service_name_, event, fields);
 }
 
@@ -529,7 +538,15 @@ void Logger::Warning(string_view event,
   LogStructured(min_log_level_, "warning", service_name_, event, fields);
 }
 
+void Logger::Warning(string_view event, const vector<LogField>& fields) const {
+  LogStructured(min_log_level_, "warning", service_name_, event, fields);
+}
+
 void Logger::Error(string_view event, initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "error", service_name_, event, fields);
+}
+
+void Logger::Error(string_view event, const vector<LogField>& fields) const {
   LogStructured(min_log_level_, "error", service_name_, event, fields);
 }
 

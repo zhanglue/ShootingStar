@@ -34,12 +34,20 @@ class Logger {
 
   void Debug(::std::string_view event,
              ::std::initializer_list<LogField> fields = {}) const;
+  void Debug(::std::string_view event,
+             const ::std::vector<LogField>& fields) const;
   void Info(::std::string_view event,
             ::std::initializer_list<LogField> fields = {}) const;
+  void Info(::std::string_view event,
+            const ::std::vector<LogField>& fields) const;
   void Warning(::std::string_view event,
                ::std::initializer_list<LogField> fields = {}) const;
+  void Warning(::std::string_view event,
+               const ::std::vector<LogField>& fields) const;
   void Error(::std::string_view event,
              ::std::initializer_list<LogField> fields = {}) const;
+  void Error(::std::string_view event,
+             const ::std::vector<LogField>& fields) const;
 
   const ::std::string& service_name() const { return service_name_; }
   LogLevel min_log_level() const { return min_log_level_; }
