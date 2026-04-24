@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <string>
+#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -10,6 +11,7 @@ namespace recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
+using ::std::optional;
 using ::std::string;
 
 class LocalFileProfileStoreTest : public ::testing::Test {
@@ -27,8 +29,8 @@ class LocalFileProfileStoreTest : public ::testing::Test {
 TEST_F(LocalFileProfileStoreTest, LoadsProfilesFromJsonFile) {
   const LocalFileProfileStore store(profile_data_path_);
 
-  const auto* profile = store.FindByUserId(1002);
-  ASSERT_NE(profile, nullptr);
+  optional<Profile> profile = store.FindByUserId(1002);
+  ASSERT_TRUE(profile.has_value());
   EXPECT_EQ(profile->user_id(), 1002);
   EXPECT_EQ(profile->demographics().username(), "user_1002");
   EXPECT_EQ(profile->demographics().location_id(), 2);
@@ -42,7 +44,7 @@ TEST_F(LocalFileProfileStoreTest, LoadsProfilesFromJsonFile) {
 TEST_F(LocalFileProfileStoreTest, ReturnsNullptrWhenUserIdDoesNotExist) {
   const LocalFileProfileStore store(profile_data_path_);
 
-  EXPECT_EQ(store.FindByUserId(999999), nullptr);
+  EXPECT_FALSE(store.FindByUserId(999999).has_value());
 }
 
 TEST_F(LocalFileProfileStoreTest, ThrowsWhenJsonFileDoesNotExist) {

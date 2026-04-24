@@ -1,6 +1,7 @@
 #include "src/recommendation_engine/profile/local_file_profile_store.h"
 
 #include <fstream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -17,6 +18,7 @@ using ::google::protobuf::util::MessageToJsonString;
 using ::shooting_star::utilities::PBDataHandler;
 using ::std::ifstream;
 using ::std::istreambuf_iterator;
+using ::std::optional;
 using ::std::runtime_error;
 using ::std::string;
 
@@ -72,12 +74,12 @@ bool LocalFileProfileStore::LoadFromJsonFile(const string& file_path, string* er
   return true;
 }
 
-const Profile* LocalFileProfileStore::FindByUserId(int user_id) const {
+optional<Profile> LocalFileProfileStore::FindByUserId(int user_id) const {
   const auto it = profiles_.find(user_id);
   if (it == profiles_.end()) {
-    return nullptr;
+    return ::std::nullopt;
   }
-  return &it->second;
+  return it->second;
 }
 
 }  // namespace recommendation_engine
