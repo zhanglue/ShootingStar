@@ -1,0 +1,19 @@
+server:
+  port: 50100
+  log_level: INFO
+
+store_type: elasticsearch
+
+elasticsearch:
+  base_url: https://item-index-es-http.recommendation-engine-es.svc:9200
+  index: movielens_32m_user_profile
+  username: elastic
+  password: ""
+  password_env: ES_PASSWORD
+  ca_cert_path: /mnt/elasticsearch-ca/ca.crt
+  verify_ssl: true
+  request_timeout_ms: 5000
+
+local_cache:
+  capacity: 30
+  ttl_seconds: 300

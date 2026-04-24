@@ -13,7 +13,7 @@ spec:
       containers:
       - name: recommendation-engine-profile-client
         image: 192.168.1.101:55000/recommendation-engine-profile-client:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         resources:
           requests:
             memory: 256Mi

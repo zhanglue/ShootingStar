@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -13,7 +14,7 @@ class LocalFileProfileStore final : public ProfileStore {
  public:
   explicit LocalFileProfileStore(const ::std::string& file_path);
 
-  const Profile* FindByUserId(int user_id) const override;
+  ::std::optional<Profile> FindByUserId(int user_id) const override;
 
  private:
   bool LoadFromJsonFile(const ::std::string& file_path, ::std::string* error_msg = nullptr);

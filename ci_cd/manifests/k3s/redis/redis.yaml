@@ -92,7 +92,7 @@ spec:
 
   kubernetesConfig:
     image: quay.io/opstree/redis:latest
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
 
     redisSecret:
       name: redis-auth
@@ -169,7 +169,7 @@ spec:
 
   kubernetesConfig:
     image: quay.io/opstree/redis-sentinel:latest
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
 
     # Password for connecting to sentinel itself.
     redisSecret:

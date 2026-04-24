@@ -13,7 +13,7 @@ spec:
       containers:
       - name: weather-forecast-fetcher-client
         image: 192.168.1.101:55000/weather-forecast-fetcher-client:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         resources:
           requests:
             memory: 256Mi

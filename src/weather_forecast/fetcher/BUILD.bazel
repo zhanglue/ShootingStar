@@ -29,7 +29,7 @@ cc_binary(
     ],
     deps = [
         ":fetcher_service",
-        "//src/utilities/grpc_logger:grpc_logger",
+        "//src/utilities/logger:logger",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
         "@abseil-cpp//absl/flags:flag",

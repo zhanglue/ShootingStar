@@ -18,7 +18,7 @@ spec:
       containers:
       - name: retriever-user-cf
         image: 192.168.1.101:55000/recommendation-engine-retriever-user-cf:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         resources:
           requests:
             memory: 256Mi

@@ -10,7 +10,8 @@
 #include "absl/strings/str_format.h"
 
 #include "src/recommendation_engine/retrieval/orchestrator/retrieval_orchestrator.h"
-#include "src/utilities/grpc_logger/grpc_logger.h"
+#include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
 
 ABSL_FLAG(uint16_t, port, 50200, "Server port for the service");
 ABSL_FLAG(::std::string, retriever_item_cf_host, "localhost", "Item CF retriever host");
@@ -20,7 +21,11 @@ ABSL_FLAG(uint16_t, retriever_user_cf_port, 50211, "User CF retriever port");
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-  const ::shooting_star::utilities::Logger logger("retrieval_orchestrator");
+  ::shooting_star::utilities::LoggerRegistry::Register(
+      ::std::make_shared<::shooting_star::utilities::Logger>(
+          "retrieval_orchestrator"));
+  ::shooting_star::utilities::LoggerRegistry::SetDefaultLoggerName(
+      "retrieval_orchestrator");
 
   const ::std::string server_address =
       absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
@@ -37,6 +42,8 @@ int main(int argc, char** argv) {
   ::grpc::EnableDefaultHealthCheckService(true);
   ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ::grpc::ServerBuilder builder;
+  const ::shooting_star::utilities::Logger& logger =
+      ::shooting_star::utilities::LoggerRegistry::Get();
   builder.experimental().SetInterceptorCreators(
       ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(logger));
   builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());

@@ -1,6 +1,7 @@
 FROM ubuntu:24.04
 
 COPY binaries/src/recommendation_engine/profile/profile_bin /app/profile
+COPY src/recommendation_engine/profile/config.*.yaml /app/
 COPY tests/testdata/recommendation_engine/profile/demo_profiles.json /app/tests/testdata/recommendation_engine/profile/demo_profiles.json
 
 WORKDIR /app
@@ -8,3 +9,4 @@ WORKDIR /app
 EXPOSE 50100
 
 ENTRYPOINT ["/app/profile"]
+CMD ["--config_path=config.k8s.yaml"]

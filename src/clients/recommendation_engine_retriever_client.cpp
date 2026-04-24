@@ -8,6 +8,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
+#include "src/clients/client_runtime.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 
 using ::grpc::Channel;
@@ -150,6 +151,7 @@ int main(int argc, char** argv) {
 
   const string target_str = ip + ":" + port;
 
+  ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Retrieving candidates for user: " << user_id << ::std::endl;
   cout << "Using profile data from: " << profile_data_path << ::std::endl;

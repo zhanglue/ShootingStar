@@ -18,7 +18,7 @@ spec:
       containers:
       - name: gateway
         image: 192.168.1.101:55000/recommendation-engine-gateway:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args:
         - --profile_service_host=profile.recommendation-engine.svc.cluster.local
         - --profile_service_port=50100

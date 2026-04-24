@@ -45,6 +45,54 @@ TEST_F(RuntimeUtilitiesTest, ReturnsConfiguredPathWhenProvided) {
       "/tmp/profiles.json");
 }
 
+TEST_F(RuntimeUtilitiesTest, Base64EncodeHandlesPadding) {
+  EXPECT_EQ(Base64Encode(""), "");
+  EXPECT_EQ(Base64Encode("f"), "Zg==");
+  EXPECT_EQ(Base64Encode("fo"), "Zm8=");
+  EXPECT_EQ(Base64Encode("foo"), "Zm9v");
+  EXPECT_EQ(Base64Encode("elastic:secret"), "ZWxhc3RpYzpzZWNyZXQ=");
+}
+
+TEST_F(RuntimeUtilitiesTest, TrimsLeadingAndTrailingSlashes) {
+  string value = "///movies/42";
+  TrimLeadingSlashes(value);
+  EXPECT_EQ(value, "movies/42");
+
+  value = "movies/42";
+  TrimLeadingSlashes(value);
+  EXPECT_EQ(value, "movies/42");
+
+  value = "///";
+  TrimLeadingSlashes(value);
+  EXPECT_EQ(value, "");
+
+  value = "https://es.example.com///";
+  TrimTrailingSlashes(value);
+  EXPECT_EQ(value, "https://es.example.com");
+
+  value = "movies/42";
+  TrimTrailingSlashes(value);
+  EXPECT_EQ(value, "movies/42");
+
+  value = "///";
+  TrimTrailingSlashes(value);
+  EXPECT_EQ(value, "");
+}
+
+TEST_F(RuntimeUtilitiesTest, TrimsWhitespaceWithoutCopying) {
+  ::std::string_view value = " \t\r\nHeader Value \r\n\t ";
+  TrimWhitespace(value);
+  EXPECT_EQ(value, "Header Value");
+
+  value = "Header Value";
+  TrimWhitespace(value);
+  EXPECT_EQ(value, "Header Value");
+
+  value = " \t\r\n";
+  TrimWhitespace(value);
+  EXPECT_EQ(value, "");
+}
+
 TEST_F(RuntimeUtilitiesTest, ResolvesPathRelativeToExecutableDirectoryParents) {
   const path test_root = GetTestRoot("runtime_utilities_executable_root");
   const path executable_path = test_root / "AAA/BBB/CCC/profile_server";

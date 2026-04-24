@@ -5,10 +5,14 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 cc_library(
     name = "profile_lib",
     srcs = [
+        "caching_profile_store.cpp",
+        "elasticsearch_profile_store.cpp",
         "local_file_profile_store.cpp",
         "profile_service.cpp",
     ],
     hdrs = [
+        "caching_profile_store.h",
+        "elasticsearch_profile_store.h",
         "local_file_profile_store.h",
         "profile_service.h",
         "profile_store.h",
@@ -16,9 +20,14 @@ cc_library(
     deps = [
         "//protos/recommendation_engine:profile_cc",
         "//protos/recommendation_engine:profile_cc_grpc",
+        "//src/utilities/config_helper:config_helper",
+        "//src/utilities/elasticsearch_client:elasticsearch_client",
+        "//src/utilities/logger:logger",
+        "//src/utilities/lru_cache:lru_cache",
         "//src/utilities/pb_data_handler:pb_data_handler",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@abseil-cpp//absl/strings:str_format",
         "@grpc//:grpc++",
-        "@grpc//:grpc++_reflection",
     ],
 )
 
@@ -27,10 +36,13 @@ cc_binary(
     srcs = ["main.cpp"],
     deps = [
         ":profile_lib",
-        "//src/utilities/grpc_logger:grpc_logger",
+        "//src/utilities/config_helper:config_helper",
+        "//src/utilities/logger:logger",
         "//src/utilities/runtime_utilities:runtime_utilities",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/strings:str_format",
+        "@grpc//:grpc++",
+        "@grpc//:grpc++_reflection",
     ],
 )

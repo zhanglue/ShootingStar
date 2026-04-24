@@ -1,0 +1,6 @@
+server:
+  port: 50100
+  log_level: DEBUG
+
+store_type: local
+data_path: tests/testdata/recommendation_engine/profile/demo_profiles.json

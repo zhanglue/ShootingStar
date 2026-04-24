@@ -1,0 +1,25 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "curl_handle_pool_test",
+    srcs = ["curl_handle_pool_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/utilities/http_client:curl_handle_pool",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "curl_http_client_test",
+    srcs = ["curl_http_client_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/utilities/http_client:curl_handle_pool",
+        "//src/utilities/http_client:curl_http_client",
+        "//src/utilities/http_client:http_client",
+        "@googletest//:gtest_main",
+    ],
+)

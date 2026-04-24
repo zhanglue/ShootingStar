@@ -18,7 +18,7 @@ spec:
       containers:
       - name: profile
         image: 192.168.1.101:55000/recommendation-engine-profile:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         resources:
           requests:
             memory: 256Mi
@@ -26,9 +26,28 @@ spec:
           limits:
             memory: 512Mi
             cpu: "1"
+        env:
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              # Kubernetes Secrets are namespace-scoped. Mirror this ECK secret
+              # from recommendation-engine-es into recommendation-engine before
+              # applying the Deployment.
+              name: item-index-es-elastic-user
+              key: elastic
         ports:
         - containerPort: 50100
           name: grpc
+        volumeMounts:
+        - name: elasticsearch-ca
+          mountPath: /mnt/elasticsearch-ca
+          readOnly: true
+      volumes:
+      - name: elasticsearch-ca
+        secret:
+          # Mirror this ECK public CA secret from recommendation-engine-es into
+          # recommendation-engine before applying the Deployment.
+          secretName: item-index-es-http-certs-public
 ---
 apiVersion: v1
 kind: Service

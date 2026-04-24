@@ -5,6 +5,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
+#include "src/clients/client_runtime.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -94,6 +95,7 @@ int main(int argc, char** argv) {
 
   const string target_str = ip + ":" + port;
 
+  ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Fetching weather for city: " << city << ::std::endl << ::std::endl;
 

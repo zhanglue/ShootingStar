@@ -1,6 +1,7 @@
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "src/recommendation_engine/profile/local_file_profile_store.h"
@@ -11,6 +12,7 @@ namespace utilities {
 
 using ::recommendation_engine::LocalFileProfileStore;
 using ::recommendation_engine::Profile;
+using ::std::optional;
 using ::std::string;
 
 bool LoadProfileFromDemoData(const string& profile_data_path,
@@ -36,8 +38,8 @@ bool LoadProfileFromDemoData(const string& profile_data_path,
     const string resolved_profile_data_path =
         ResolveWorkspaceRelativePath(profile_data_path, executable_path);
     const LocalFileProfileStore store(resolved_profile_data_path);
-    const Profile* loaded_profile = store.FindByUserId(static_cast<int>(user_id));
-    if (loaded_profile == nullptr) {
+    optional<Profile> loaded_profile = store.FindByUserId(static_cast<int>(user_id));
+    if (!loaded_profile.has_value()) {
       if (error_msg != nullptr) {
         *error_msg = "Cannot find demo profile for user_id " + ::std::to_string(user_id) +
                      " in " + resolved_profile_data_path;

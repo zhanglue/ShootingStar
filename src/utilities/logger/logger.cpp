@@ -1,4 +1,8 @@
-#include "src/utilities/grpc_logger/grpc_logger.h"
+#include "src/utilities/logger/logger.h"
+
+#include <google/protobuf/message.h>
+#include <google/protobuf/util/json_util.h>
+#include <grpcpp/support/interceptor.h>
 
 #include <chrono>
 #include <cstdint>
@@ -8,19 +12,21 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include <google/protobuf/message.h>
-#include <google/protobuf/util/json_util.h>
-#include <grpcpp/support/interceptor.h>
-
 namespace shooting_star {
 namespace utilities {
 namespace {
 
+using ::google::protobuf::FieldDescriptor;
+using ::google::protobuf::Message;
+using ::google::protobuf::Reflection;
+using ::google::protobuf::util::JsonPrintOptions;
+using ::google::protobuf::util::MessageToJsonString;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::grpc::experimental::InterceptionHookPoints;
@@ -28,13 +34,9 @@ using ::grpc::experimental::Interceptor;
 using ::grpc::experimental::InterceptorBatchMethods;
 using ::grpc::experimental::ServerInterceptorFactoryInterface;
 using ::grpc::experimental::ServerRpcInfo;
-using ::google::protobuf::FieldDescriptor;
-using ::google::protobuf::Message;
-using ::google::protobuf::Reflection;
-using ::google::protobuf::util::JsonPrintOptions;
-using ::google::protobuf::util::MessageToJsonString;
 using ::std::initializer_list;
 using ::std::int64_t;
+using ::std::invalid_argument;
 using ::std::lock_guard;
 using ::std::make_unique;
 using ::std::mutex;
@@ -56,6 +58,40 @@ using ::std::chrono::duration_cast;
 using Milliseconds = ::std::chrono::milliseconds;
 
 constexpr size_t kMaxPayloadJsonLength = 4096;
+
+LogLevel ParseLogLevel(string_view value) {
+  if (value == "debug" || value == "DEBUG" || value == "Debug") {
+    return LogLevel::kDebug;
+  }
+  if (value == "info" || value == "INFO" || value == "Info") {
+    return LogLevel::kInfo;
+  }
+  if (value == "warning" || value == "WARNING" || value == "Warning" ||
+      value == "warn" || value == "WARN" || value == "Warn") {
+    return LogLevel::kWarning;
+  }
+  if (value == "error" || value == "ERROR" || value == "Error") {
+    return LogLevel::kError;
+  }
+  throw invalid_argument("Unsupported log level: " + string(value));
+}
+
+bool ShouldLog(LogLevel message_log_level, LogLevel min_log_level) {
+  return static_cast<int>(message_log_level) >= static_cast<int>(min_log_level);
+}
+
+LogLevel LogLevelFromSeverity(string_view severity) {
+  if (severity == "debug") {
+    return LogLevel::kDebug;
+  }
+  if (severity == "warning") {
+    return LogLevel::kWarning;
+  }
+  if (severity == "error") {
+    return LogLevel::kError;
+  }
+  return LogLevel::kInfo;
+}
 
 class JsonLogBuilder {
  public:
@@ -151,12 +187,11 @@ string FormatUtcTimestamp() {
   gmtime_r(&seconds, &utc_time);
 
   const auto milliseconds =
-      duration_cast<Milliseconds>(now.time_since_epoch()) %
-      1000;
+      duration_cast<Milliseconds>(now.time_since_epoch()) % 1000;
 
   ostringstream stream;
-  stream << put_time(&utc_time, "%Y-%m-%dT%H:%M:%S") << '.'
-         << setw(3) << setfill('0') << milliseconds.count() << 'Z';
+  stream << put_time(&utc_time, "%Y-%m-%dT%H:%M:%S") << '.' << setw(3)
+         << setfill('0') << milliseconds.count() << 'Z';
   return stream.str();
 }
 
@@ -222,21 +257,25 @@ string ExtractRequestId(const Message& message) {
     return "";
   }
 
-  const FieldDescriptor* request_id_field = descriptor->FindFieldByName("request_id");
-  if (request_id_field == nullptr || request_id_field->cpp_type() != FieldDescriptor::CPPTYPE_STRING ||
+  const FieldDescriptor* request_id_field =
+      descriptor->FindFieldByName("request_id");
+  if (request_id_field == nullptr ||
+      request_id_field->cpp_type() != FieldDescriptor::CPPTYPE_STRING ||
       request_id_field->is_repeated()) {
     return "";
   }
 
   const Reflection* reflection = message.GetReflection();
-  if (reflection == nullptr || !reflection->HasField(message, request_id_field)) {
+  if (reflection == nullptr ||
+      !reflection->HasField(message, request_id_field)) {
     return "";
   }
 
   return reflection->GetString(message, request_id_field);
 }
 
-bool TryConvertMessageToJson(const Message& message, string* json_out, string* error_out) {
+bool TryConvertMessageToJson(const Message& message, string* json_out,
+                             string* error_out) {
   if (json_out == nullptr || error_out == nullptr) {
     return false;
   }
@@ -271,13 +310,17 @@ void WriteLogLine(string line) {
   std::cout << line << std::endl;
 }
 
-void LogStructured(string_view severity,
-                   string_view service_name,
-                   string_view event,
-                   initializer_list<LogField> fields) {
+template <typename Fields>
+void LogStructured(LogLevel min_log_level, string_view severity,
+                   string_view logger_name, string_view event,
+                   const Fields& fields) {
+  if (!ShouldLog(LogLevelFromSeverity(severity), min_log_level)) {
+    return;
+  }
+
   JsonLogBuilder builder;
   builder.AddString("timestamp", FormatUtcTimestamp());
-  builder.AddString("service_name", service_name);
+  builder.AddString("logger_name", logger_name);
   builder.AddString("severity", severity);
   builder.AddString("event", event);
   for (const LogField& field : fields) {
@@ -288,24 +331,26 @@ void LogStructured(string_view severity,
 
 class ServerLoggingInterceptor final : public Interceptor {
  public:
-  ServerLoggingInterceptor(string service_name, ServerRpcInfo* info)
-      : service_name_(::std::move(service_name)),
+  ServerLoggingInterceptor(string logger_name, LogLevel min_log_level,
+                           ServerRpcInfo* info)
+      : logger_name_(::std::move(logger_name)),
+        min_log_level_(min_log_level),
         server_context_(info == nullptr ? nullptr : info->server_context()),
-        method_(info == nullptr || info->method() == nullptr ? "" : info->method()),
-        log_payloads_(info != nullptr && info->type() == ServerRpcInfo::Type::UNARY),
+        method_(info == nullptr || info->method() == nullptr ? ""
+                                                             : info->method()),
+        log_payloads_(info != nullptr &&
+                      info->type() == ServerRpcInfo::Type::UNARY),
         rpc_type_(info == nullptr ? "unknown" : RpcTypeToString(info->type())),
         start_time_(SteadyClock::now()) {}
 
   void Intercept(InterceptorBatchMethods* methods) override {
-    if (log_payloads_ &&
-        methods->QueryInterceptionHookPoint(
-            InterceptionHookPoints::POST_RECV_MESSAGE)) {
+    if (log_payloads_ && methods->QueryInterceptionHookPoint(
+                             InterceptionHookPoints::POST_RECV_MESSAGE)) {
       LogRequestMessage(methods->GetRecvMessage());
     }
 
-    if (log_payloads_ &&
-        methods->QueryInterceptionHookPoint(
-            InterceptionHookPoints::PRE_SEND_MESSAGE)) {
+    if (log_payloads_ && methods->QueryInterceptionHookPoint(
+                             InterceptionHookPoints::PRE_SEND_MESSAGE)) {
       LogResponseMessage(methods->GetSendMessage());
     }
 
@@ -317,9 +362,10 @@ class ServerLoggingInterceptor final : public Interceptor {
                    InterceptionHookPoints::POST_RECV_CLOSE)) {
       const bool cancelled =
           server_context_ != nullptr && server_context_->IsCancelled();
-      const Status status(cancelled ? StatusCode::CANCELLED : StatusCode::UNKNOWN,
-                          cancelled ? "RPC closed after cancellation."
-                                    : "RPC closed before final status was observed.");
+      const Status status(
+          cancelled ? StatusCode::CANCELLED : StatusCode::UNKNOWN,
+          cancelled ? "RPC closed after cancellation."
+                    : "RPC closed before final status was observed.");
       LogCompletion(status);
     }
 
@@ -359,21 +405,25 @@ class ServerLoggingInterceptor final : public Interceptor {
 
   void LogPayloadEvent(string_view event, string_view payload_field_name,
                        const Message& message) const {
+    if (!ShouldLog(LogLevel::kDebug, min_log_level_)) {
+      return;
+    }
+
     string payload_json;
     string payload_error;
 
     JsonLogBuilder builder;
     builder.AddString("timestamp", FormatUtcTimestamp());
-    builder.AddString("service_name", service_name_);
-    builder.AddString("severity", "info");
+    builder.AddString("logger_name", logger_name_);
+    builder.AddString("severity", "debug");
     builder.AddString("method", method_);
     if (has_request_id_) {
       builder.AddString("request_id", request_id_);
     }
     builder.AddString("event", event);
     builder.AddString("rpc_type", rpc_type_);
-    builder.AddString("peer",
-                      server_context_ == nullptr ? "" : server_context_->peer());
+    builder.AddString(
+        "peer", server_context_ == nullptr ? "" : server_context_->peer());
 
     if (!TryConvertMessageToJson(message, &payload_json, &payload_error)) {
       builder.AddString("payload_json_error", payload_error);
@@ -395,9 +445,15 @@ class ServerLoggingInterceptor final : public Interceptor {
     }
     completion_logged_ = true;
 
+    const LogLevel message_log_level =
+        status.ok() ? LogLevel::kInfo : LogLevel::kError;
+    if (!ShouldLog(message_log_level, min_log_level_)) {
+      return;
+    }
+
     JsonLogBuilder builder;
     builder.AddString("timestamp", FormatUtcTimestamp());
-    builder.AddString("service_name", service_name_);
+    builder.AddString("logger_name", logger_name_);
     builder.AddString("severity", status.ok() ? "info" : "error");
     builder.AddString("method", method_);
     if (has_request_id_) {
@@ -405,22 +461,22 @@ class ServerLoggingInterceptor final : public Interceptor {
     }
     builder.AddString("event", "call_completed");
     builder.AddString("rpc_type", rpc_type_);
-    builder.AddString("peer",
-                      server_context_ == nullptr ? "" : server_context_->peer());
+    builder.AddString(
+        "peer", server_context_ == nullptr ? "" : server_context_->peer());
     builder.AddInt(
         "latency_ms",
-        duration_cast<Milliseconds>(SteadyClock::now() - start_time_)
-            .count());
+        duration_cast<Milliseconds>(SteadyClock::now() - start_time_).count());
     builder.AddInt("status_code", static_cast<int>(status.error_code()));
     builder.AddString("status_name", StatusCodeToString(status.error_code()));
     builder.AddString("status_message", status.error_message());
-    builder.AddBool("cancelled",
-                    server_context_ != nullptr && server_context_->IsCancelled());
+    builder.AddBool("cancelled", server_context_ != nullptr &&
+                                     server_context_->IsCancelled());
 
     WriteLogLine(::std::move(builder).Finish());
   }
 
-  string service_name_;
+  string logger_name_;
+  LogLevel min_log_level_;
   ::grpc::ServerContextBase* server_context_ = nullptr;
   string method_;
   bool log_payloads_ = false;
@@ -436,37 +492,69 @@ class ServerLoggingInterceptor final : public Interceptor {
 class ServerLoggingInterceptorFactory final
     : public ServerInterceptorFactoryInterface {
  public:
-  explicit ServerLoggingInterceptorFactory(string service_name)
-      : service_name_(::std::move(service_name)) {}
+  ServerLoggingInterceptorFactory(string logger_name, LogLevel min_log_level)
+      : logger_name_(::std::move(logger_name)),
+        min_log_level_(min_log_level) {}
 
   Interceptor* CreateServerInterceptor(ServerRpcInfo* info) override {
-    return new ServerLoggingInterceptor(service_name_, info);
+    return new ServerLoggingInterceptor(logger_name_, min_log_level_, info);
   }
 
  private:
-  string service_name_;
+  string logger_name_;
+  LogLevel min_log_level_;
 };
 
 }  // namespace
 
-Logger::Logger(string_view service_name)
-    : service_name_(service_name) {}
+Logger::Logger(string_view logger_name) : logger_name_(logger_name) {}
 
-void Logger::Info(string_view event,
-                  initializer_list<LogField> fields) const {
-  LogStructured("info", service_name_, event, fields);
+void Logger::SetMinLogLevel(LogLevel min_log_level) {
+  min_log_level_ = min_log_level;
 }
 
-void Logger::Error(string_view event,
-                   initializer_list<LogField> fields) const {
-  LogStructured("error", service_name_, event, fields);
+void Logger::SetMinLogLevel(string_view min_log_level) {
+  SetMinLogLevel(ParseLogLevel(min_log_level));
+}
+
+void Logger::Debug(string_view event, initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "debug", logger_name_, event, fields);
+}
+
+void Logger::Debug(string_view event, const vector<LogField>& fields) const {
+  LogStructured(min_log_level_, "debug", logger_name_, event, fields);
+}
+
+void Logger::Info(string_view event, initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "info", logger_name_, event, fields);
+}
+
+void Logger::Info(string_view event, const vector<LogField>& fields) const {
+  LogStructured(min_log_level_, "info", logger_name_, event, fields);
+}
+
+void Logger::Warning(string_view event,
+                     initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "warning", logger_name_, event, fields);
+}
+
+void Logger::Warning(string_view event, const vector<LogField>& fields) const {
+  LogStructured(min_log_level_, "warning", logger_name_, event, fields);
+}
+
+void Logger::Error(string_view event, initializer_list<LogField> fields) const {
+  LogStructured(min_log_level_, "error", logger_name_, event, fields);
+}
+
+void Logger::Error(string_view event, const vector<LogField>& fields) const {
+  LogStructured(min_log_level_, "error", logger_name_, event, fields);
 }
 
 vector<unique_ptr<ServerInterceptorFactoryInterface>>
 CreateServerLoggingInterceptorCreators(const Logger& logger) {
   vector<unique_ptr<ServerInterceptorFactoryInterface>> interceptor_creators;
-  interceptor_creators.push_back(
-      make_unique<ServerLoggingInterceptorFactory>(logger.service_name()));
+  interceptor_creators.push_back(make_unique<ServerLoggingInterceptorFactory>(
+      logger.logger_name(), logger.min_log_level()));
   return interceptor_creators;
 }
 

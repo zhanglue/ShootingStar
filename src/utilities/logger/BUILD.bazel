@@ -3,9 +3,15 @@ package(default_visibility = ["//visibility:public"])
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
-    name = "grpc_logger",
-    srcs = ["grpc_logger.cpp"],
-    hdrs = ["grpc_logger.h"],
+    name = "logger",
+    srcs = [
+        "logger.cpp",
+        "logger_registry.cpp",
+    ],
+    hdrs = [
+        "logger.h",
+        "logger_registry.h",
+    ],
     deps = [
         "@grpc//:grpc++",
         "@protobuf//:protobuf",
