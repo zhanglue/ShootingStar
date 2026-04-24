@@ -10,7 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/weather_forecast/fetcher/fetcher_service.h"
-#include "src/utilities/grpc_logger/grpc_logger.h"
+#include "src/utilities/logger/logger.h"
 
 ABSL_FLAG(uint16_t, port, 40000, "Server port for the service");
 
