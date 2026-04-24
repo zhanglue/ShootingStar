@@ -9,4 +9,4 @@ WORKDIR /app
 EXPOSE 50100
 
 ENTRYPOINT ["/app/profile"]
-CMD ["--config_path=config.k3s.yaml"]
+CMD ["--config_path=config.k8s.yaml"]

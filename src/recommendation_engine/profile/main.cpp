@@ -55,8 +55,9 @@ constexpr string_view kServerPortConfigKey = "server.port";
 constexpr string_view kServerLogLevelConfigKey = "server.log_level";
 constexpr string_view kStoreTypeConfigKey = "store_type";
 constexpr string_view kDataPathConfigKey = "data_path";
-constexpr string_view kCacheCapacityConfigKey = "cache.capacity";
-constexpr string_view kCacheTtlSecondsConfigKey = "cache.ttl_seconds";
+constexpr string_view kLocalCacheCapacityConfigKey = "local_cache.capacity";
+constexpr string_view kLocalCacheTtlSecondsConfigKey =
+    "local_cache.ttl_seconds";
 constexpr string_view kEsBaseUrlConfigKey = "elasticsearch.base_url";
 constexpr string_view kEsIndexConfigKey = "elasticsearch.index";
 constexpr string_view kEsUsernameConfigKey = "elasticsearch.username";
@@ -83,9 +84,9 @@ ABSL_FLAG(::std::string, store_type, string(kDefaultStoreType),
 ABSL_FLAG(::std::string, data_path, string(kDefaultDataPath),
           "Path to the profile data JSON file.");
 ABSL_FLAG(int, cache_capacity, kDefaultCacheCapacity,
-          "Maximum number of profiles to keep in the LRU cache.");
+          "Maximum number of profiles to keep in the local LRU cache.");
 ABSL_FLAG(int, cache_ttl_seconds, kDefaultCacheTtlSeconds,
-          "Profile LRU cache entry TTL in seconds.");
+          "Local profile cache entry TTL in seconds.");
 ABSL_FLAG(::std::string, es_base_url, string(kDefaultEsBaseUrl),
           "Elasticsearch base URL for profile store.");
 ABSL_FLAG(::std::string, es_index, string(kDefaultEsIndex),
@@ -129,6 +130,27 @@ StartupConfigPath FindStartupConfigPath(int argc, char** argv) {
   }
 
   return {::absl::GetFlag(FLAGS_config_path), false};
+}
+
+bool HasCommandLineFlag(int argc, char** argv, string_view flag_name) {
+  string flag_prefix("--");
+  flag_prefix.append(flag_name);
+  flag_prefix.push_back('=');
+  string flag("--");
+  flag.append(flag_name);
+
+  for (int i = 1; i < argc; ++i) {
+    const string_view arg(argv[i]);
+    if (arg == flag) {
+      return true;
+    }
+    if (arg.size() >= flag_prefix.size() &&
+        arg.substr(0, flag_prefix.size()) == flag_prefix) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 string ResolveStartupConfigPath(const string& config_path,
@@ -195,16 +217,16 @@ void SeedFlagsFromConfig(const ConfigHelper& config) {
                     config.GetString(kDataPathConfigKey,
                                      ::absl::GetFlag(FLAGS_data_path)));
   }
-  if (config.Has(kCacheCapacityConfigKey)) {
+  if (config.Has(kLocalCacheCapacityConfigKey)) {
     ::absl::SetFlag(
         &FLAGS_cache_capacity,
-        config.GetInt(kCacheCapacityConfigKey,
+        config.GetInt(kLocalCacheCapacityConfigKey,
                       ::absl::GetFlag(FLAGS_cache_capacity)));
   }
-  if (config.Has(kCacheTtlSecondsConfigKey)) {
+  if (config.Has(kLocalCacheTtlSecondsConfigKey)) {
     ::absl::SetFlag(
         &FLAGS_cache_ttl_seconds,
-        config.GetInt(kCacheTtlSecondsConfigKey,
+        config.GetInt(kLocalCacheTtlSecondsConfigKey,
                       ::absl::GetFlag(FLAGS_cache_ttl_seconds)));
   }
   if (config.Has(kEsBaseUrlConfigKey)) {
@@ -258,6 +280,15 @@ void SeedFlagsFromConfig(const ConfigHelper& config) {
 
 void ApplyCommandLineOverridesToConfig(int argc, char** argv,
                                        YamlConfigHelper* config) {
+  const bool has_local_cache_capacity_config =
+      config->Has(kLocalCacheCapacityConfigKey);
+  const bool has_local_cache_ttl_config =
+      config->Has(kLocalCacheTtlSecondsConfigKey);
+  const bool has_cache_capacity_flag =
+      HasCommandLineFlag(argc, argv, "cache_capacity");
+  const bool has_cache_ttl_seconds_flag =
+      HasCommandLineFlag(argc, argv, "cache_ttl_seconds");
+
   SeedFlagsFromConfig(*config);
   ::absl::ParseCommandLine(argc, argv);
 
@@ -269,11 +300,16 @@ void ApplyCommandLineOverridesToConfig(int argc, char** argv,
               ::absl::GetFlag(FLAGS_store_type));
   config->Set(string(kDataPathConfigKey),
               ::absl::GetFlag(FLAGS_data_path));
-  config->Set(string(kCacheCapacityConfigKey),
-              ::std::to_string(::absl::GetFlag(FLAGS_cache_capacity)));
-  config->Set(
-      string(kCacheTtlSecondsConfigKey),
-      ::std::to_string(::absl::GetFlag(FLAGS_cache_ttl_seconds)));
+  if (has_local_cache_capacity_config || has_cache_capacity_flag) {
+    config->Set(
+        string(kLocalCacheCapacityConfigKey),
+        ::std::to_string(::absl::GetFlag(FLAGS_cache_capacity)));
+  }
+  if (has_local_cache_ttl_config || has_cache_ttl_seconds_flag) {
+    config->Set(
+        string(kLocalCacheTtlSecondsConfigKey),
+        ::std::to_string(::absl::GetFlag(FLAGS_cache_ttl_seconds)));
+  }
   config->Set(string(kEsBaseUrlConfigKey),
               ::absl::GetFlag(FLAGS_es_base_url));
   config->Set(string(kEsIndexConfigKey),

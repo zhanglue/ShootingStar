@@ -37,7 +37,7 @@ TEST(YamlConfigHelperTest, LoadsNestedYamlAsDotSeparatedKeys) {
                          "  port: 50101\n"
                          "store_type: local\n"
                          "data_path: tests/testdata/profiles.json\n"
-                         "cache:\n"
+                         "local_cache:\n"
                          "  enabled: true\n");
 
   YamlConfigHelper config;
@@ -47,7 +47,7 @@ TEST(YamlConfigHelperTest, LoadsNestedYamlAsDotSeparatedKeys) {
   EXPECT_EQ(config.GetUInt16("server.port", 0), 50101);
   EXPECT_EQ(config.GetString("store_type"), "local");
   EXPECT_EQ(config.GetString("data_path"), "tests/testdata/profiles.json");
-  EXPECT_TRUE(config.GetBool("cache.enabled", false));
+  EXPECT_TRUE(config.GetBool("local_cache.enabled", false));
 }
 
 TEST(YamlConfigHelperTest, LoadsSequenceIndexesAsKeys) {

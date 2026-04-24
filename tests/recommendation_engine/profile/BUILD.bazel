@@ -35,3 +35,17 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "profile_service_test",
+    srcs = ["profile_service_test.cpp"],
+    data = ["//tests/testdata:recommendation_engine/profile/demo_profiles.json"],
+    size = "small",
+    deps = [
+        "//src/recommendation_engine/profile:profile_lib",
+        "//src/utilities/config_helper:config_helper",
+        "//src/utilities/logger:logger",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@googletest//:gtest_main",
+    ],
+)

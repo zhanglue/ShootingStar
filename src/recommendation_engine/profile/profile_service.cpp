@@ -37,8 +37,9 @@ namespace {
 
 constexpr string_view kStoreTypeConfigKey = "store_type";
 constexpr string_view kDataPathConfigKey = "data_path";
-constexpr string_view kCacheCapacityConfigKey = "cache.capacity";
-constexpr string_view kCacheTtlSecondsConfigKey = "cache.ttl_seconds";
+constexpr string_view kLocalCacheCapacityConfigKey = "local_cache.capacity";
+constexpr string_view kLocalCacheTtlSecondsConfigKey =
+    "local_cache.ttl_seconds";
 constexpr string_view kEsBaseUrlConfigKey = "elasticsearch.base_url";
 constexpr string_view kEsIndexConfigKey = "elasticsearch.index";
 constexpr string_view kEsUsernameConfigKey = "elasticsearch.username";
@@ -94,28 +95,49 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
   return es_config;
 }
 
-unique_ptr<ProfileStore> WrapWithCacheIfConfigured(
+unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
     const ::shooting_star::utilities::Logger& logger,
     const ::shooting_star::utilities::ConfigHelper& config,
     unique_ptr<ProfileStore> profile_store) {
-  const int capacity =
-      config.GetInt(kCacheCapacityConfigKey, kDefaultCacheCapacity);
-  const int ttl_seconds =
-      config.GetInt(kCacheTtlSecondsConfigKey, kDefaultCacheTtlSeconds);
-  if (capacity <= 0 || ttl_seconds <= 0) {
+  if (!config.Has(kLocalCacheCapacityConfigKey)) {
     logger.Info(
-        "profile_cache_disabled",
+        "profile_local_cache_disabled",
         {
-            {"profile_cache_capacity", ::std::to_string(capacity)},
-            {"profile_cache_ttl_seconds", ::std::to_string(ttl_seconds)},
+            {"reason", "local_cache.capacity is not configured"},
         });
     return profile_store;
   }
 
-  logger.Info("profile_cache_initialized",
+  const int capacity =
+      config.GetInt(kLocalCacheCapacityConfigKey, kDefaultCacheCapacity);
+  const int ttl_seconds =
+      config.GetInt(kLocalCacheTtlSecondsConfigKey, kDefaultCacheTtlSeconds);
+  if (capacity <= 0) {
+    logger.Info(
+        "profile_local_cache_disabled",
+        {
+            {"reason", "local_cache.capacity must be greater than 0"},
+            {"profile_local_cache_capacity", ::std::to_string(capacity)},
+            {"profile_local_cache_ttl_seconds", ::std::to_string(ttl_seconds)},
+        });
+    return profile_store;
+  }
+  if (ttl_seconds <= 0) {
+    logger.Info(
+        "profile_local_cache_disabled",
+        {
+            {"reason", "local_cache.ttl_seconds must be greater than 0"},
+            {"profile_local_cache_capacity", ::std::to_string(capacity)},
+            {"profile_local_cache_ttl_seconds", ::std::to_string(ttl_seconds)},
+        });
+    return profile_store;
+  }
+
+  logger.Info("profile_local_cache_initialized",
               {
-                  {"profile_cache_capacity", ::std::to_string(capacity)},
-                  {"profile_cache_ttl_seconds", ::std::to_string(ttl_seconds)},
+                  {"profile_local_cache_capacity", ::std::to_string(capacity)},
+                  {"profile_local_cache_ttl_seconds",
+                   ::std::to_string(ttl_seconds)},
               });
   return make_unique<CachingProfileStore>(
       ::std::move(profile_store), static_cast<::std::size_t>(capacity),
@@ -158,7 +180,7 @@ unique_ptr<ProfileStore> CreateProfileStore(
     const ::shooting_star::utilities::Logger& logger,
     const ::shooting_star::utilities::ConfigHelper& config,
     const string& profile_store_type) {
-  return WrapWithCacheIfConfigured(
+  return WrapWithLocalCacheIfConfigured(
       logger, config,
       CreateUncachedProfileStore(logger, config, profile_store_type));
 }

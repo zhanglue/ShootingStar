@@ -14,6 +14,6 @@ elasticsearch:
   verify_ssl: true
   request_timeout_ms: 5000
 
-cache:
+local_cache:
   capacity: 30
   ttl_seconds: 300

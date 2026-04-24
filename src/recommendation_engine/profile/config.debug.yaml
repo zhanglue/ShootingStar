@@ -4,7 +4,3 @@ server:
 
 store_type: local
 data_path: tests/testdata/recommendation_engine/profile/demo_profiles.json
-
-cache:
-  capacity: 30
-  ttl_seconds: 300
