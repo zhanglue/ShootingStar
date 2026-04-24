@@ -27,7 +27,7 @@ enum class LogLevel {
 
 class Logger {
  public:
-  explicit Logger(::std::string_view service_name);
+  explicit Logger(::std::string_view logger_name);
 
   void SetMinLogLevel(LogLevel min_log_level);
   void SetMinLogLevel(::std::string_view min_log_level);
@@ -49,11 +49,11 @@ class Logger {
   void Error(::std::string_view event,
              const ::std::vector<LogField>& fields) const;
 
-  const ::std::string& service_name() const { return service_name_; }
+  const ::std::string& logger_name() const { return logger_name_; }
   LogLevel min_log_level() const { return min_log_level_; }
 
  private:
-  ::std::string service_name_;
+  ::std::string logger_name_;
   LogLevel min_log_level_ = LogLevel::kInfo;
 };
 

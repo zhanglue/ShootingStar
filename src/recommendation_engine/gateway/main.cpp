@@ -11,6 +11,7 @@
 
 #include "src/recommendation_engine/gateway/gateway_service.h"
 #include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
 
 ABSL_FLAG(uint16_t, port, 50000, "Server port for the service");
 ABSL_FLAG(::std::string, profile_service_host, "localhost", "Profile service host");
@@ -20,7 +21,9 @@ ABSL_FLAG(uint16_t, retrieval_service_port, 50200, "Retrieval service port");
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-  const ::shooting_star::utilities::Logger logger("gateway");
+  ::shooting_star::utilities::LoggerRegistry::Register(
+      ::std::make_shared<::shooting_star::utilities::Logger>("gateway"));
+  ::shooting_star::utilities::LoggerRegistry::SetDefaultLoggerName("gateway");
 
   ::std::string server_address = absl::StrFormat("0.0.0.0:%d", absl::GetFlag(FLAGS_port));
   const ::std::string profile_service_address =
@@ -36,6 +39,8 @@ int main(int argc, char** argv) {
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ::grpc::ServerBuilder builder;
+  const ::shooting_star::utilities::Logger& logger =
+      ::shooting_star::utilities::LoggerRegistry::Get();
   builder.experimental().SetInterceptorCreators(
       ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(logger));
   // Listen on the given address without any authentication mechanism.

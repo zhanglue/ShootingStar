@@ -312,7 +312,7 @@ void WriteLogLine(string line) {
 
 template <typename Fields>
 void LogStructured(LogLevel min_log_level, string_view severity,
-                   string_view service_name, string_view event,
+                   string_view logger_name, string_view event,
                    const Fields& fields) {
   if (!ShouldLog(LogLevelFromSeverity(severity), min_log_level)) {
     return;
@@ -320,7 +320,7 @@ void LogStructured(LogLevel min_log_level, string_view severity,
 
   JsonLogBuilder builder;
   builder.AddString("timestamp", FormatUtcTimestamp());
-  builder.AddString("service_name", service_name);
+  builder.AddString("logger_name", logger_name);
   builder.AddString("severity", severity);
   builder.AddString("event", event);
   for (const LogField& field : fields) {
@@ -331,9 +331,9 @@ void LogStructured(LogLevel min_log_level, string_view severity,
 
 class ServerLoggingInterceptor final : public Interceptor {
  public:
-  ServerLoggingInterceptor(string service_name, LogLevel min_log_level,
+  ServerLoggingInterceptor(string logger_name, LogLevel min_log_level,
                            ServerRpcInfo* info)
-      : service_name_(::std::move(service_name)),
+      : logger_name_(::std::move(logger_name)),
         min_log_level_(min_log_level),
         server_context_(info == nullptr ? nullptr : info->server_context()),
         method_(info == nullptr || info->method() == nullptr ? ""
@@ -414,7 +414,7 @@ class ServerLoggingInterceptor final : public Interceptor {
 
     JsonLogBuilder builder;
     builder.AddString("timestamp", FormatUtcTimestamp());
-    builder.AddString("service_name", service_name_);
+    builder.AddString("logger_name", logger_name_);
     builder.AddString("severity", "debug");
     builder.AddString("method", method_);
     if (has_request_id_) {
@@ -453,7 +453,7 @@ class ServerLoggingInterceptor final : public Interceptor {
 
     JsonLogBuilder builder;
     builder.AddString("timestamp", FormatUtcTimestamp());
-    builder.AddString("service_name", service_name_);
+    builder.AddString("logger_name", logger_name_);
     builder.AddString("severity", status.ok() ? "info" : "error");
     builder.AddString("method", method_);
     if (has_request_id_) {
@@ -475,7 +475,7 @@ class ServerLoggingInterceptor final : public Interceptor {
     WriteLogLine(::std::move(builder).Finish());
   }
 
-  string service_name_;
+  string logger_name_;
   LogLevel min_log_level_;
   ::grpc::ServerContextBase* server_context_ = nullptr;
   string method_;
@@ -492,22 +492,22 @@ class ServerLoggingInterceptor final : public Interceptor {
 class ServerLoggingInterceptorFactory final
     : public ServerInterceptorFactoryInterface {
  public:
-  ServerLoggingInterceptorFactory(string service_name, LogLevel min_log_level)
-      : service_name_(::std::move(service_name)),
+  ServerLoggingInterceptorFactory(string logger_name, LogLevel min_log_level)
+      : logger_name_(::std::move(logger_name)),
         min_log_level_(min_log_level) {}
 
   Interceptor* CreateServerInterceptor(ServerRpcInfo* info) override {
-    return new ServerLoggingInterceptor(service_name_, min_log_level_, info);
+    return new ServerLoggingInterceptor(logger_name_, min_log_level_, info);
   }
 
  private:
-  string service_name_;
+  string logger_name_;
   LogLevel min_log_level_;
 };
 
 }  // namespace
 
-Logger::Logger(string_view service_name) : service_name_(service_name) {}
+Logger::Logger(string_view logger_name) : logger_name_(logger_name) {}
 
 void Logger::SetMinLogLevel(LogLevel min_log_level) {
   min_log_level_ = min_log_level;
@@ -518,43 +518,43 @@ void Logger::SetMinLogLevel(string_view min_log_level) {
 }
 
 void Logger::Debug(string_view event, initializer_list<LogField> fields) const {
-  LogStructured(min_log_level_, "debug", service_name_, event, fields);
+  LogStructured(min_log_level_, "debug", logger_name_, event, fields);
 }
 
 void Logger::Debug(string_view event, const vector<LogField>& fields) const {
-  LogStructured(min_log_level_, "debug", service_name_, event, fields);
+  LogStructured(min_log_level_, "debug", logger_name_, event, fields);
 }
 
 void Logger::Info(string_view event, initializer_list<LogField> fields) const {
-  LogStructured(min_log_level_, "info", service_name_, event, fields);
+  LogStructured(min_log_level_, "info", logger_name_, event, fields);
 }
 
 void Logger::Info(string_view event, const vector<LogField>& fields) const {
-  LogStructured(min_log_level_, "info", service_name_, event, fields);
+  LogStructured(min_log_level_, "info", logger_name_, event, fields);
 }
 
 void Logger::Warning(string_view event,
                      initializer_list<LogField> fields) const {
-  LogStructured(min_log_level_, "warning", service_name_, event, fields);
+  LogStructured(min_log_level_, "warning", logger_name_, event, fields);
 }
 
 void Logger::Warning(string_view event, const vector<LogField>& fields) const {
-  LogStructured(min_log_level_, "warning", service_name_, event, fields);
+  LogStructured(min_log_level_, "warning", logger_name_, event, fields);
 }
 
 void Logger::Error(string_view event, initializer_list<LogField> fields) const {
-  LogStructured(min_log_level_, "error", service_name_, event, fields);
+  LogStructured(min_log_level_, "error", logger_name_, event, fields);
 }
 
 void Logger::Error(string_view event, const vector<LogField>& fields) const {
-  LogStructured(min_log_level_, "error", service_name_, event, fields);
+  LogStructured(min_log_level_, "error", logger_name_, event, fields);
 }
 
 vector<unique_ptr<ServerInterceptorFactoryInterface>>
 CreateServerLoggingInterceptorCreators(const Logger& logger) {
   vector<unique_ptr<ServerInterceptorFactoryInterface>> interceptor_creators;
   interceptor_creators.push_back(make_unique<ServerLoggingInterceptorFactory>(
-      logger.service_name(), logger.min_log_level()));
+      logger.logger_name(), logger.min_log_level()));
   return interceptor_creators;
 }
 

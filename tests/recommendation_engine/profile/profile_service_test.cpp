@@ -7,12 +7,14 @@
 
 #include "src/utilities/config_helper/config_helper.h"
 #include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::Logger;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 using ::shooting_star::utilities::YamlConfigHelper;
 using ::std::make_shared;
@@ -29,14 +31,20 @@ YamlConfigHelper CreateBaseConfig() {
   return config;
 }
 
+void InstallProfileTestLogger() {
+  LoggerRegistry::ClearForTest();
+  LoggerRegistry::Register(make_shared<Logger>("profile_test"));
+  LoggerRegistry::SetDefaultLoggerName("profile_test");
+}
+
 TEST(ProfileServiceImplTest, LogsLocalCacheConfigWhenEnabled) {
   YamlConfigHelper config = CreateBaseConfig();
   config.Set("local_cache.capacity", "30");
   config.Set("local_cache.ttl_seconds", "300");
+  InstallProfileTestLogger();
 
   ::testing::internal::CaptureStdout();
-  const auto logger = make_shared<Logger>("profile_test");
-  ProfileServiceImpl service(::std::move(config), logger);
+  ProfileServiceImpl service(::std::move(config));
   (void)service;
   const string logs = ::testing::internal::GetCapturedStdout();
 
@@ -50,10 +58,10 @@ TEST(ProfileServiceImplTest, LogsLocalCacheConfigWhenEnabled) {
 
 TEST(ProfileServiceImplTest, LogsReasonWhenLocalCacheIsNotConfigured) {
   YamlConfigHelper config = CreateBaseConfig();
+  InstallProfileTestLogger();
 
   ::testing::internal::CaptureStdout();
-  const auto logger = make_shared<Logger>("profile_test");
-  ProfileServiceImpl service(::std::move(config), logger);
+  ProfileServiceImpl service(::std::move(config));
   (void)service;
   const string logs = ::testing::internal::GetCapturedStdout();
 

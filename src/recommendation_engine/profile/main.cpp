@@ -14,10 +14,10 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/strings/str_format.h"
 #include "src/recommendation_engine/profile/profile_service.h"
 #include "src/utilities/config_helper/config_helper.h"
 #include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace {
@@ -26,6 +26,7 @@ using ::recommendation_engine::ProfileServiceImpl;
 using ::shooting_star::utilities::ConfigHelper;
 using ::shooting_star::utilities::LogField;
 using ::shooting_star::utilities::Logger;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::YamlConfigHelper;
 using ::std::string;
 using ::std::string_view;
@@ -344,7 +345,7 @@ bool IsSensitiveConfigKey(string_view key) {
   return key.find("password") != string_view::npos;
 }
 
-void LogResolvedConfig(const Logger& logger, const YamlConfigHelper& config) {
+void LogResolvedConfig(const YamlConfigHelper& config) {
   vector<LogField> fields;
   for (const auto& [key, value] : config.values()) {
     if (IsSensitiveConfigKey(key)) {
@@ -353,52 +354,63 @@ void LogResolvedConfig(const Logger& logger, const YamlConfigHelper& config) {
     }
     fields.push_back({key, value});
   }
+  const Logger& logger = LoggerRegistry::Get();
   logger.Info("resolved_config", fields);
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  const auto logger = ::std::make_shared<Logger>(kServiceName);
-
   try {
     YamlConfigHelper config = LoadConfigFile(argc, argv);
     ApplyCommandLineOverridesToConfig(argc, argv, &config);
     ResolveLocalStoreConfigPaths(argv[0], &config);
-    logger->SetMinLogLevel(
-        config.GetString(kServerLogLevelConfigKey, string(kDefaultLogLevel)));
 
-    logger->Info("config_loaded",
-                 {
-                     {"config_path", config.GetString(kConfigPathConfigKey)},
-                 });
-    LogResolvedConfig(*logger, config);
+    auto profile_logger = ::std::make_shared<Logger>(kServiceName);
+    profile_logger->SetMinLogLevel(
+        config.GetString(kServerLogLevelConfigKey, string(kDefaultLogLevel)));
+    LoggerRegistry::Register(::std::move(profile_logger));
+    LoggerRegistry::SetDefaultLoggerName(kServiceName);
+
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Info("config_loaded",
+                {
+                    {"config_path", config.GetString(kConfigPathConfigKey)},
+                });
+    LogResolvedConfig(config);
 
     const string server_address =
         string(kListenAddressHost) + ":" +
         ::std::to_string(
             config.GetUInt16(kServerPortConfigKey, kDefaultServerPort));
-    ProfileServiceImpl service(::std::move(config), logger);
+    ProfileServiceImpl service(::std::move(config));
 
     ::grpc::EnableDefaultHealthCheckService(true);
     ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ::grpc::ServerBuilder builder;
     builder.experimental().SetInterceptorCreators(
         ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(
-            *logger));
+            logger));
     builder.AddListeningPort(server_address,
                              ::grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
 
     ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-    logger->Info("server_started", {
-                                       {"listen_address", server_address},
-                                   });
+    logger.Info(
+      "server_started",
+      {
+        {"listen_address", server_address},
+      }
+    );
     server->Wait();
   } catch (const ::std::exception& ex) {
-    logger->Error("server_startup_failed", {
-                                               {"error", ex.what()},
-                                           });
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Error(
+      "server_startup_failed",
+      {
+        {"error", ex.what()},
+      }
+    );
     return EXIT_FAILURE;
   }
 

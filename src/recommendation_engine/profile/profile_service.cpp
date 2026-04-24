@@ -15,6 +15,8 @@
 #include "src/recommendation_engine/profile/elasticsearch_profile_store.h"
 #include "src/recommendation_engine/profile/local_file_profile_store.h"
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
+#include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
 
 namespace recommendation_engine {
 
@@ -26,12 +28,13 @@ using ::std::format;
 using ::std::invalid_argument;
 using ::std::make_unique;
 using ::std::optional;
-using ::std::shared_ptr;
 using ::std::string;
 using ::std::string_view;
 using ::std::unique_ptr;
 using ::std::chrono::milliseconds;
 using ::std::chrono::seconds;
+using ::shooting_star::utilities::Logger;
+using ::shooting_star::utilities::LoggerRegistry;
 
 namespace {
 
@@ -56,14 +59,6 @@ constexpr int kDefaultCacheCapacity = 30;
 constexpr int kDefaultCacheTtlSeconds = 300;
 constexpr string_view kLocalStoreType = "local";
 constexpr string_view kElasticsearchStoreType = "elasticsearch";
-
-shared_ptr<const ::shooting_star::utilities::Logger> RequireLogger(
-    shared_ptr<const ::shooting_star::utilities::Logger> logger) {
-  if (logger == nullptr) {
-    throw invalid_argument("ProfileServiceImpl logger must not be null");
-  }
-  return logger;
-}
 
 string GetEnvOrDefault(const string& name, string default_value) {
   if (name.empty()) {
@@ -96,9 +91,9 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
 }
 
 unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
-    const ::shooting_star::utilities::Logger& logger,
     const ::shooting_star::utilities::ConfigHelper& config,
     unique_ptr<ProfileStore> profile_store) {
+  const Logger& logger = LoggerRegistry::Get();
   if (!config.Has(kLocalCacheCapacityConfigKey)) {
     logger.Info(
         "profile_local_cache_disabled",
@@ -145,9 +140,9 @@ unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
 }
 
 unique_ptr<ProfileStore> CreateUncachedProfileStore(
-    const ::shooting_star::utilities::Logger& logger,
     const ::shooting_star::utilities::ConfigHelper& config,
     const string& profile_store_type) {
+  const Logger& logger = LoggerRegistry::Get();
   if (profile_store_type == kLocalStoreType) {
     const string profile_data_path = config.GetString(kDataPathConfigKey);
     logger.Info("profile_store_initialized",
@@ -177,31 +172,28 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
 }
 
 unique_ptr<ProfileStore> CreateProfileStore(
-    const ::shooting_star::utilities::Logger& logger,
     const ::shooting_star::utilities::ConfigHelper& config,
     const string& profile_store_type) {
   return WrapWithLocalCacheIfConfigured(
-      logger, config,
-      CreateUncachedProfileStore(logger, config, profile_store_type));
+      config,
+      CreateUncachedProfileStore(config, profile_store_type));
 }
 
 }  // namespace
 
 ProfileServiceImpl::ProfileServiceImpl(
-    ::shooting_star::utilities::YamlConfigHelper config,
-    ::std::shared_ptr<const ::shooting_star::utilities::Logger> logger)
-    : config_(::std::move(config)),
-      logger_owner_(RequireLogger(::std::move(logger))),
-      logger_(*logger_owner_) {
+    ::shooting_star::utilities::YamlConfigHelper config)
+    : config_(::std::move(config)) {
+  const Logger& logger = LoggerRegistry::Get();
   const string profile_store_type =
       config_.GetString(kStoreTypeConfigKey);
 
-  logger_.Info("profile_store_selected",
-               {
-                   {"profile_store_type", profile_store_type},
-               });
+  logger.Info("profile_store_selected",
+              {
+                  {"profile_store_type", profile_store_type},
+              });
 
-  profile_store_ = CreateProfileStore(logger_, config_, profile_store_type);
+  profile_store_ = CreateProfileStore(config_, profile_store_type);
 }
 
 Status ProfileServiceImpl::GetProfile(ServerContext* context,
