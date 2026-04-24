@@ -1,0 +1,13 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "config_helper_test",
+    srcs = ["config_helper_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/utilities/config_helper:config_helper",
+        "@googletest//:gtest_main",
+    ],
+)
