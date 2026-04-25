@@ -24,6 +24,14 @@ void ValidateTimeoutNotGreater(
     ::std::string_view outer_key,
     ::std::chrono::milliseconds outer);
 
+void ValidateTimeoutSumNotGreater(
+    ::std::string_view first_inner_key,
+    ::std::chrono::milliseconds first_inner,
+    ::std::string_view second_inner_key,
+    ::std::chrono::milliseconds second_inner,
+    ::std::string_view outer_key,
+    ::std::chrono::milliseconds outer);
+
 void TrimLeadingSlashes(::std::string& value);
 
 void TrimTrailingSlashes(::std::string& value);

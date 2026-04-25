@@ -14,6 +14,41 @@ using ::std::make_shared;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::vector;
+using ::std::chrono::milliseconds;
+
+namespace {
+
+constexpr int kDefaultRequestTimeoutMs = 100;
+constexpr int kDefaultHttpClientAcquireTimeoutMs = 30;
+constexpr int kDefaultHttpClientRequestTimeoutMs = 30;
+constexpr int kDefaultHttpClientConnectTimeoutMs = 20;
+
+void ValidateElasticsearchTimeoutConfig(
+    const ElasticsearchClient::Config& config) {
+  ValidateTimeoutNotGreater("elasticsearch.http_config.connect_timeout",
+                            config.http_config.connect_timeout,
+                            "elasticsearch.http_config.request_timeout",
+                            config.http_config.request_timeout);
+  if (!config.request_timeout.has_value()) {
+    return;
+  }
+  ValidateTimeoutNotGreater("elasticsearch.http_config.acquire_timeout",
+                            config.http_config.acquire_timeout,
+                            "elasticsearch.request_timeout",
+                            *config.request_timeout);
+  ValidateTimeoutNotGreater("elasticsearch.http_config.request_timeout",
+                            config.http_config.request_timeout,
+                            "elasticsearch.request_timeout",
+                            *config.request_timeout);
+  ValidateTimeoutSumNotGreater("elasticsearch.http_config.acquire_timeout",
+                               config.http_config.acquire_timeout,
+                               "elasticsearch.http_config.request_timeout",
+                               config.http_config.request_timeout,
+                               "elasticsearch.request_timeout",
+                               *config.request_timeout);
+}
+
+}  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 // ElasticsearchResult
@@ -31,7 +66,15 @@ ElasticsearchResult::ElasticsearchResult(HttpResult&& http_result)
 // ElasticsearchClient::Config
 ////////////////////////////////////////////////////////////////////////////////
 
-ElasticsearchClient::Config::Config() = default;
+ElasticsearchClient::Config::Config()
+    : request_timeout(milliseconds(kDefaultRequestTimeoutMs)) {
+  http_config.acquire_timeout =
+      milliseconds(kDefaultHttpClientAcquireTimeoutMs);
+  http_config.request_timeout =
+      milliseconds(kDefaultHttpClientRequestTimeoutMs);
+  http_config.connect_timeout =
+      milliseconds(kDefaultHttpClientConnectTimeoutMs);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ElasticsearchClient Factory Methods
@@ -63,13 +106,13 @@ ElasticsearchClient::ElasticsearchClient(
   if (config_.base_url.empty()) {
     throw invalid_argument("ElasticsearchClient base_url must not be empty");
   }
+  ValidateElasticsearchTimeoutConfig(config_);
 }
 
 ElasticsearchResult ElasticsearchClient::Health() const {
   return ElasticsearchResult(
       http_client_->Get(BuildUrl("/_cluster/health"),
-                        BuildHeaders(/*has_body=*/false),
-                        config_.request_timeout));
+                        BuildHeaders(/*has_body=*/false)));
 }
 
 ElasticsearchResult ElasticsearchClient::Get(string index, string id) const {
@@ -77,8 +120,7 @@ ElasticsearchResult ElasticsearchClient::Get(string index, string id) const {
   TrimLeadingSlashes(id);
   return ElasticsearchResult(
       http_client_->Get(BuildUrl(index + "/_doc/" + id),
-                        BuildHeaders(/*has_body=*/false),
-                        config_.request_timeout));
+                        BuildHeaders(/*has_body=*/false)));
 }
 
 ElasticsearchResult ElasticsearchClient::Search(string index, string query_json) const {
@@ -86,8 +128,7 @@ ElasticsearchResult ElasticsearchClient::Search(string index, string query_json)
   return ElasticsearchResult(
       http_client_->Post(BuildUrl(index + "/_search"),
                          std::move(query_json),
-                         BuildHeaders(/*has_body=*/true),
-                         config_.request_timeout));
+                         BuildHeaders(/*has_body=*/true)));
 }
 
 string ElasticsearchClient::BuildUrl(string path) const {

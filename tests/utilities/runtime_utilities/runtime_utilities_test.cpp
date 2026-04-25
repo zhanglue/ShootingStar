@@ -104,6 +104,19 @@ TEST_F(RuntimeUtilitiesTest, ValidatesTimeoutHierarchy) {
                ::std::invalid_argument);
 }
 
+TEST_F(RuntimeUtilitiesTest, ValidatesTimeoutSumHierarchy) {
+  EXPECT_NO_THROW(ValidateTimeoutSumNotGreater(
+      "first", milliseconds(30), "second", milliseconds(70),
+      "outer", milliseconds(100)));
+  EXPECT_NO_THROW(ValidateTimeoutSumNotGreater(
+      "first", milliseconds(30), "second", milliseconds(69),
+      "outer", milliseconds(100)));
+  EXPECT_THROW(ValidateTimeoutSumNotGreater(
+                   "first", milliseconds(30), "second", milliseconds(71),
+                   "outer", milliseconds(100)),
+               ::std::invalid_argument);
+}
+
 TEST_F(RuntimeUtilitiesTest, TrimsLeadingAndTrailingSlashes) {
   string value = "///movies/42";
   TrimLeadingSlashes(value);

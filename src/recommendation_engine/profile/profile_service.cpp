@@ -39,6 +39,7 @@ using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::ValidateTimeoutNotGreater;
+using ::shooting_star::utilities::ValidateTimeoutSumNotGreater;
 
 namespace {
 
@@ -69,11 +70,11 @@ constexpr string_view kEsHttpClientVerifySslConfigKey =
 constexpr string_view kEsHttpClientCaCertPathConfigKey =
     "elasticsearch.http_client.ca_cert_path";
 constexpr string_view kDefaultEsUsername = "elastic";
-constexpr int kDefaultEsRequestTimeoutMs = 5000;
+constexpr int kDefaultEsRequestTimeoutMs = 100;
 constexpr int kDefaultEsHttpClientPoolSize = 4;
-constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 1000;
-constexpr int kDefaultEsHttpClientRequestTimeoutMs = 5000;
-constexpr int kDefaultEsHttpClientConnectTimeoutMs = 1000;
+constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 30;
+constexpr int kDefaultEsHttpClientRequestTimeoutMs = 30;
+constexpr int kDefaultEsHttpClientConnectTimeoutMs = 20;
 constexpr bool kDefaultEsHttpClientFollowRedirects = true;
 constexpr bool kDefaultEsHttpClientVerifySsl = true;
 constexpr int kDefaultCacheCapacity = 30;
@@ -116,6 +117,12 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
                             es_config.http_config.connect_timeout,
                             kEsHttpClientRequestTimeoutMsConfigKey,
                             es_config.http_config.request_timeout);
+  ValidateTimeoutSumNotGreater(kEsHttpClientAcquireTimeoutMsConfigKey,
+                               es_config.http_config.acquire_timeout,
+                               kEsHttpClientRequestTimeoutMsConfigKey,
+                               es_config.http_config.request_timeout,
+                               kEsRequestTimeoutMsConfigKey,
+                               *es_config.request_timeout);
   es_config.http_config.follow_redirects =
       config.GetBool(kEsHttpClientFollowRedirectsConfigKey,
                      kDefaultEsHttpClientFollowRedirects);

@@ -130,6 +130,22 @@ void ValidateTimeoutNotGreater(string_view inner_key, milliseconds inner,
       inner_key, inner.count(), outer_key, outer.count()));
 }
 
+void ValidateTimeoutSumNotGreater(string_view first_inner_key,
+                                  milliseconds first_inner,
+                                  string_view second_inner_key,
+                                  milliseconds second_inner,
+                                  string_view outer_key,
+                                  milliseconds outer) {
+  const milliseconds inner_sum = first_inner + second_inner;
+  if (inner_sum <= outer) {
+    return;
+  }
+  throw invalid_argument(::absl::StrFormat(
+      "%s (%d ms) + %s (%d ms) must be less than or equal to %s (%d ms)",
+      first_inner_key, first_inner.count(), second_inner_key,
+      second_inner.count(), outer_key, outer.count()));
+}
+
 void TrimLeadingSlashes(string& value) {
   while (!value.empty() && value.front() == '/') {
     value.erase(value.begin());

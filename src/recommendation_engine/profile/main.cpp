@@ -55,11 +55,11 @@ constexpr string_view kDefaultEsIndex = "movielens_32m_user_profile";
 constexpr string_view kDefaultEsUsername = "elastic";
 constexpr string_view kDefaultEsPassword = "";
 constexpr string_view kDefaultEsPasswordEnv = "ES_PASSWORD";
-constexpr int kDefaultEsRequestTimeoutMs = 5000;
+constexpr int kDefaultEsRequestTimeoutMs = 100;
 constexpr int kDefaultEsHttpClientPoolSize = 4;
-constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 1000;
-constexpr int kDefaultEsHttpClientRequestTimeoutMs = 5000;
-constexpr int kDefaultEsHttpClientConnectTimeoutMs = 1000;
+constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 30;
+constexpr int kDefaultEsHttpClientRequestTimeoutMs = 30;
+constexpr int kDefaultEsHttpClientConnectTimeoutMs = 20;
 constexpr bool kDefaultEsHttpClientFollowRedirects = true;
 constexpr bool kDefaultEsHttpClientVerifySsl = true;
 constexpr string_view kDefaultEsHttpClientCaCertPath = "";
@@ -122,20 +122,23 @@ ABSL_FLAG(::std::string, es_password, string(kDefaultEsPassword),
 ABSL_FLAG(::std::string, es_password_env, string(kDefaultEsPasswordEnv),
           "Environment variable containing the Elasticsearch password.");
 ABSL_FLAG(int, es_request_timeout_ms, kDefaultEsRequestTimeoutMs,
-          "Elasticsearch request timeout in milliseconds.");
+          "Total Elasticsearch client operation budget in milliseconds.");
 ABSL_FLAG(int, es_http_client_curl_handle_pool_size,
           kDefaultEsHttpClientPoolSize,
           "Number of curl handles kept in the Elasticsearch HTTP client pool.");
 ABSL_FLAG(int, es_http_client_curl_handle_pool_acquire_timeout_ms,
           kDefaultEsHttpClientAcquireTimeoutMs,
           "Elasticsearch HTTP client curl handle acquire timeout in "
-          "milliseconds.");
+          "milliseconds. Must be <= es_request_timeout_ms.");
 ABSL_FLAG(int, es_http_client_request_timeout_ms,
           kDefaultEsHttpClientRequestTimeoutMs,
-          "Default Curl HTTP request timeout in milliseconds.");
+          "Default Curl HTTP request timeout in milliseconds. Must be <= "
+          "es_request_timeout_ms, and acquire + request must be <= "
+          "es_request_timeout_ms.");
 ABSL_FLAG(int, es_http_client_connect_timeout_ms,
           kDefaultEsHttpClientConnectTimeoutMs,
-          "Curl HTTP connection timeout in milliseconds.");
+          "Curl HTTP connection timeout in milliseconds. Must be <= "
+          "es_http_client_request_timeout_ms.");
 ABSL_FLAG(bool, es_http_client_follow_redirects,
           kDefaultEsHttpClientFollowRedirects,
           "Whether Elasticsearch Curl HTTP requests follow redirects.");

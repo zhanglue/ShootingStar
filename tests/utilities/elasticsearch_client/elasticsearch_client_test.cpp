@@ -49,6 +49,9 @@ TEST(ElasticsearchClientTest, SearchPostsJsonToIndexSearchEndpoint) {
   config.username = "elastic";
   config.password = "secret";
   config.request_timeout = milliseconds(1234);
+  config.http_config.acquire_timeout = milliseconds(100);
+  config.http_config.request_timeout = milliseconds(1000);
+  config.http_config.connect_timeout = milliseconds(100);
 
   ElasticsearchClient client =
       ElasticsearchClient::Create(http_client, ::std::move(config));
@@ -65,7 +68,7 @@ TEST(ElasticsearchClientTest, SearchPostsJsonToIndexSearchEndpoint) {
   EXPECT_EQ(request.method, HttpMethod::kPost);
   EXPECT_EQ(request.url, "https://es.example.com/movies/_search");
   EXPECT_EQ(request.body, R"({"query":{"match_all":{}}})");
-  EXPECT_EQ(request.timeout, milliseconds(1234));
+  EXPECT_EQ(request.timeout, ::std::nullopt);
   EXPECT_EQ(FindHeader(request.headers, "Accept"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Content-Type"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Authorization"), "Basic ZWxhc3RpYzpzZWNyZXQ=");
@@ -150,6 +153,20 @@ TEST(ElasticsearchClientTest, RejectsInvalidConstruction) {
 
   EXPECT_THROW(
       ElasticsearchClient::Create(::std::make_shared<FakeHttpClient>(), invalid_config),
+      ::std::invalid_argument);
+}
+
+TEST(ElasticsearchClientTest, RejectsInvalidTimeoutHierarchy) {
+  ElasticsearchClient::Config invalid_config;
+  invalid_config.base_url = "http://localhost:9200";
+  invalid_config.request_timeout = milliseconds(100);
+  invalid_config.http_config.acquire_timeout = milliseconds(80);
+  invalid_config.http_config.request_timeout = milliseconds(30);
+  invalid_config.http_config.connect_timeout = milliseconds(20);
+
+  EXPECT_THROW(
+      ElasticsearchClient::Create(::std::make_shared<FakeHttpClient>(),
+                                  invalid_config),
       ::std::invalid_argument);
 }
 

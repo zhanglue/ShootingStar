@@ -10,13 +10,17 @@ elasticsearch:
   username: elastic
   password: ""
   password_env: ES_PASSWORD
-  request_timeout_ms: 5000
+  # Timeout hierarchy for GetProfile ES lookups:
+  # request_timeout_ms is the ES client operation budget.
+  # curl_handle_pool.acquire_timeout_ms + http_client.request_timeout_ms <= request_timeout_ms
+  # http_client.connect_timeout_ms <= http_client.request_timeout_ms
+  request_timeout_ms: 100
   http_client:
     curl_handle_pool:
       pool_size: 4
-      acquire_timeout_ms: 1000
-    request_timeout_ms: 5000
-    connect_timeout_ms: 1000
+      acquire_timeout_ms: 30
+    request_timeout_ms: 30
+    connect_timeout_ms: 20
     follow_redirects: true
     verify_ssl: true
     ca_cert_path: /mnt/elasticsearch-ca/ca.crt
