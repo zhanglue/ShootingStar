@@ -47,7 +47,7 @@ CurlHandle::~CurlHandle() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-ResourcePool<CurlHandle>::Config ToResourcePoolConfig(
+ResourcePool<CurlHandle>::Config CreateResourcePoolConfig(
     const CurlHandlePool::Config& config) {
   ResourcePool<CurlHandle>::Config pool_config;
   pool_config.pool_size = config.pool_size;
@@ -79,8 +79,7 @@ CURL* CurlHandlePool::Lease::get() const {
 
 CurlHandlePool::Config::Config()
     : pool_size(4),
-      acquire_timeout(::std::chrono::milliseconds(1000))
-      {}
+      acquire_timeout(::std::chrono::milliseconds(1000)) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // CurlHandlePool
@@ -90,7 +89,7 @@ CurlHandlePool::CurlHandlePool() : CurlHandlePool(Config{}) {}
 
 CurlHandlePool::CurlHandlePool(Config config)
     : global_initializer_(GetCurlGlobalInitializer()),
-      pool_(ToResourcePoolConfig(config),
+      pool_(CreateResourcePoolConfig(config),
             [] { return ::std::make_unique<CurlHandle>(); }) {}
 
 ::std::optional<CurlHandlePool::Lease> CurlHandlePool::Acquire() {

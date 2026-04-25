@@ -27,9 +27,15 @@ using ::shooting_star::utilities::ConfigHelper;
 using ::shooting_star::utilities::LogField;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
+using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 using ::shooting_star::utilities::YamlConfigHelper;
+using ::absl::GetFlag;
+using ::absl::SetFlag;
+using ::std::filesystem::exists;
+using ::std::filesystem::path;
 using ::std::string;
 using ::std::string_view;
+using ::std::to_string;
 using ::std::vector;
 
 constexpr string_view kServiceName = "profile";
@@ -49,9 +55,14 @@ constexpr string_view kDefaultEsIndex = "movielens_32m_user_profile";
 constexpr string_view kDefaultEsUsername = "elastic";
 constexpr string_view kDefaultEsPassword = "";
 constexpr string_view kDefaultEsPasswordEnv = "ES_PASSWORD";
-constexpr string_view kDefaultEsCaCertPath = "";
-constexpr bool kDefaultEsVerifySsl = true;
 constexpr int kDefaultEsRequestTimeoutMs = 5000;
+constexpr int kDefaultEsHttpClientPoolSize = 4;
+constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 1000;
+constexpr int kDefaultEsHttpClientRequestTimeoutMs = 5000;
+constexpr int kDefaultEsHttpClientConnectTimeoutMs = 1000;
+constexpr bool kDefaultEsHttpClientFollowRedirects = true;
+constexpr bool kDefaultEsHttpClientVerifySsl = true;
+constexpr string_view kDefaultEsHttpClientCaCertPath = "";
 constexpr string_view kServerPortConfigKey = "server.port";
 constexpr string_view kServerLogLevelConfigKey = "server.log_level";
 constexpr string_view kStoreTypeConfigKey = "store_type";
@@ -64,10 +75,22 @@ constexpr string_view kEsIndexConfigKey = "elasticsearch.index";
 constexpr string_view kEsUsernameConfigKey = "elasticsearch.username";
 constexpr string_view kEsPasswordConfigKey = "elasticsearch.password";
 constexpr string_view kEsPasswordEnvConfigKey = "elasticsearch.password_env";
-constexpr string_view kEsCaCertPathConfigKey = "elasticsearch.ca_cert_path";
-constexpr string_view kEsVerifySslConfigKey = "elasticsearch.verify_ssl";
 constexpr string_view kEsRequestTimeoutMsConfigKey =
     "elasticsearch.request_timeout_ms";
+constexpr string_view kEsHttpClientPoolSizeConfigKey =
+    "elasticsearch.http_client.curl_handle_pool.pool_size";
+constexpr string_view kEsHttpClientAcquireTimeoutMsConfigKey =
+    "elasticsearch.http_client.curl_handle_pool.acquire_timeout_ms";
+constexpr string_view kEsHttpClientRequestTimeoutMsConfigKey =
+    "elasticsearch.http_client.request_timeout_ms";
+constexpr string_view kEsHttpClientConnectTimeoutMsConfigKey =
+    "elasticsearch.http_client.connect_timeout_ms";
+constexpr string_view kEsHttpClientFollowRedirectsConfigKey =
+    "elasticsearch.http_client.follow_redirects";
+constexpr string_view kEsHttpClientVerifySslConfigKey =
+    "elasticsearch.http_client.verify_ssl";
+constexpr string_view kEsHttpClientCaCertPathConfigKey =
+    "elasticsearch.http_client.ca_cert_path";
 constexpr string_view kConfigPathConfigKey = "config.path";
 constexpr string_view kListenAddressHost = "0.0.0.0";
 constexpr string_view kRedactedValue = "<redacted>";
@@ -98,12 +121,29 @@ ABSL_FLAG(::std::string, es_password, string(kDefaultEsPassword),
           "Elasticsearch password.");
 ABSL_FLAG(::std::string, es_password_env, string(kDefaultEsPasswordEnv),
           "Environment variable containing the Elasticsearch password.");
-ABSL_FLAG(::std::string, es_ca_cert_path, string(kDefaultEsCaCertPath),
-          "Elasticsearch CA certificate path.");
-ABSL_FLAG(bool, es_verify_ssl, kDefaultEsVerifySsl,
-          "Whether to verify Elasticsearch TLS certificates.");
 ABSL_FLAG(int, es_request_timeout_ms, kDefaultEsRequestTimeoutMs,
           "Elasticsearch request timeout in milliseconds.");
+ABSL_FLAG(int, es_http_client_curl_handle_pool_size,
+          kDefaultEsHttpClientPoolSize,
+          "Number of curl handles kept in the Elasticsearch HTTP client pool.");
+ABSL_FLAG(int, es_http_client_curl_handle_pool_acquire_timeout_ms,
+          kDefaultEsHttpClientAcquireTimeoutMs,
+          "Elasticsearch HTTP client curl handle acquire timeout in "
+          "milliseconds.");
+ABSL_FLAG(int, es_http_client_request_timeout_ms,
+          kDefaultEsHttpClientRequestTimeoutMs,
+          "Default Curl HTTP request timeout in milliseconds.");
+ABSL_FLAG(int, es_http_client_connect_timeout_ms,
+          kDefaultEsHttpClientConnectTimeoutMs,
+          "Curl HTTP connection timeout in milliseconds.");
+ABSL_FLAG(bool, es_http_client_follow_redirects,
+          kDefaultEsHttpClientFollowRedirects,
+          "Whether Elasticsearch Curl HTTP requests follow redirects.");
+ABSL_FLAG(bool, es_http_client_verify_ssl, kDefaultEsHttpClientVerifySsl,
+          "Whether to verify Elasticsearch TLS certificates.");
+ABSL_FLAG(::std::string, es_http_client_ca_cert_path,
+          string(kDefaultEsHttpClientCaCertPath),
+          "Elasticsearch HTTP client CA certificate path.");
 
 namespace {
 
@@ -130,7 +170,7 @@ StartupConfigPath FindStartupConfigPath(int argc, char** argv) {
     }
   }
 
-  return {::absl::GetFlag(FLAGS_config_path), false};
+  return {GetFlag(FLAGS_config_path), false};
 }
 
 bool HasCommandLineFlag(int argc, char** argv, string_view flag_name) {
@@ -161,23 +201,24 @@ string ResolveStartupConfigPath(const string& config_path,
     return config_path;
   }
 
-  const ::std::filesystem::path path(config_path);
-  if (path.is_absolute()) {
+  const path config_file_path(config_path);
+  if (config_file_path.is_absolute()) {
     return config_path;
   }
 
-  const ::std::filesystem::path executable_relative_path =
-      (::std::filesystem::absolute(executable_path).parent_path() / path)
+  const path executable_relative_path =
+      (::std::filesystem::absolute(executable_path).parent_path() /
+       config_file_path)
           .lexically_normal();
   if (from_config_path_flag || config_path != string(kDefaultConfigPath) ||
-      ::std::filesystem::exists(executable_relative_path)) {
+      exists(executable_relative_path)) {
     return executable_relative_path.string();
   }
 
   const string source_default_config_path =
-      ::shooting_star::utilities::ResolveWorkspaceRelativePath(
-          string(kSourceDefaultConfigPath), executable_path);
-  if (::std::filesystem::exists(source_default_config_path)) {
+      ResolveWorkspaceRelativePath(string(kSourceDefaultConfigPath),
+                                   executable_path);
+  if (exists(source_default_config_path)) {
     return source_default_config_path;
   }
 
@@ -199,83 +240,113 @@ YamlConfigHelper LoadConfigFile(int argc, char** argv) {
 
 void SeedFlagsFromConfig(const ConfigHelper& config) {
   if (config.Has(kServerPortConfigKey)) {
-    ::absl::SetFlag(&FLAGS_port, config.GetUInt16(kServerPortConfigKey,
-                                                  ::absl::GetFlag(FLAGS_port)));
+    SetFlag(&FLAGS_port,
+            config.GetUInt16(kServerPortConfigKey, GetFlag(FLAGS_port)));
   }
   if (config.Has(kServerLogLevelConfigKey)) {
-    ::absl::SetFlag(&FLAGS_log_level,
-                    config.GetString(kServerLogLevelConfigKey,
-                                     ::absl::GetFlag(FLAGS_log_level)));
+    SetFlag(&FLAGS_log_level,
+            config.GetString(kServerLogLevelConfigKey,
+                             GetFlag(FLAGS_log_level)));
   }
   if (config.Has(kStoreTypeConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_store_type,
-        config.GetString(kStoreTypeConfigKey,
-                         ::absl::GetFlag(FLAGS_store_type)));
+        config.GetString(kStoreTypeConfigKey, GetFlag(FLAGS_store_type)));
   }
   if (config.Has(kDataPathConfigKey)) {
-    ::absl::SetFlag(&FLAGS_data_path,
-                    config.GetString(kDataPathConfigKey,
-                                     ::absl::GetFlag(FLAGS_data_path)));
+    SetFlag(&FLAGS_data_path,
+            config.GetString(kDataPathConfigKey, GetFlag(FLAGS_data_path)));
   }
   if (config.Has(kLocalCacheCapacityConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_cache_capacity,
         config.GetInt(kLocalCacheCapacityConfigKey,
-                      ::absl::GetFlag(FLAGS_cache_capacity)));
+                      GetFlag(FLAGS_cache_capacity)));
   }
   if (config.Has(kLocalCacheTtlSecondsConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_cache_ttl_seconds,
         config.GetInt(kLocalCacheTtlSecondsConfigKey,
-                      ::absl::GetFlag(FLAGS_cache_ttl_seconds)));
+                      GetFlag(FLAGS_cache_ttl_seconds)));
   }
   if (config.Has(kEsBaseUrlConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_es_base_url,
-        config.GetString(kEsBaseUrlConfigKey,
-                         ::absl::GetFlag(FLAGS_es_base_url)));
+        config.GetString(kEsBaseUrlConfigKey, GetFlag(FLAGS_es_base_url)));
   }
   if (config.Has(kEsIndexConfigKey)) {
-    ::absl::SetFlag(&FLAGS_es_index,
-                    config.GetString(kEsIndexConfigKey,
-                                     ::absl::GetFlag(FLAGS_es_index)));
+    SetFlag(&FLAGS_es_index,
+            config.GetString(kEsIndexConfigKey, GetFlag(FLAGS_es_index)));
   }
   if (config.Has(kEsUsernameConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_es_username,
-        config.GetString(kEsUsernameConfigKey,
-                         ::absl::GetFlag(FLAGS_es_username)));
+        config.GetString(kEsUsernameConfigKey, GetFlag(FLAGS_es_username)));
   }
   if (config.Has(kEsPasswordConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_es_password,
-        config.GetString(kEsPasswordConfigKey,
-                         ::absl::GetFlag(FLAGS_es_password)));
+        config.GetString(kEsPasswordConfigKey, GetFlag(FLAGS_es_password)));
   }
   if (config.Has(kEsPasswordEnvConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_es_password_env,
         config.GetString(kEsPasswordEnvConfigKey,
-                         ::absl::GetFlag(FLAGS_es_password_env)));
-  }
-  if (config.Has(kEsCaCertPathConfigKey)) {
-    ::absl::SetFlag(
-        &FLAGS_es_ca_cert_path,
-        config.GetString(kEsCaCertPathConfigKey,
-                         ::absl::GetFlag(FLAGS_es_ca_cert_path)));
-  }
-  if (config.Has(kEsVerifySslConfigKey)) {
-    ::absl::SetFlag(
-        &FLAGS_es_verify_ssl,
-        config.GetBool(kEsVerifySslConfigKey,
-                       ::absl::GetFlag(FLAGS_es_verify_ssl)));
+                         GetFlag(FLAGS_es_password_env)));
   }
   if (config.Has(kEsRequestTimeoutMsConfigKey)) {
-    ::absl::SetFlag(
+    SetFlag(
         &FLAGS_es_request_timeout_ms,
         config.GetInt(kEsRequestTimeoutMsConfigKey,
-                      ::absl::GetFlag(FLAGS_es_request_timeout_ms)));
+                      GetFlag(FLAGS_es_request_timeout_ms)));
+  }
+  if (config.Has(kEsHttpClientPoolSizeConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_curl_handle_pool_size,
+        config.GetInt(
+            kEsHttpClientPoolSizeConfigKey,
+            GetFlag(FLAGS_es_http_client_curl_handle_pool_size)));
+  }
+  if (config.Has(kEsHttpClientAcquireTimeoutMsConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_curl_handle_pool_acquire_timeout_ms,
+        config.GetInt(
+            kEsHttpClientAcquireTimeoutMsConfigKey,
+            GetFlag(
+                FLAGS_es_http_client_curl_handle_pool_acquire_timeout_ms)));
+  }
+  if (config.Has(kEsHttpClientRequestTimeoutMsConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_request_timeout_ms,
+        config.GetInt(
+            kEsHttpClientRequestTimeoutMsConfigKey,
+            GetFlag(FLAGS_es_http_client_request_timeout_ms)));
+  }
+  if (config.Has(kEsHttpClientConnectTimeoutMsConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_connect_timeout_ms,
+        config.GetInt(
+            kEsHttpClientConnectTimeoutMsConfigKey,
+            GetFlag(FLAGS_es_http_client_connect_timeout_ms)));
+  }
+  if (config.Has(kEsHttpClientFollowRedirectsConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_follow_redirects,
+        config.GetBool(
+            kEsHttpClientFollowRedirectsConfigKey,
+            GetFlag(FLAGS_es_http_client_follow_redirects)));
+  }
+  if (config.Has(kEsHttpClientVerifySslConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_verify_ssl,
+        config.GetBool(kEsHttpClientVerifySslConfigKey,
+                       GetFlag(FLAGS_es_http_client_verify_ssl)));
+  }
+  if (config.Has(kEsHttpClientCaCertPathConfigKey)) {
+    SetFlag(
+        &FLAGS_es_http_client_ca_cert_path,
+        config.GetString(kEsHttpClientCaCertPathConfigKey,
+                         GetFlag(FLAGS_es_http_client_ca_cert_path)));
   }
 }
 
@@ -294,40 +365,52 @@ void ApplyCommandLineOverridesToConfig(int argc, char** argv,
   ::absl::ParseCommandLine(argc, argv);
 
   config->Set(string(kServerPortConfigKey),
-              ::std::to_string(::absl::GetFlag(FLAGS_port)));
+              to_string(GetFlag(FLAGS_port)));
   config->Set(string(kServerLogLevelConfigKey),
-              ::absl::GetFlag(FLAGS_log_level));
+              GetFlag(FLAGS_log_level));
   config->Set(string(kStoreTypeConfigKey),
-              ::absl::GetFlag(FLAGS_store_type));
+              GetFlag(FLAGS_store_type));
   config->Set(string(kDataPathConfigKey),
-              ::absl::GetFlag(FLAGS_data_path));
+              GetFlag(FLAGS_data_path));
   if (has_local_cache_capacity_config || has_cache_capacity_flag) {
     config->Set(
         string(kLocalCacheCapacityConfigKey),
-        ::std::to_string(::absl::GetFlag(FLAGS_cache_capacity)));
+        to_string(GetFlag(FLAGS_cache_capacity)));
   }
   if (has_local_cache_ttl_config || has_cache_ttl_seconds_flag) {
     config->Set(
         string(kLocalCacheTtlSecondsConfigKey),
-        ::std::to_string(::absl::GetFlag(FLAGS_cache_ttl_seconds)));
+        to_string(GetFlag(FLAGS_cache_ttl_seconds)));
   }
   config->Set(string(kEsBaseUrlConfigKey),
-              ::absl::GetFlag(FLAGS_es_base_url));
+              GetFlag(FLAGS_es_base_url));
   config->Set(string(kEsIndexConfigKey),
-              ::absl::GetFlag(FLAGS_es_index));
+              GetFlag(FLAGS_es_index));
   config->Set(string(kEsUsernameConfigKey),
-              ::absl::GetFlag(FLAGS_es_username));
+              GetFlag(FLAGS_es_username));
   config->Set(string(kEsPasswordConfigKey),
-              ::absl::GetFlag(FLAGS_es_password));
+              GetFlag(FLAGS_es_password));
   config->Set(string(kEsPasswordEnvConfigKey),
-              ::absl::GetFlag(FLAGS_es_password_env));
-  config->Set(string(kEsCaCertPathConfigKey),
-              ::absl::GetFlag(FLAGS_es_ca_cert_path));
-  config->Set(string(kEsVerifySslConfigKey),
-              ::absl::GetFlag(FLAGS_es_verify_ssl) ? "true" : "false");
+              GetFlag(FLAGS_es_password_env));
+  config->Set(string(kEsRequestTimeoutMsConfigKey),
+              to_string(GetFlag(FLAGS_es_request_timeout_ms)));
+  config->Set(string(kEsHttpClientPoolSizeConfigKey),
+              to_string(GetFlag(FLAGS_es_http_client_curl_handle_pool_size)));
   config->Set(
-      string(kEsRequestTimeoutMsConfigKey),
-      ::std::to_string(::absl::GetFlag(FLAGS_es_request_timeout_ms)));
+      string(kEsHttpClientAcquireTimeoutMsConfigKey),
+      to_string(GetFlag(
+          FLAGS_es_http_client_curl_handle_pool_acquire_timeout_ms)));
+  config->Set(string(kEsHttpClientRequestTimeoutMsConfigKey),
+              to_string(GetFlag(FLAGS_es_http_client_request_timeout_ms)));
+  config->Set(string(kEsHttpClientConnectTimeoutMsConfigKey),
+              to_string(GetFlag(FLAGS_es_http_client_connect_timeout_ms)));
+  config->Set(string(kEsHttpClientFollowRedirectsConfigKey),
+              GetFlag(FLAGS_es_http_client_follow_redirects) ? "true"
+                                                             : "false");
+  config->Set(string(kEsHttpClientVerifySslConfigKey),
+              GetFlag(FLAGS_es_http_client_verify_ssl) ? "true" : "false");
+  config->Set(string(kEsHttpClientCaCertPathConfigKey),
+              GetFlag(FLAGS_es_http_client_ca_cert_path));
 }
 
 void ResolveLocalStoreConfigPaths(const string& executable_path,
@@ -337,8 +420,8 @@ void ResolveLocalStoreConfigPaths(const string& executable_path,
   }
   config->Set(
       string(kDataPathConfigKey),
-      ::shooting_star::utilities::ResolveWorkspaceRelativePath(
-          config->GetString(kDataPathConfigKey), executable_path));
+      ResolveWorkspaceRelativePath(
+        config->GetString(kDataPathConfigKey), executable_path));
 }
 
 bool IsSensitiveConfigKey(string_view key) {
@@ -382,8 +465,7 @@ int main(int argc, char** argv) {
 
     const string server_address =
         string(kListenAddressHost) + ":" +
-        ::std::to_string(
-            config.GetUInt16(kServerPortConfigKey, kDefaultServerPort));
+        to_string(config.GetUInt16(kServerPortConfigKey, kDefaultServerPort));
     ProfileServiceImpl service(::std::move(config));
 
     ::grpc::EnableDefaultHealthCheckService(true);

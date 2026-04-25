@@ -10,9 +10,16 @@ elasticsearch:
   username: elastic
   password: ""
   password_env: ES_PASSWORD
-  ca_cert_path: /mnt/elasticsearch-ca/ca.crt
-  verify_ssl: true
   request_timeout_ms: 5000
+  http_client:
+    curl_handle_pool:
+      pool_size: 4
+      acquire_timeout_ms: 1000
+    request_timeout_ms: 5000
+    connect_timeout_ms: 1000
+    follow_redirects: true
+    verify_ssl: true
+    ca_cert_path: /mnt/elasticsearch-ca/ca.crt
 
 local_cache:
   capacity: 30

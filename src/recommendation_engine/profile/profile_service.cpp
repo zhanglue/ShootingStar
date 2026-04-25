@@ -1,6 +1,7 @@
 #include "src/recommendation_engine/profile/profile_service.h"
 
 #include <chrono>
+#include <cstddef>
 #include <cstdlib>
 #include <format>
 #include <memory>
@@ -49,13 +50,30 @@ constexpr string_view kEsIndexConfigKey = "elasticsearch.index";
 constexpr string_view kEsUsernameConfigKey = "elasticsearch.username";
 constexpr string_view kEsPasswordConfigKey = "elasticsearch.password";
 constexpr string_view kEsPasswordEnvConfigKey = "elasticsearch.password_env";
-constexpr string_view kEsCaCertPathConfigKey = "elasticsearch.ca_cert_path";
-constexpr string_view kEsVerifySslConfigKey = "elasticsearch.verify_ssl";
 constexpr string_view kEsRequestTimeoutMsConfigKey =
     "elasticsearch.request_timeout_ms";
+constexpr string_view kEsHttpClientPoolSizeConfigKey =
+    "elasticsearch.http_client.curl_handle_pool.pool_size";
+constexpr string_view kEsHttpClientAcquireTimeoutMsConfigKey =
+    "elasticsearch.http_client.curl_handle_pool.acquire_timeout_ms";
+constexpr string_view kEsHttpClientRequestTimeoutMsConfigKey =
+    "elasticsearch.http_client.request_timeout_ms";
+constexpr string_view kEsHttpClientConnectTimeoutMsConfigKey =
+    "elasticsearch.http_client.connect_timeout_ms";
+constexpr string_view kEsHttpClientFollowRedirectsConfigKey =
+    "elasticsearch.http_client.follow_redirects";
+constexpr string_view kEsHttpClientVerifySslConfigKey =
+    "elasticsearch.http_client.verify_ssl";
+constexpr string_view kEsHttpClientCaCertPathConfigKey =
+    "elasticsearch.http_client.ca_cert_path";
 constexpr string_view kDefaultEsUsername = "elastic";
-constexpr bool kDefaultEsVerifySsl = true;
 constexpr int kDefaultEsRequestTimeoutMs = 5000;
+constexpr int kDefaultEsHttpClientPoolSize = 4;
+constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 1000;
+constexpr int kDefaultEsHttpClientRequestTimeoutMs = 5000;
+constexpr int kDefaultEsHttpClientConnectTimeoutMs = 1000;
+constexpr bool kDefaultEsHttpClientFollowRedirects = true;
+constexpr bool kDefaultEsHttpClientVerifySsl = true;
 constexpr int kDefaultCacheCapacity = 30;
 constexpr int kDefaultCacheTtlSeconds = 300;
 constexpr string_view kLocalStoreType = "local";
@@ -72,6 +90,16 @@ string GetEnvOrDefault(const string& name, string default_value) {
   return value;
 }
 
+int GetPositiveIntConfig(const ::shooting_star::utilities::ConfigHelper& config,
+                         string_view key, int default_value) {
+  const int value = config.GetInt(key, default_value);
+  if (value <= 0) {
+    throw invalid_argument(
+        ::absl::StrFormat("%s must be greater than 0", key));
+  }
+  return value;
+}
+
 ElasticsearchClient::Config CreateElasticsearchConfig(
     const ::shooting_star::utilities::ConfigHelper& config) {
   ElasticsearchClient::Config es_config;
@@ -81,13 +109,28 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
   es_config.password = config.GetString(kEsPasswordConfigKey);
   es_config.password = GetEnvOrDefault(
       config.GetString(kEsPasswordEnvConfigKey), es_config.password);
-  es_config.http_config.ca_cert_path =
-      config.GetString(kEsCaCertPathConfigKey);
+  es_config.request_timeout = milliseconds(GetPositiveIntConfig(
+      config, kEsRequestTimeoutMsConfigKey, kDefaultEsRequestTimeoutMs));
+  es_config.http_config.pool_size = static_cast<::std::size_t>(
+      GetPositiveIntConfig(config, kEsHttpClientPoolSizeConfigKey,
+                           kDefaultEsHttpClientPoolSize));
+  es_config.http_config.acquire_timeout = milliseconds(GetPositiveIntConfig(
+      config, kEsHttpClientAcquireTimeoutMsConfigKey,
+      kDefaultEsHttpClientAcquireTimeoutMs));
+  es_config.http_config.request_timeout = milliseconds(GetPositiveIntConfig(
+      config, kEsHttpClientRequestTimeoutMsConfigKey,
+      kDefaultEsHttpClientRequestTimeoutMs));
+  es_config.http_config.connect_timeout = milliseconds(GetPositiveIntConfig(
+      config, kEsHttpClientConnectTimeoutMsConfigKey,
+      kDefaultEsHttpClientConnectTimeoutMs));
+  es_config.http_config.follow_redirects =
+      config.GetBool(kEsHttpClientFollowRedirectsConfigKey,
+                     kDefaultEsHttpClientFollowRedirects);
   es_config.http_config.verify_ssl =
-      config.GetBool(kEsVerifySslConfigKey, kDefaultEsVerifySsl);
-  es_config.request_timeout =
-      milliseconds(config.GetInt(kEsRequestTimeoutMsConfigKey,
-                                 kDefaultEsRequestTimeoutMs));
+      config.GetBool(kEsHttpClientVerifySslConfigKey,
+                     kDefaultEsHttpClientVerifySsl);
+  es_config.http_config.ca_cert_path =
+      config.GetString(kEsHttpClientCaCertPathConfigKey);
   return es_config;
 }
 
@@ -163,6 +206,22 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
             {"profile_store_type", profile_store_type},
             {"profile_es_base_url", es_config.base_url},
             {"profile_es_index", config.GetString(kEsIndexConfigKey)},
+            {"profile_es_request_timeout_ms",
+             to_string(es_config.request_timeout->count())},
+            {"profile_es_http_client_curl_handle_pool_size",
+             to_string(es_config.http_config.pool_size)},
+            {"profile_es_http_client_curl_handle_pool_acquire_timeout_ms",
+             to_string(es_config.http_config.acquire_timeout.count())},
+            {"profile_es_http_client_request_timeout_ms",
+             to_string(es_config.http_config.request_timeout.count())},
+            {"profile_es_http_client_connect_timeout_ms",
+             to_string(es_config.http_config.connect_timeout.count())},
+            {"profile_es_http_client_follow_redirects",
+             es_config.http_config.follow_redirects ? "true" : "false"},
+            {"profile_es_http_client_verify_ssl",
+             es_config.http_config.verify_ssl ? "true" : "false"},
+            {"profile_es_http_client_ca_cert_path",
+             es_config.http_config.ca_cert_path},
         });
     return make_unique<ElasticsearchProfileStore>(
         ElasticsearchClient::Create(::std::move(es_config)),

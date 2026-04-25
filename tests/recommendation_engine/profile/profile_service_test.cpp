@@ -71,5 +71,51 @@ TEST(ProfileServiceImplTest, LogsReasonWhenLocalCacheIsNotConfigured) {
             string::npos);
 }
 
+TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
+  YamlConfigHelper config;
+  config.Set("store_type", "elasticsearch");
+  config.Set("elasticsearch.base_url", "http://localhost:9200");
+  config.Set("elasticsearch.index", "profiles");
+  config.Set("elasticsearch.request_timeout_ms", "7000");
+  config.Set("elasticsearch.http_client.curl_handle_pool.pool_size", "2");
+  config.Set(
+      "elasticsearch.http_client.curl_handle_pool.acquire_timeout_ms",
+      "7300");
+  config.Set("elasticsearch.http_client.request_timeout_ms", "7100");
+  config.Set("elasticsearch.http_client.connect_timeout_ms", "7200");
+  config.Set("elasticsearch.http_client.follow_redirects", "false");
+  config.Set("elasticsearch.http_client.verify_ssl", "false");
+  config.Set("elasticsearch.http_client.ca_cert_path", "/tmp/ca.crt");
+  InstallProfileTestLogger();
+
+  ::testing::internal::CaptureStdout();
+  ProfileServiceImpl service(::std::move(config));
+  (void)service;
+  const string logs = ::testing::internal::GetCapturedStdout();
+
+  EXPECT_NE(logs.find("\"event\":\"profile_store_initialized\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_store_type\":\"elasticsearch\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_es_request_timeout_ms\":\"7000\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_es_http_client_curl_handle_pool_size\":\"2\""),
+            string::npos);
+  EXPECT_NE(
+      logs.find("\"profile_es_http_client_curl_handle_pool_"
+                "acquire_timeout_ms\":\"7300\""),
+      string::npos);
+  EXPECT_NE(logs.find("\"profile_es_http_client_request_timeout_ms\":\"7100\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_es_http_client_connect_timeout_ms\":\"7200\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_es_http_client_follow_redirects\":\"false\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_es_http_client_verify_ssl\":\"false\""),
+            string::npos);
+  EXPECT_NE(logs.find("\"profile_es_http_client_ca_cert_path\":\"/tmp/ca.crt\""),
+            string::npos);
+}
+
 }  // namespace
 }  // namespace recommendation_engine
