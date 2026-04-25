@@ -13,6 +13,7 @@
 #include "src/clients/client_runtime.h"
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::google::protobuf::Struct;
 using ::google::protobuf::Value;
@@ -21,6 +22,8 @@ using ::google::protobuf::util::MessageToJsonString;
 using ::recommendation_engine::Profile;
 using ::shooting_star::utilities::ElasticsearchClient;
 using ::shooting_star::utilities::ElasticsearchResult;
+using ::shooting_star::utilities::GetEnvFlagOrDefault;
+using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::PBDataHandler;
 using ::std::chrono::milliseconds;
 using ::std::cout;
@@ -45,24 +48,6 @@ struct Config {
   bool verify_ssl = true;
   int timeout_ms = 5000;
 };
-
-string GetEnvOrDefault(const char* name, string default_value) {
-  const char* value = ::std::getenv(name);
-  if (value == nullptr || string(value).empty()) {
-    return default_value;
-  }
-  return value;
-}
-
-bool GetEnvFlagOrDefault(const char* name, bool default_value) {
-  const char* value = ::std::getenv(name);
-  if (value == nullptr || string(value).empty()) {
-    return default_value;
-  }
-  const string text(value);
-  return text == "1" || text == "true" || text == "TRUE" || text == "yes" ||
-         text == "YES";
-}
 
 void PrintUsage() {
   cout << "Usage: recommendation_engine_es_client [options]\n"

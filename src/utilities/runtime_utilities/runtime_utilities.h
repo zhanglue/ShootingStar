@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 #include <string_view>
 
@@ -8,9 +9,20 @@ namespace utilities {
 
 ::std::string Base64Encode(::std::string_view input);
 
+::std::string GetEnvOrDefault(::std::string_view name,
+                              ::std::string default_value);
+
+bool GetEnvFlagOrDefault(::std::string_view name, bool default_value);
+
 ::std::string ResolveWorkspaceRelativePath(
     const ::std::string& path,
     const ::std::string& executable_path = "");
+
+void ValidateTimeoutNotGreater(
+    ::std::string_view inner_key,
+    ::std::chrono::milliseconds inner,
+    ::std::string_view outer_key,
+    ::std::chrono::milliseconds outer);
 
 void TrimLeadingSlashes(::std::string& value);
 

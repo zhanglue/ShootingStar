@@ -16,6 +16,7 @@ class ConfigHelper {
   virtual ::std::string GetString(::std::string_view key,
                                   ::std::string default_value = "") const = 0;
   virtual int GetInt(::std::string_view key, int default_value) const = 0;
+  int GetPositiveInt(::std::string_view key, int default_value) const;
   virtual uint16_t GetUInt16(::std::string_view key,
                              uint16_t default_value) const = 0;
   virtual bool GetBool(::std::string_view key, bool default_value) const = 0;

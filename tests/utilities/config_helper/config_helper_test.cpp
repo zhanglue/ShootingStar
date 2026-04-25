@@ -68,8 +68,26 @@ TEST(YamlConfigHelperTest, KeepsDefaultValueWhenKeyIsMissing) {
 
   EXPECT_EQ(config.GetString("missing", "fallback"), "fallback");
   EXPECT_EQ(config.GetInt("missing", 42), 42);
+  EXPECT_EQ(config.GetPositiveInt("missing", 42), 42);
   EXPECT_EQ(config.GetUInt16("missing", 123), 123);
   EXPECT_TRUE(config.GetBool("missing", true));
+}
+
+TEST(YamlConfigHelperTest, GetsPositiveIntValue) {
+  YamlConfigHelper config;
+  config.Set("timeout_ms", "5000");
+
+  EXPECT_EQ(config.GetPositiveInt("timeout_ms", 1000), 5000);
+}
+
+TEST(YamlConfigHelperTest, ThrowsForNonPositiveIntValues) {
+  YamlConfigHelper config;
+  config.Set("zero", "0");
+  config.Set("negative", "-1");
+
+  EXPECT_THROW(config.GetPositiveInt("zero", 1000), ::std::invalid_argument);
+  EXPECT_THROW(config.GetPositiveInt("negative", 1000), ::std::invalid_argument);
+  EXPECT_THROW(config.GetPositiveInt("missing", 0), ::std::invalid_argument);
 }
 
 TEST(YamlConfigHelperTest, LoadIfExistsSkipsMissingFile) {

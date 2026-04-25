@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <cstddef>
-#include <cstdlib>
 #include <format>
 #include <memory>
 #include <optional>
@@ -18,6 +17,7 @@
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
 #include "src/utilities/logger/logger.h"
 #include "src/utilities/logger/logger_registry.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
 
@@ -35,8 +35,10 @@ using ::std::to_string;
 using ::std::unique_ptr;
 using ::std::chrono::milliseconds;
 using ::std::chrono::seconds;
+using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
+using ::shooting_star::utilities::ValidateTimeoutNotGreater;
 
 namespace {
 
@@ -79,27 +81,6 @@ constexpr int kDefaultCacheTtlSeconds = 300;
 constexpr string_view kLocalStoreType = "local";
 constexpr string_view kElasticsearchStoreType = "elasticsearch";
 
-string GetEnvOrDefault(const string& name, string default_value) {
-  if (name.empty()) {
-    return default_value;
-  }
-  const char* value = ::std::getenv(name.c_str());
-  if (value == nullptr || string(value).empty()) {
-    return default_value;
-  }
-  return value;
-}
-
-int GetPositiveIntConfig(const ::shooting_star::utilities::ConfigHelper& config,
-                         string_view key, int default_value) {
-  const int value = config.GetInt(key, default_value);
-  if (value <= 0) {
-    throw invalid_argument(
-        ::absl::StrFormat("%s must be greater than 0", key));
-  }
-  return value;
-}
-
 ElasticsearchClient::Config CreateElasticsearchConfig(
     const ::shooting_star::utilities::ConfigHelper& config) {
   ElasticsearchClient::Config es_config;
@@ -109,20 +90,32 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
   es_config.password = config.GetString(kEsPasswordConfigKey);
   es_config.password = GetEnvOrDefault(
       config.GetString(kEsPasswordEnvConfigKey), es_config.password);
-  es_config.request_timeout = milliseconds(GetPositiveIntConfig(
-      config, kEsRequestTimeoutMsConfigKey, kDefaultEsRequestTimeoutMs));
+  es_config.request_timeout = milliseconds(config.GetPositiveInt(
+      kEsRequestTimeoutMsConfigKey, kDefaultEsRequestTimeoutMs));
   es_config.http_config.pool_size = static_cast<::std::size_t>(
-      GetPositiveIntConfig(config, kEsHttpClientPoolSizeConfigKey,
-                           kDefaultEsHttpClientPoolSize));
-  es_config.http_config.acquire_timeout = milliseconds(GetPositiveIntConfig(
-      config, kEsHttpClientAcquireTimeoutMsConfigKey,
+      config.GetPositiveInt(kEsHttpClientPoolSizeConfigKey,
+                            kDefaultEsHttpClientPoolSize));
+  es_config.http_config.acquire_timeout = milliseconds(config.GetPositiveInt(
+      kEsHttpClientAcquireTimeoutMsConfigKey,
       kDefaultEsHttpClientAcquireTimeoutMs));
-  es_config.http_config.request_timeout = milliseconds(GetPositiveIntConfig(
-      config, kEsHttpClientRequestTimeoutMsConfigKey,
+  es_config.http_config.request_timeout = milliseconds(config.GetPositiveInt(
+      kEsHttpClientRequestTimeoutMsConfigKey,
       kDefaultEsHttpClientRequestTimeoutMs));
-  es_config.http_config.connect_timeout = milliseconds(GetPositiveIntConfig(
-      config, kEsHttpClientConnectTimeoutMsConfigKey,
+  es_config.http_config.connect_timeout = milliseconds(config.GetPositiveInt(
+      kEsHttpClientConnectTimeoutMsConfigKey,
       kDefaultEsHttpClientConnectTimeoutMs));
+  ValidateTimeoutNotGreater(kEsHttpClientAcquireTimeoutMsConfigKey,
+                            es_config.http_config.acquire_timeout,
+                            kEsRequestTimeoutMsConfigKey,
+                            *es_config.request_timeout);
+  ValidateTimeoutNotGreater(kEsHttpClientRequestTimeoutMsConfigKey,
+                            es_config.http_config.request_timeout,
+                            kEsRequestTimeoutMsConfigKey,
+                            *es_config.request_timeout);
+  ValidateTimeoutNotGreater(kEsHttpClientConnectTimeoutMsConfigKey,
+                            es_config.http_config.connect_timeout,
+                            kEsHttpClientRequestTimeoutMsConfigKey,
+                            es_config.http_config.request_timeout);
   es_config.http_config.follow_redirects =
       config.GetBool(kEsHttpClientFollowRedirectsConfigKey,
                      kDefaultEsHttpClientFollowRedirects);

@@ -1,6 +1,8 @@
 #include <cstdlib>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -14,6 +16,7 @@ namespace {
 using std::getenv;
 using std::ofstream;
 using std::string;
+using std::chrono::milliseconds;
 using std::filesystem::absolute;
 using std::filesystem::create_directories;
 using std::filesystem::current_path;
@@ -51,6 +54,54 @@ TEST_F(RuntimeUtilitiesTest, Base64EncodeHandlesPadding) {
   EXPECT_EQ(Base64Encode("fo"), "Zm8=");
   EXPECT_EQ(Base64Encode("foo"), "Zm9v");
   EXPECT_EQ(Base64Encode("elastic:secret"), "ZWxhc3RpYzpzZWNyZXQ=");
+}
+
+TEST_F(RuntimeUtilitiesTest, GetsEnvironmentVariableOrDefault) {
+  const char* env_name = "SHOOTING_STAR_RUNTIME_UTILITIES_TEST_ENV";
+  ::unsetenv(env_name);
+  EXPECT_EQ(GetEnvOrDefault(env_name, "fallback"), "fallback");
+  EXPECT_EQ(GetEnvOrDefault("", "fallback"), "fallback");
+
+  ::setenv(env_name, "configured", 1);
+  EXPECT_EQ(GetEnvOrDefault(env_name, "fallback"), "configured");
+
+  ::setenv(env_name, "", 1);
+  EXPECT_EQ(GetEnvOrDefault(env_name, "fallback"), "fallback");
+  ::unsetenv(env_name);
+}
+
+TEST_F(RuntimeUtilitiesTest, GetsEnvironmentFlagOrDefault) {
+  const char* env_name = "SHOOTING_STAR_RUNTIME_UTILITIES_TEST_FLAG";
+  ::unsetenv(env_name);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, true));
+  EXPECT_FALSE(GetEnvFlagOrDefault(env_name, false));
+
+  ::setenv(env_name, "1", 1);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, false));
+  ::setenv(env_name, "true", 1);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, false));
+  ::setenv(env_name, "TRUE", 1);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, false));
+  ::setenv(env_name, "yes", 1);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, false));
+  ::setenv(env_name, "YES", 1);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, false));
+
+  ::setenv(env_name, "0", 1);
+  EXPECT_FALSE(GetEnvFlagOrDefault(env_name, true));
+  ::setenv(env_name, "", 1);
+  EXPECT_TRUE(GetEnvFlagOrDefault(env_name, true));
+  ::unsetenv(env_name);
+}
+
+TEST_F(RuntimeUtilitiesTest, ValidatesTimeoutHierarchy) {
+  EXPECT_NO_THROW(ValidateTimeoutNotGreater("inner", milliseconds(1000),
+                                            "outer", milliseconds(1000)));
+  EXPECT_NO_THROW(ValidateTimeoutNotGreater("inner", milliseconds(999),
+                                            "outer", milliseconds(1000)));
+  EXPECT_THROW(ValidateTimeoutNotGreater("inner", milliseconds(1001),
+                                         "outer", milliseconds(1000)),
+               ::std::invalid_argument);
 }
 
 TEST_F(RuntimeUtilitiesTest, TrimsLeadingAndTrailingSlashes) {

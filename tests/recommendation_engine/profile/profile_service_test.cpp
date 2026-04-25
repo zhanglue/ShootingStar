@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "src/utilities/config_helper/config_helper.h"
@@ -80,9 +81,9 @@ TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
   config.Set("elasticsearch.http_client.curl_handle_pool.pool_size", "2");
   config.Set(
       "elasticsearch.http_client.curl_handle_pool.acquire_timeout_ms",
-      "7300");
-  config.Set("elasticsearch.http_client.request_timeout_ms", "7100");
-  config.Set("elasticsearch.http_client.connect_timeout_ms", "7200");
+      "3000");
+  config.Set("elasticsearch.http_client.request_timeout_ms", "6000");
+  config.Set("elasticsearch.http_client.connect_timeout_ms", "2000");
   config.Set("elasticsearch.http_client.follow_redirects", "false");
   config.Set("elasticsearch.http_client.verify_ssl", "false");
   config.Set("elasticsearch.http_client.ca_cert_path", "/tmp/ca.crt");
@@ -103,11 +104,11 @@ TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
             string::npos);
   EXPECT_NE(
       logs.find("\"profile_es_http_client_curl_handle_pool_"
-                "acquire_timeout_ms\":\"7300\""),
+                "acquire_timeout_ms\":\"3000\""),
       string::npos);
-  EXPECT_NE(logs.find("\"profile_es_http_client_request_timeout_ms\":\"7100\""),
+  EXPECT_NE(logs.find("\"profile_es_http_client_request_timeout_ms\":\"6000\""),
             string::npos);
-  EXPECT_NE(logs.find("\"profile_es_http_client_connect_timeout_ms\":\"7200\""),
+  EXPECT_NE(logs.find("\"profile_es_http_client_connect_timeout_ms\":\"2000\""),
             string::npos);
   EXPECT_NE(logs.find("\"profile_es_http_client_follow_redirects\":\"false\""),
             string::npos);
@@ -115,6 +116,51 @@ TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
             string::npos);
   EXPECT_NE(logs.find("\"profile_es_http_client_ca_cert_path\":\"/tmp/ca.crt\""),
             string::npos);
+}
+
+TEST(ProfileServiceImplTest,
+     RejectsElasticsearchHttpClientAcquireTimeoutAboveRequestTimeout) {
+  YamlConfigHelper config;
+  config.Set("store_type", "elasticsearch");
+  config.Set("elasticsearch.base_url", "http://localhost:9200");
+  config.Set("elasticsearch.index", "profiles");
+  config.Set("elasticsearch.request_timeout_ms", "7000");
+  config.Set(
+      "elasticsearch.http_client.curl_handle_pool.acquire_timeout_ms",
+      "7001");
+  InstallProfileTestLogger();
+
+  EXPECT_THROW(ProfileServiceImpl service(::std::move(config)),
+               ::std::invalid_argument);
+}
+
+TEST(ProfileServiceImplTest,
+     RejectsElasticsearchHttpClientRequestTimeoutAboveRequestTimeout) {
+  YamlConfigHelper config;
+  config.Set("store_type", "elasticsearch");
+  config.Set("elasticsearch.base_url", "http://localhost:9200");
+  config.Set("elasticsearch.index", "profiles");
+  config.Set("elasticsearch.request_timeout_ms", "7000");
+  config.Set("elasticsearch.http_client.request_timeout_ms", "7001");
+  InstallProfileTestLogger();
+
+  EXPECT_THROW(ProfileServiceImpl service(::std::move(config)),
+               ::std::invalid_argument);
+}
+
+TEST(ProfileServiceImplTest,
+     RejectsElasticsearchHttpClientConnectTimeoutAboveHttpRequestTimeout) {
+  YamlConfigHelper config;
+  config.Set("store_type", "elasticsearch");
+  config.Set("elasticsearch.base_url", "http://localhost:9200");
+  config.Set("elasticsearch.index", "profiles");
+  config.Set("elasticsearch.request_timeout_ms", "7000");
+  config.Set("elasticsearch.http_client.request_timeout_ms", "6000");
+  config.Set("elasticsearch.http_client.connect_timeout_ms", "6001");
+  InstallProfileTestLogger();
+
+  EXPECT_THROW(ProfileServiceImpl service(::std::move(config)),
+               ::std::invalid_argument);
 }
 
 }  // namespace
