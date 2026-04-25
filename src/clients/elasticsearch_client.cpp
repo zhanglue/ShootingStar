@@ -57,7 +57,7 @@ struct Config {
 };
 
 void PrintUsage() {
-  cout << "Usage: recommendation_engine_es_client [options]\n"
+  cout << "Usage: elasticsearch_client [options]\n"
        << "Options:\n"
        << "  -h, --help                    Show this help message\n"
        << "  -e, --es-url <URL>            Elasticsearch URL\n"

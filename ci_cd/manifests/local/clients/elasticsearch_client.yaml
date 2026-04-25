@@ -1,19 +1,19 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: recommendation-engine-es-client
+  name: elasticsearch-client
   namespace: recommendation-engine
 spec:
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app: recommendation-engine-es-client
+        app: elasticsearch-client
     spec:
       restartPolicy: Never
       containers:
-      - name: recommendation-engine-es-client
-        image: recommendation-engine-es-client:latest
+      - name: elasticsearch-client
+        image: elasticsearch-client:latest
         imagePullPolicy: Never
         resources:
           requests:

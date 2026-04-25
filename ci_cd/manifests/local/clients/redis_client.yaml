@@ -1,20 +1,20 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: recommendation-engine-redis-client
+  name: redis-client
   namespace: recommendation-engine
 spec:
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app: recommendation-engine-redis-client
+        app: redis-client
     spec:
       restartPolicy: Never
       containers:
-      - name: recommendation-engine-redis-client
-        image: 192.168.1.101:55000/recommendation-engine-redis-client:latest
-        imagePullPolicy: Always
+      - name: redis-client
+        image: redis-client:latest
+        imagePullPolicy: Never
         resources:
           requests:
             memory: 128Mi

@@ -66,7 +66,7 @@ string GetEnvOrDefault(const char* name, string default_value) {
 }
 
 void PrintUsage() {
-  cout << "Usage: recommendation_engine_redis_client [options]\n"
+  cout << "Usage: redis_client [options]\n"
        << "Options:\n"
        << "  -h, --help                         Show this help message\n"
        << "  -H, --redis-host <HOST>            Redis host\n"
