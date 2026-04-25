@@ -11,14 +11,14 @@ BASE_IMAGE_NAME='shooting-star-base'
 IMAGE_TAG_COMPILE_BASE='compile-base'
 IMAGE_TAG_COMPILE_BASE_WITH_CACHE='compile-base-cached'
 CONTAINER_NAME='shooting-star-base-img-building'
-BASE_TARGET='//src/recommendation_engine/gateway:gateway_bin'
+BASE_TARGET='//...'
 
 _start_docker_container() {
     image_name=$1
     image_tag=$2
     echo_info "Starting Docker container ${image_name}:${image_tag} with command..."
 
-    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar && bazel build ${BASE_TARGET}")
+    container_run_cmd=("${DOCKER_CMD}" "run" "--name" "${CONTAINER_NAME}" "-v" "${REPO_ROOT_PATH}:/ShootingStar" "${image_name}:${image_tag}" "bash" "-c" "cd /ShootingStar && bazel build ${BASE_TARGET} && find ./bazel-bin/ -mindepth 1 -maxdepth 1 ! -name 'external' -exec rm -rf {} +")
     echo "${container_run_cmd[@]}"
     "${container_run_cmd[@]}"
     if [[ $? != 0 ]]; then
