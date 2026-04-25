@@ -37,10 +37,10 @@ constexpr char kDefaultEsUrl[] =
 constexpr char kDefaultProfileIndex[] = "movielens_32m_user_profile";
 constexpr char kDefaultUserId[] = "1";
 constexpr char kDefaultCaCertPath[] = "/mnt/elasticsearch-ca/ca.crt";
-constexpr int kDefaultEsRequestTimeoutMs = 100;
-constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 30;
-constexpr int kDefaultEsHttpClientRequestTimeoutMs = 30;
-constexpr int kDefaultEsHttpClientConnectTimeoutMs = 20;
+constexpr int kDefaultEsRequestTimeoutMs = 4000;
+constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 2000;
+constexpr int kDefaultEsHttpClientRequestTimeoutMs = 2000;
+constexpr int kDefaultEsHttpClientConnectTimeoutMs = 2000;
 
 struct Config {
   string es_url;

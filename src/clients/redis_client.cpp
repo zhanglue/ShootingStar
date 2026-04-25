@@ -33,10 +33,10 @@ constexpr int kDefaultRedisDb = 0;
 constexpr char kDefaultKeyPrefix[] = "rec:item_cf:v1:neighbors";
 constexpr char kDefaultItemIds[] = "8893,113705,5733";
 constexpr int kDefaultTopK = 5;
-constexpr int kDefaultConnectTimeoutMs = 100;
-constexpr int kDefaultSocketTimeoutMs = 100;
+constexpr int kDefaultConnectTimeoutMs = 2000;
+constexpr int kDefaultSocketTimeoutMs = 2000;
 constexpr int kDefaultPoolSize = 4;
-constexpr int kDefaultPoolWaitTimeoutMs = 50;
+constexpr int kDefaultPoolWaitTimeoutMs = 2000;
 constexpr int kDefaultRetryMaxAttempts = 2;
 constexpr int kDefaultRetryDelayMs = 10;
 

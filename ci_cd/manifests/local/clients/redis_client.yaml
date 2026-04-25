@@ -4,7 +4,7 @@ metadata:
   name: redis-client
   namespace: recommendation-engine
 spec:
-  backoffLimit: 0
+  backoffLimit: 1
   template:
     metadata:
       labels:

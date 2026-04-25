@@ -4,6 +4,7 @@ metadata:
   name: weather-forecast-fetcher-client
   namespace: weather-forecast
 spec:
+  backoffLimit: 1
   template:
     metadata:
       labels:

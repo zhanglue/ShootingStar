@@ -4,6 +4,7 @@ metadata:
   name: recommendation-engine-client
   namespace: recommendation-engine
 spec:
+  backoffLimit: 1
   template:
     metadata:
       labels:
