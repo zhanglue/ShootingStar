@@ -9,9 +9,11 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace shooting_star {
@@ -86,6 +88,9 @@ class RedisClient {
   };
 
   explicit RedisClient(Config config);
+
+  static ::std::string BuildRedisKey(::std::string_view key_prefix,
+                                     uint64_t item_id);
 
   RedisStatus Ping() const;
   RedisStringResult Get(::std::string key) const;

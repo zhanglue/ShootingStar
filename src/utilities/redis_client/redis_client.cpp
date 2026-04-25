@@ -1,9 +1,11 @@
 #include "src/utilities/redis_client/redis_client.h"
 
+#include <sw/redis++/redis++.h>
+
 #include <charconv>
 #include <chrono>
-#include <memory>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -11,18 +13,16 @@
 #include <utility>
 #include <vector>
 
-#include <sw/redis++/redis++.h>
-
 namespace shooting_star {
 namespace utilities {
 
-using ::std::chrono::milliseconds;
 using ::std::make_shared;
 using ::std::optional;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::string_view;
 using ::std::vector;
+using ::std::chrono::milliseconds;
 
 namespace {
 
@@ -45,13 +45,15 @@ void ValidateRedisConfig(const RedisClient::Config& config) {
     throw ::std::invalid_argument("RedisClient host must not be empty");
   }
   if (config.port <= 0 || config.port > 65535) {
-    throw ::std::invalid_argument("RedisClient port must be between 1 and 65535");
+    throw ::std::invalid_argument(
+        "RedisClient port must be between 1 and 65535");
   }
   if (config.db < 0) {
     throw ::std::invalid_argument("RedisClient db must not be negative");
   }
   if (config.pool_size == 0) {
-    throw ::std::invalid_argument("RedisClient pool_size must be greater than zero");
+    throw ::std::invalid_argument(
+        "RedisClient pool_size must be greater than zero");
   }
   if (config.retry.max_attempts <= 0) {
     throw ::std::invalid_argument(
@@ -60,7 +62,8 @@ void ValidateRedisConfig(const RedisClient::Config& config) {
 
   ValidateNonNegativeTimeout("RedisClient connect_timeout",
                              config.connect_timeout);
-  ValidateNonNegativeTimeout("RedisClient socket_timeout", config.socket_timeout);
+  ValidateNonNegativeTimeout("RedisClient socket_timeout",
+                             config.socket_timeout);
   ValidateNonNegativeTimeout("RedisClient pool_wait_timeout",
                              config.pool_wait_timeout);
   ValidateNonNegativeTimeout("RedisClient pool_connection_lifetime",
@@ -115,8 +118,7 @@ RedisStatus ErrorStatus(RedisErrorCode code, string message, int attempts) {
 }
 
 bool IsRetryable(RedisErrorCode code) {
-  return code == RedisErrorCode::kIoError ||
-         code == RedisErrorCode::kTimeout ||
+  return code == RedisErrorCode::kIoError || code == RedisErrorCode::kTimeout ||
          code == RedisErrorCode::kClosed;
 }
 
@@ -208,6 +210,16 @@ class RedisClient::Impl {
 RedisClient::RedisClient(Config config) : config_(::std::move(config)) {
   ValidateRedisConfig(config_);
   impl_ = make_shared<Impl>(config_);
+}
+
+string RedisClient::BuildRedisKey(string_view key_prefix, uint64_t item_id) {
+  string key(key_prefix);
+  while (!key.empty() && key.back() == ':') {
+    key.pop_back();
+  }
+  key.push_back(':');
+  key.append(::std::to_string(item_id));
+  return key;
 }
 
 RedisStatus RedisClient::Ping() const {
@@ -312,9 +324,8 @@ RedisStringListResult RedisClient::MGet(const vector<string>& keys) const {
   return result;
 }
 
-RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(string key,
-                                                             long long start,
-                                                             long long stop) const {
+RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(
+    string key, long long start, long long stop) const {
   RedisScoredMemberListResult result;
   for (int attempt = 1; attempt <= config_.retry.max_attempts; ++attempt) {
     try {
@@ -336,8 +347,7 @@ RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(string key,
         if (!score.has_value()) {
           result.status = ErrorStatus(
               RedisErrorCode::kProtocolError,
-              "Redis ZREVRANGE WITHSCORES returned an invalid score",
-              attempt);
+              "Redis ZREVRANGE WITHSCORES returned an invalid score", attempt);
           return result;
         }
         result.values.push_back(RedisScoredMember{

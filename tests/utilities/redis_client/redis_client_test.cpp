@@ -1,9 +1,9 @@
 #include "src/utilities/redis_client/redis_client.h"
 
+#include <gtest/gtest.h>
+
 #include <chrono>
 #include <stdexcept>
-
-#include <gtest/gtest.h>
 
 namespace shooting_star {
 namespace utilities {
@@ -55,6 +55,13 @@ TEST(RedisClientTest, EmptyMGetReturnsOkWithoutRedisRoundTrip) {
   EXPECT_EQ(result.status.error_code, RedisErrorCode::kNone);
   EXPECT_EQ(result.status.attempts, 0);
   EXPECT_TRUE(result.values.empty());
+}
+
+TEST(RedisClientTest, BuildsRedisKeyFromPrefixAndItemId) {
+  EXPECT_EQ(RedisClient::BuildRedisKey("rec:item_cf:v1:neighbors", 42),
+            "rec:item_cf:v1:neighbors:42");
+  EXPECT_EQ(RedisClient::BuildRedisKey("rec:item_cf:v1:neighbors:", 42),
+            "rec:item_cf:v1:neighbors:42");
 }
 
 }  // namespace
