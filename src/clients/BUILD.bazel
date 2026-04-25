@@ -20,8 +20,8 @@ cc_binary(
 )
 
 cc_binary(
-    name = "recommendation_engine_es_client",
-    srcs = ["recommendation_engine_es_client.cpp"],
+    name = "elasticsearch_client",
+    srcs = ["elasticsearch_client.cpp"],
     deps = [
         ":client_runtime",
         "//protos/recommendation_engine:profile_cc",
@@ -29,6 +29,15 @@ cc_binary(
         "//src/utilities/pb_data_handler:pb_data_handler",
         "//src/utilities/runtime_utilities:runtime_utilities",
         "@protobuf//:protobuf",
+    ],
+)
+
+cc_binary(
+    name = "redis_client",
+    srcs = ["redis_client.cpp"],
+    deps = [
+        ":client_runtime",
+        "//src/utilities/redis_client:redis_client",
     ],
 )
 
