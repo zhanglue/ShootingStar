@@ -70,6 +70,7 @@ class CurlHandlePool {
   CurlHandlePool& operator=(const CurlHandlePool&) = delete;
 
   ::std::optional<Lease> Acquire();
+  ::std::optional<Lease> Acquire(::std::chrono::milliseconds timeout);
   ::std::size_t size() const;
   ::std::size_t available() const;
 

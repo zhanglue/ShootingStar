@@ -49,6 +49,9 @@ TEST(ElasticsearchClientTest, SearchPostsJsonToIndexSearchEndpoint) {
   config.username = "elastic";
   config.password = "secret";
   config.request_timeout = milliseconds(1234);
+  config.http_config.acquire_timeout = milliseconds(100);
+  config.http_config.request_timeout = milliseconds(1000);
+  config.http_config.connect_timeout = milliseconds(100);
 
   ElasticsearchClient client =
       ElasticsearchClient::Create(http_client, ::std::move(config));
@@ -77,6 +80,7 @@ TEST(ElasticsearchClientTest, GetBuildsDocumentEndpointWithoutBodyHeaders) {
   http_client->next_result.response.body = R"({"_id":"42"})";
   ElasticsearchClient::Config config;
   config.base_url = "http://localhost:9200";
+  config.request_timeout = milliseconds(100);
 
   ElasticsearchClient client =
       ElasticsearchClient::Create(http_client, ::std::move(config));
@@ -89,6 +93,7 @@ TEST(ElasticsearchClientTest, GetBuildsDocumentEndpointWithoutBodyHeaders) {
   EXPECT_EQ(request.method, HttpMethod::kGet);
   EXPECT_EQ(request.url, "http://localhost:9200/movies/_doc/42");
   EXPECT_TRUE(request.body.empty());
+  EXPECT_EQ(request.timeout, milliseconds(100));
   EXPECT_EQ(FindHeader(request.headers, "Accept"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Content-Type"), ::std::nullopt);
   EXPECT_EQ(FindHeader(request.headers, "Authorization"), ::std::nullopt);
@@ -100,6 +105,7 @@ TEST(ElasticsearchClientTest, HealthBuildsClusterHealthEndpoint) {
   http_client->next_result.response.body = R"({"status":"green"})";
   ElasticsearchClient::Config config;
   config.base_url = "http://localhost:9200///";
+  config.request_timeout = milliseconds(100);
 
   ElasticsearchClient client =
       ElasticsearchClient::Create(http_client, ::std::move(config));
@@ -115,6 +121,7 @@ TEST(ElasticsearchClientTest, HealthBuildsClusterHealthEndpoint) {
   EXPECT_EQ(request.method, HttpMethod::kGet);
   EXPECT_EQ(request.url, "http://localhost:9200/_cluster/health");
   EXPECT_TRUE(request.body.empty());
+  EXPECT_EQ(request.timeout, milliseconds(100));
   EXPECT_EQ(FindHeader(request.headers, "Accept"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Content-Type"), ::std::nullopt);
 }
@@ -150,6 +157,20 @@ TEST(ElasticsearchClientTest, RejectsInvalidConstruction) {
 
   EXPECT_THROW(
       ElasticsearchClient::Create(::std::make_shared<FakeHttpClient>(), invalid_config),
+      ::std::invalid_argument);
+}
+
+TEST(ElasticsearchClientTest, RejectsInvalidTimeoutHierarchy) {
+  ElasticsearchClient::Config invalid_config;
+  invalid_config.base_url = "http://localhost:9200";
+  invalid_config.request_timeout = milliseconds(100);
+  invalid_config.http_config.acquire_timeout = milliseconds(80);
+  invalid_config.http_config.request_timeout = milliseconds(30);
+  invalid_config.http_config.connect_timeout = milliseconds(20);
+
+  EXPECT_THROW(
+      ElasticsearchClient::Create(::std::make_shared<FakeHttpClient>(),
+                                  invalid_config),
       ::std::invalid_argument);
 }
 

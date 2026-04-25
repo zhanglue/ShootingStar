@@ -2,6 +2,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 
 #include <gtest/gtest.h>
 
@@ -43,6 +44,42 @@ TEST(CurlHttpClientTest, ReturnsPoolAcquireTimeoutWhenNoHandleAvailable) {
 
   EXPECT_EQ(result.error_code, HttpErrorCode::kPoolAcquireTimeout);
   EXPECT_FALSE(result.error_message.empty());
+}
+
+TEST(CurlHttpClientTest, RetriesCurlHandleAcquireTimeout) {
+  CurlHandlePool::Config pool_config;
+  pool_config.pool_size = 1;
+  pool_config.acquire_timeout = milliseconds(10);
+  auto pool = ::std::make_shared<CurlHandlePool>(pool_config);
+
+  ::std::optional<CurlHandlePool::Lease> held_lease = pool->Acquire();
+  ASSERT_TRUE(held_lease.has_value());
+
+  ::std::thread releaser([&held_lease] {
+    ::std::this_thread::sleep_for(milliseconds(15));
+    held_lease.reset();
+  });
+
+  CurlHttpClient::Config config;
+  config.acquire_retry.max_attempts = 2;
+  config.connect_retry.max_attempts = 1;
+  config.request_retry.max_attempts = 1;
+  config.connect_timeout = milliseconds(5);
+  config.request_timeout = milliseconds(5);
+  CurlHttpClient client(pool, config);
+
+  const HttpResult result = client.Get("http://127.0.0.1:1/");
+  releaser.join();
+
+  EXPECT_NE(result.error_code, HttpErrorCode::kPoolAcquireTimeout);
+  EXPECT_EQ(pool->available(), 1);
+}
+
+TEST(CurlHttpClientTest, RejectsInvalidRetryConfig) {
+  CurlHttpClient::Config config;
+  config.acquire_retry.max_attempts = 0;
+
+  EXPECT_THROW(CurlHttpClient(::std::move(config)), ::std::invalid_argument);
 }
 
 }  // namespace

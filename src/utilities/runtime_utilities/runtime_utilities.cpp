@@ -1,15 +1,23 @@
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
+#include <stdexcept>
 #include <string_view>
 #include <vector>
+
+#include "absl/strings/str_format.h"
 
 namespace shooting_star {
 namespace utilities {
 
+using ::std::invalid_argument;
 using ::std::string;
 using ::std::string_view;
+using ::std::chrono::milliseconds;
+using ::std::chrono::steady_clock;
+using ::std::chrono::system_clock;
 
 namespace {
 
@@ -37,6 +45,21 @@ void AddAncestorDirectories(
 
 }  // namespace
 
+RpcDeadlineStatus CheckGrpcServerDeadline(
+    const ::grpc::ServerContext* context,
+    steady_clock::time_point server_deadline) {
+  if (context != nullptr && context->IsCancelled()) {
+    return RpcDeadlineStatus::kCancelled;
+  }
+  if (context != nullptr && context->deadline() <= system_clock::now()) {
+    return RpcDeadlineStatus::kClientDeadlineExceeded;
+  }
+  if (steady_clock::now() >= server_deadline) {
+    return RpcDeadlineStatus::kServerDeadlineExceeded;
+  }
+  return RpcDeadlineStatus::kOk;
+}
+
 string Base64Encode(string_view input) {
   string output;
   output.reserve(((input.size() + 2) / 3) * 4);
@@ -57,6 +80,27 @@ string Base64Encode(string_view input) {
   }
 
   return output;
+}
+
+string GetEnvOrDefault(string_view name, string default_value) {
+  if (name.empty()) {
+    return default_value;
+  }
+  const string env_name(name);
+  const char* value = ::std::getenv(env_name.c_str());
+  if (value == nullptr || string(value).empty()) {
+    return default_value;
+  }
+  return value;
+}
+
+bool GetEnvFlagOrDefault(string_view name, bool default_value) {
+  const string value = GetEnvOrDefault(name, "");
+  if (value.empty()) {
+    return default_value;
+  }
+  return value == "1" || value == "true" || value == "TRUE" ||
+         value == "yes" || value == "YES";
 }
 
 string ResolveWorkspaceRelativePath(const string& path, const string& executable_path) {
@@ -91,6 +135,32 @@ string ResolveWorkspaceRelativePath(const string& path, const string& executable
   }
 
   return NormalizePath(::std::filesystem::current_path() / relative_path);
+}
+
+void ValidateTimeoutNotGreater(string_view inner_key, milliseconds inner,
+                               string_view outer_key, milliseconds outer) {
+  if (inner <= outer) {
+    return;
+  }
+  throw invalid_argument(::absl::StrFormat(
+      "%s (%d ms) must be less than or equal to %s (%d ms)",
+      inner_key, inner.count(), outer_key, outer.count()));
+}
+
+void ValidateTimeoutSumNotGreater(string_view first_inner_key,
+                                  milliseconds first_inner,
+                                  string_view second_inner_key,
+                                  milliseconds second_inner,
+                                  string_view outer_key,
+                                  milliseconds outer) {
+  const milliseconds inner_sum = first_inner + second_inner;
+  if (inner_sum <= outer) {
+    return;
+  }
+  throw invalid_argument(::absl::StrFormat(
+      "%s (%d ms) + %s (%d ms) must be less than or equal to %s (%d ms)",
+      first_inner_key, first_inner.count(), second_inner_key,
+      second_inner.count(), outer_key, outer.count()));
 }
 
 void TrimLeadingSlashes(string& value) {

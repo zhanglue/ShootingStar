@@ -27,6 +27,7 @@ cc_binary(
         "//protos/recommendation_engine:profile_cc",
         "//src/utilities/elasticsearch_client:elasticsearch_client",
         "//src/utilities/pb_data_handler:pb_data_handler",
+        "//src/utilities/runtime_utilities:runtime_utilities",
         "@protobuf//:protobuf",
     ],
 )

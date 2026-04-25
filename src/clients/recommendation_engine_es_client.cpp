@@ -13,6 +13,7 @@
 #include "src/clients/client_runtime.h"
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::google::protobuf::Struct;
 using ::google::protobuf::Value;
@@ -21,6 +22,8 @@ using ::google::protobuf::util::MessageToJsonString;
 using ::recommendation_engine::Profile;
 using ::shooting_star::utilities::ElasticsearchClient;
 using ::shooting_star::utilities::ElasticsearchResult;
+using ::shooting_star::utilities::GetEnvFlagOrDefault;
+using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::PBDataHandler;
 using ::std::chrono::milliseconds;
 using ::std::cout;
@@ -34,6 +37,10 @@ constexpr char kDefaultEsUrl[] =
 constexpr char kDefaultProfileIndex[] = "movielens_32m_user_profile";
 constexpr char kDefaultUserId[] = "1";
 constexpr char kDefaultCaCertPath[] = "/mnt/elasticsearch-ca/ca.crt";
+constexpr int kDefaultEsRequestTimeoutMs = 100;
+constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 30;
+constexpr int kDefaultEsHttpClientRequestTimeoutMs = 30;
+constexpr int kDefaultEsHttpClientConnectTimeoutMs = 20;
 
 struct Config {
   string es_url;
@@ -43,26 +50,11 @@ struct Config {
   string profile_index;
   string user_id;
   bool verify_ssl = true;
-  int timeout_ms = 5000;
+  int timeout_ms = kDefaultEsRequestTimeoutMs;
+  int acquire_timeout_ms = kDefaultEsHttpClientAcquireTimeoutMs;
+  int http_request_timeout_ms = kDefaultEsHttpClientRequestTimeoutMs;
+  int connect_timeout_ms = kDefaultEsHttpClientConnectTimeoutMs;
 };
-
-string GetEnvOrDefault(const char* name, string default_value) {
-  const char* value = ::std::getenv(name);
-  if (value == nullptr || string(value).empty()) {
-    return default_value;
-  }
-  return value;
-}
-
-bool GetEnvFlagOrDefault(const char* name, bool default_value) {
-  const char* value = ::std::getenv(name);
-  if (value == nullptr || string(value).empty()) {
-    return default_value;
-  }
-  const string text(value);
-  return text == "1" || text == "true" || text == "TRUE" || text == "yes" ||
-         text == "YES";
-}
 
 void PrintUsage() {
   cout << "Usage: recommendation_engine_es_client [options]\n"
@@ -79,7 +71,8 @@ void PrintUsage() {
        << "                                (default: " << kDefaultProfileIndex << ")\n"
        << "  -u, --user-id <USER_ID>       Profile document _id (default: "
        << kDefaultUserId << ")\n"
-       << "  -t, --timeout-ms <MILLIS>     Request timeout (default: 5000)\n"
+       << "  -t, --timeout-ms <MILLIS>     ES client operation budget (default: "
+       << kDefaultEsRequestTimeoutMs << ")\n"
        << "\n"
        << "Environment variables with matching names are also supported:\n"
        << "  ES_BASE_URL, ES_USERNAME, ES_PASSWORD, ES_CA_CERT_PATH,\n"
@@ -240,6 +233,12 @@ bool RunSmokeCheck(const Config& config) {
   es_config.username = config.username;
   es_config.password = config.password;
   es_config.request_timeout = milliseconds(config.timeout_ms);
+  es_config.http_config.acquire_timeout =
+      milliseconds(config.acquire_timeout_ms);
+  es_config.http_config.request_timeout =
+      milliseconds(config.http_request_timeout_ms);
+  es_config.http_config.connect_timeout =
+      milliseconds(config.connect_timeout_ms);
   es_config.http_config.verify_ssl = config.verify_ssl;
   es_config.http_config.ca_cert_path = config.ca_cert_path;
 

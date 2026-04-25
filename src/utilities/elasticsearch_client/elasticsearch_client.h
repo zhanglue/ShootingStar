@@ -2,9 +2,9 @@
  * ElasticsearchClient is the project-level typed wrapper for the subset of the
  * Elasticsearch HTTP API that the recommender services need. The class is
  * responsible for constructing Elasticsearch request paths, normalizing the base
- * URL and request paths, adding JSON and Basic Authentication headers, applying
- * per-request timeout overrides, and translating HttpResult values into
- * ElasticsearchResult values.
+ * URL and request paths, adding JSON and Basic Authentication headers,
+ * validating Elasticsearch and HTTP timeout budgets, and translating HttpResult
+ * values into ElasticsearchResult values.
  *
  * Callers should create instances through the static Create methods. The
  * single-argument Create method builds a default CurlHttpClient-backed transport
@@ -45,6 +45,8 @@ class ElasticsearchClient {
     ::std::string base_url;
     ::std::string username;
     ::std::string password;
+    // End-to-end budget for an Elasticsearch client operation. The underlying
+    // CurlHttpClient uses http_config.request_timeout for the HTTP transfer.
     ::std::optional<::std::chrono::milliseconds> request_timeout;
     CurlHttpClient::Config http_config;
   };
