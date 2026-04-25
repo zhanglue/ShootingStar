@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recommendation-engine-redis-client
+  namespace: recommendation-engine
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: recommendation-engine-redis-client
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: recommendation-engine-redis-client
+        image: recommendation-engine-redis-client:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: "0.1"
+          limits:
+            memory: 256Mi
+            cpu: "0.5"
+        env:
+        - name: REDIS_HOST
+          value: redis-write.recommendation-engine-redis.svc.cluster.local
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              # Kubernetes Secrets are namespace-scoped. Mirror this secret
+              # from recommendation-engine-redis into recommendation-engine
+              # before applying the Job.
+              name: redis-auth
+              key: password
+        - name: REDIS_KEY_PREFIX
+          value: rec:item_cf:v1:neighbors
+        - name: REDIS_ITEM_IDS
+          value: 8893,113705,5733
+        - name: REDIS_TOP_K
+          value: "5"

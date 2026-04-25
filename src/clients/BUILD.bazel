@@ -33,6 +33,15 @@ cc_binary(
 )
 
 cc_binary(
+    name = "recommendation_engine_redis_client",
+    srcs = ["recommendation_engine_redis_client.cpp"],
+    deps = [
+        ":client_runtime",
+        "//src/utilities/redis_client:redis_client",
+    ],
+)
+
+cc_binary(
     name = "recommendation_engine_client",
     srcs = ["recommendation_engine_client.cpp"],
     deps = [
