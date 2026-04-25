@@ -80,6 +80,25 @@ TEST(YamlConfigHelperTest, GetsPositiveIntValue) {
   EXPECT_EQ(config.GetPositiveInt("timeout_ms", 1000), 5000);
 }
 
+TEST(YamlConfigHelperTest, GetsNonNegativeIntValue) {
+  YamlConfigHelper config;
+  config.Set("zero", "0");
+  config.Set("timeout_ms", "5000");
+
+  EXPECT_EQ(config.GetNonNegativeInt("zero", 1000), 0);
+  EXPECT_EQ(config.GetNonNegativeInt("timeout_ms", 1000), 5000);
+}
+
+TEST(YamlConfigHelperTest, ThrowsForNegativeIntValues) {
+  YamlConfigHelper config;
+  config.Set("negative", "-1");
+
+  EXPECT_THROW(config.GetNonNegativeInt("negative", 1000),
+               ::std::invalid_argument);
+  EXPECT_THROW(config.GetNonNegativeInt("missing", -1),
+               ::std::invalid_argument);
+}
+
 TEST(YamlConfigHelperTest, ThrowsForNonPositiveIntValues) {
   YamlConfigHelper config;
   config.Set("zero", "0");

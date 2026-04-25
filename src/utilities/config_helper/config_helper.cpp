@@ -112,8 +112,16 @@ bool ParseBoolValue(string_view key, string_view value) {
 
 }  // namespace
 
-int ConfigHelper::GetPositiveInt(string_view key, int default_value) const {
+int ConfigHelper::GetNonNegativeInt(string_view key, int default_value) const {
   const int value = GetInt(key, default_value);
+  if (value < 0) {
+    throw invalid_argument(string(key) + " must not be negative");
+  }
+  return value;
+}
+
+int ConfigHelper::GetPositiveInt(string_view key, int default_value) const {
+  const int value = GetNonNegativeInt(key, default_value);
   if (value <= 0) {
     throw invalid_argument(string(key) + " must be greater than 0");
   }

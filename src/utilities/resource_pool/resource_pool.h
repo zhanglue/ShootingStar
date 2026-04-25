@@ -57,6 +57,7 @@ class ResourcePool {
   ResourcePool& operator=(const ResourcePool&) = delete;
 
   ::std::optional<Lease> Acquire();
+  ::std::optional<Lease> Acquire(::std::chrono::milliseconds timeout);
   ::std::size_t size() const;
   ::std::size_t available() const;
 
@@ -155,9 +156,15 @@ ResourcePool<T>::ResourcePool(Config config, Factory factory) : config_(config) 
 
 template <typename T>
 ::std::optional<typename ResourcePool<T>::Lease> ResourcePool<T>::Acquire() {
+  return Acquire(config_.acquire_timeout);
+}
+
+template <typename T>
+::std::optional<typename ResourcePool<T>::Lease> ResourcePool<T>::Acquire(
+    ::std::chrono::milliseconds timeout) {
   ::std::unique_lock lock(mutex_);
   const bool acquired = condition_.wait_for(
-      lock, config_.acquire_timeout,
+      lock, timeout,
       [this] { return !available_resources_.empty(); });
 
   if (!acquired) {

@@ -22,6 +22,8 @@ constexpr int kDefaultRequestTimeoutMs = 100;
 constexpr int kDefaultHttpClientAcquireTimeoutMs = 30;
 constexpr int kDefaultHttpClientRequestTimeoutMs = 30;
 constexpr int kDefaultHttpClientConnectTimeoutMs = 20;
+constexpr int kDefaultHttpClientRetryMaxAttempts = 3;
+constexpr int kDefaultHttpClientRetryDelayMs = 0;
 
 void ValidateElasticsearchTimeoutConfig(
     const ElasticsearchClient::Config& config) {
@@ -74,6 +76,12 @@ ElasticsearchClient::Config::Config()
       milliseconds(kDefaultHttpClientRequestTimeoutMs);
   http_config.connect_timeout =
       milliseconds(kDefaultHttpClientConnectTimeoutMs);
+  http_config.acquire_retry.max_attempts = kDefaultHttpClientRetryMaxAttempts;
+  http_config.acquire_retry.delay = milliseconds(kDefaultHttpClientRetryDelayMs);
+  http_config.connect_retry.max_attempts = kDefaultHttpClientRetryMaxAttempts;
+  http_config.connect_retry.delay = milliseconds(kDefaultHttpClientRetryDelayMs);
+  http_config.request_retry.max_attempts = kDefaultHttpClientRetryMaxAttempts;
+  http_config.request_retry.delay = milliseconds(kDefaultHttpClientRetryDelayMs);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,7 +120,8 @@ ElasticsearchClient::ElasticsearchClient(
 ElasticsearchResult ElasticsearchClient::Health() const {
   return ElasticsearchResult(
       http_client_->Get(BuildUrl("/_cluster/health"),
-                        BuildHeaders(/*has_body=*/false)));
+                        BuildHeaders(/*has_body=*/false),
+                        config_.request_timeout));
 }
 
 ElasticsearchResult ElasticsearchClient::Get(string index, string id) const {
@@ -120,7 +129,8 @@ ElasticsearchResult ElasticsearchClient::Get(string index, string id) const {
   TrimLeadingSlashes(id);
   return ElasticsearchResult(
       http_client_->Get(BuildUrl(index + "/_doc/" + id),
-                        BuildHeaders(/*has_body=*/false)));
+                        BuildHeaders(/*has_body=*/false),
+                        config_.request_timeout));
 }
 
 ElasticsearchResult ElasticsearchClient::Search(string index, string query_json) const {
@@ -128,7 +138,8 @@ ElasticsearchResult ElasticsearchClient::Search(string index, string query_json)
   return ElasticsearchResult(
       http_client_->Post(BuildUrl(index + "/_search"),
                          std::move(query_json),
-                         BuildHeaders(/*has_body=*/true)));
+                         BuildHeaders(/*has_body=*/true),
+                         config_.request_timeout));
 }
 
 string ElasticsearchClient::BuildUrl(string path) const {

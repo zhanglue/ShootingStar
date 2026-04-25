@@ -100,6 +100,16 @@ CurlHandlePool::CurlHandlePool(Config config)
   return Lease(::std::move(*lease));
 }
 
+::std::optional<CurlHandlePool::Lease> CurlHandlePool::Acquire(
+    ::std::chrono::milliseconds timeout) {
+  ::std::optional<ResourcePool<CurlHandle>::Lease> lease =
+      pool_.Acquire(timeout);
+  if (!lease.has_value()) {
+    return ::std::nullopt;
+  }
+  return Lease(::std::move(*lease));
+}
+
 ::std::size_t CurlHandlePool::size() const {
   return pool_.size();
 }

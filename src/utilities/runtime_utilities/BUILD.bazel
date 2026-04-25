@@ -8,5 +8,6 @@ cc_library(
     hdrs = ["runtime_utilities.h"],
     deps = [
         "@abseil-cpp//absl/strings:str_format",
+        "@grpc//:grpc++",
     ],
 )

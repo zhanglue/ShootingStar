@@ -60,11 +60,14 @@ constexpr int kDefaultEsHttpClientPoolSize = 4;
 constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 30;
 constexpr int kDefaultEsHttpClientRequestTimeoutMs = 30;
 constexpr int kDefaultEsHttpClientConnectTimeoutMs = 20;
+constexpr int kDefaultGetProfileTimeoutMs = 120;
 constexpr bool kDefaultEsHttpClientFollowRedirects = true;
 constexpr bool kDefaultEsHttpClientVerifySsl = true;
 constexpr string_view kDefaultEsHttpClientCaCertPath = "";
 constexpr string_view kServerPortConfigKey = "server.port";
 constexpr string_view kServerLogLevelConfigKey = "server.log_level";
+constexpr string_view kGetProfileTimeoutMsConfigKey =
+    "server.get_profile_timeout_ms";
 constexpr string_view kStoreTypeConfigKey = "store_type";
 constexpr string_view kDataPathConfigKey = "data_path";
 constexpr string_view kLocalCacheCapacityConfigKey = "local_cache.capacity";
@@ -103,6 +106,9 @@ ABSL_FLAG(uint16_t, port, kDefaultServerPort,
           "Server port for the service");
 ABSL_FLAG(::std::string, log_level, string(kDefaultLogLevel),
           "Minimum log level. Supported values: DEBUG, INFO, WARNING, ERROR.");
+ABSL_FLAG(int, get_profile_timeout_ms, kDefaultGetProfileTimeoutMs,
+          "ProfileService GetProfile server-side processing timeout in "
+          "milliseconds.");
 ABSL_FLAG(::std::string, store_type, string(kDefaultStoreType),
           "Profile store type. Supported values: local, elasticsearch.");
 ABSL_FLAG(::std::string, data_path, string(kDefaultDataPath),
@@ -251,6 +257,12 @@ void SeedFlagsFromConfig(const ConfigHelper& config) {
             config.GetString(kServerLogLevelConfigKey,
                              GetFlag(FLAGS_log_level)));
   }
+  if (config.Has(kGetProfileTimeoutMsConfigKey)) {
+    SetFlag(
+        &FLAGS_get_profile_timeout_ms,
+        config.GetInt(kGetProfileTimeoutMsConfigKey,
+                      GetFlag(FLAGS_get_profile_timeout_ms)));
+  }
   if (config.Has(kStoreTypeConfigKey)) {
     SetFlag(
         &FLAGS_store_type,
@@ -371,6 +383,8 @@ void ApplyCommandLineOverridesToConfig(int argc, char** argv,
               to_string(GetFlag(FLAGS_port)));
   config->Set(string(kServerLogLevelConfigKey),
               GetFlag(FLAGS_log_level));
+  config->Set(string(kGetProfileTimeoutMsConfigKey),
+              to_string(GetFlag(FLAGS_get_profile_timeout_ms)));
   config->Set(string(kStoreTypeConfigKey),
               GetFlag(FLAGS_store_type));
   config->Set(string(kDataPathConfigKey),

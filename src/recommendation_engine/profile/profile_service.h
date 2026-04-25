@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include <grpcpp/grpcpp.h>
 
 #include "protos/recommendation_engine/profile.grpc.pb.h"
@@ -19,6 +21,7 @@ class ProfileServiceImpl final : public ProfileService::Service {
 
  private:
   ::shooting_star::utilities::YamlConfigHelper config_;
+  ::std::chrono::milliseconds get_profile_timeout_;
   ::std::unique_ptr<ProfileStore> profile_store_;
 };
 

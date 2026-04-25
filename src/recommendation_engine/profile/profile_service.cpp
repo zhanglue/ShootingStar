@@ -34,10 +34,13 @@ using ::std::string_view;
 using ::std::to_string;
 using ::std::unique_ptr;
 using ::std::chrono::milliseconds;
+using ::std::chrono::steady_clock;
 using ::std::chrono::seconds;
 using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
+using ::shooting_star::utilities::CheckGrpcServerDeadline;
+using ::shooting_star::utilities::RpcDeadlineStatus;
 using ::shooting_star::utilities::ValidateTimeoutNotGreater;
 using ::shooting_star::utilities::ValidateTimeoutSumNotGreater;
 
@@ -45,6 +48,8 @@ namespace {
 
 constexpr string_view kStoreTypeConfigKey = "store_type";
 constexpr string_view kDataPathConfigKey = "data_path";
+constexpr string_view kGetProfileTimeoutMsConfigKey =
+    "server.get_profile_timeout_ms";
 constexpr string_view kLocalCacheCapacityConfigKey = "local_cache.capacity";
 constexpr string_view kLocalCacheTtlSecondsConfigKey =
     "local_cache.ttl_seconds";
@@ -63,6 +68,18 @@ constexpr string_view kEsHttpClientRequestTimeoutMsConfigKey =
     "elasticsearch.http_client.request_timeout_ms";
 constexpr string_view kEsHttpClientConnectTimeoutMsConfigKey =
     "elasticsearch.http_client.connect_timeout_ms";
+constexpr string_view kEsHttpClientAcquireRetryMaxAttemptsConfigKey =
+    "elasticsearch.http_client.curl_handle_pool.retry.max_attempts";
+constexpr string_view kEsHttpClientAcquireRetryDelayMsConfigKey =
+    "elasticsearch.http_client.curl_handle_pool.retry.delay_ms";
+constexpr string_view kEsHttpClientConnectRetryMaxAttemptsConfigKey =
+    "elasticsearch.http_client.connect_retry.max_attempts";
+constexpr string_view kEsHttpClientConnectRetryDelayMsConfigKey =
+    "elasticsearch.http_client.connect_retry.delay_ms";
+constexpr string_view kEsHttpClientRequestRetryMaxAttemptsConfigKey =
+    "elasticsearch.http_client.request_retry.max_attempts";
+constexpr string_view kEsHttpClientRequestRetryDelayMsConfigKey =
+    "elasticsearch.http_client.request_retry.delay_ms";
 constexpr string_view kEsHttpClientFollowRedirectsConfigKey =
     "elasticsearch.http_client.follow_redirects";
 constexpr string_view kEsHttpClientVerifySslConfigKey =
@@ -75,6 +92,9 @@ constexpr int kDefaultEsHttpClientPoolSize = 4;
 constexpr int kDefaultEsHttpClientAcquireTimeoutMs = 30;
 constexpr int kDefaultEsHttpClientRequestTimeoutMs = 30;
 constexpr int kDefaultEsHttpClientConnectTimeoutMs = 20;
+constexpr int kDefaultEsHttpClientRetryMaxAttempts = 3;
+constexpr int kDefaultEsHttpClientRetryDelayMs = 0;
+constexpr int kDefaultGetProfileTimeoutMs = 120;
 constexpr bool kDefaultEsHttpClientFollowRedirects = true;
 constexpr bool kDefaultEsHttpClientVerifySsl = true;
 constexpr int kDefaultCacheCapacity = 30;
@@ -105,6 +125,27 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
   es_config.http_config.connect_timeout = milliseconds(config.GetPositiveInt(
       kEsHttpClientConnectTimeoutMsConfigKey,
       kDefaultEsHttpClientConnectTimeoutMs));
+  es_config.http_config.acquire_retry.max_attempts = config.GetPositiveInt(
+      kEsHttpClientAcquireRetryMaxAttemptsConfigKey,
+      kDefaultEsHttpClientRetryMaxAttempts);
+  es_config.http_config.acquire_retry.delay = milliseconds(
+      config.GetNonNegativeInt(
+          kEsHttpClientAcquireRetryDelayMsConfigKey,
+          kDefaultEsHttpClientRetryDelayMs));
+  es_config.http_config.connect_retry.max_attempts = config.GetPositiveInt(
+      kEsHttpClientConnectRetryMaxAttemptsConfigKey,
+      kDefaultEsHttpClientRetryMaxAttempts);
+  es_config.http_config.connect_retry.delay = milliseconds(
+      config.GetNonNegativeInt(
+          kEsHttpClientConnectRetryDelayMsConfigKey,
+          kDefaultEsHttpClientRetryDelayMs));
+  es_config.http_config.request_retry.max_attempts = config.GetPositiveInt(
+      kEsHttpClientRequestRetryMaxAttemptsConfigKey,
+      kDefaultEsHttpClientRetryMaxAttempts);
+  es_config.http_config.request_retry.delay = milliseconds(
+      config.GetNonNegativeInt(
+          kEsHttpClientRequestRetryDelayMsConfigKey,
+          kDefaultEsHttpClientRetryDelayMs));
   ValidateTimeoutNotGreater(kEsHttpClientAcquireTimeoutMsConfigKey,
                             es_config.http_config.acquire_timeout,
                             kEsRequestTimeoutMsConfigKey,
@@ -123,6 +164,12 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
                                es_config.http_config.request_timeout,
                                kEsRequestTimeoutMsConfigKey,
                                *es_config.request_timeout);
+  ValidateTimeoutNotGreater(
+      kEsRequestTimeoutMsConfigKey,
+      *es_config.request_timeout,
+      kGetProfileTimeoutMsConfigKey,
+      milliseconds(config.GetPositiveInt(kGetProfileTimeoutMsConfigKey,
+                                          kDefaultGetProfileTimeoutMs)));
   es_config.http_config.follow_redirects =
       config.GetBool(kEsHttpClientFollowRedirectsConfigKey,
                      kDefaultEsHttpClientFollowRedirects);
@@ -216,6 +263,18 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
              to_string(es_config.http_config.request_timeout.count())},
             {"profile_es_http_client_connect_timeout_ms",
              to_string(es_config.http_config.connect_timeout.count())},
+            {"profile_es_http_client_curl_handle_pool_retry_max_attempts",
+             to_string(es_config.http_config.acquire_retry.max_attempts)},
+            {"profile_es_http_client_curl_handle_pool_retry_delay_ms",
+             to_string(es_config.http_config.acquire_retry.delay.count())},
+            {"profile_es_http_client_connect_retry_max_attempts",
+             to_string(es_config.http_config.connect_retry.max_attempts)},
+            {"profile_es_http_client_connect_retry_delay_ms",
+             to_string(es_config.http_config.connect_retry.delay.count())},
+            {"profile_es_http_client_request_retry_max_attempts",
+             to_string(es_config.http_config.request_retry.max_attempts)},
+            {"profile_es_http_client_request_retry_delay_ms",
+             to_string(es_config.http_config.request_retry.delay.count())},
             {"profile_es_http_client_follow_redirects",
              es_config.http_config.follow_redirects ? "true" : "false"},
             {"profile_es_http_client_verify_ssl",
@@ -240,11 +299,42 @@ unique_ptr<ProfileStore> CreateProfileStore(
       CreateUncachedProfileStore(config, profile_store_type));
 }
 
+string GetProfileDeadlineReason(RpcDeadlineStatus deadline_status) {
+  switch (deadline_status) {
+    case RpcDeadlineStatus::kCancelled:
+      return "GetProfile request was cancelled.";
+    case RpcDeadlineStatus::kClientDeadlineExceeded:
+      return "GetProfile client deadline exceeded.";
+    case RpcDeadlineStatus::kServerDeadlineExceeded:
+      return "GetProfile service timeout exceeded.";
+    case RpcDeadlineStatus::kOk:
+      return "";
+  }
+  return "";
+}
+
+string_view GetProfileDeadlineEvent(RpcDeadlineStatus deadline_status) {
+  switch (deadline_status) {
+    case RpcDeadlineStatus::kCancelled:
+      return "get_profile_request_cancelled";
+    case RpcDeadlineStatus::kClientDeadlineExceeded:
+      return "get_profile_client_deadline_exceeded";
+    case RpcDeadlineStatus::kServerDeadlineExceeded:
+      return "get_profile_service_timeout_exceeded";
+    case RpcDeadlineStatus::kOk:
+      return "";
+  }
+  return "";
+}
+
 }  // namespace
 
 ProfileServiceImpl::ProfileServiceImpl(
     ::shooting_star::utilities::YamlConfigHelper config)
-    : config_(::std::move(config)) {
+    : config_(::std::move(config)),
+      get_profile_timeout_(milliseconds(config_.GetPositiveInt(
+          kGetProfileTimeoutMsConfigKey,
+          kDefaultGetProfileTimeoutMs))) {
   const Logger& logger = LoggerRegistry::Get();
   const string profile_store_type =
       config_.GetString(kStoreTypeConfigKey);
@@ -253,6 +343,7 @@ ProfileServiceImpl::ProfileServiceImpl(
       "profile_store_selected",
       {
           {"profile_store_type", profile_store_type},
+          {"get_profile_timeout_ms", to_string(get_profile_timeout_.count())},
       });
 
   profile_store_ = CreateProfileStore(config_, profile_store_type);
@@ -261,7 +352,8 @@ ProfileServiceImpl::ProfileServiceImpl(
 Status ProfileServiceImpl::GetProfile(ServerContext* context,
                                       const GetProfileRequest* request,
                                       GetProfileResponse* response) {
-  (void)context;
+  const steady_clock::time_point request_deadline =
+      steady_clock::now() + get_profile_timeout_;
   const Logger& logger = LoggerRegistry::Get();
   logger.Info(
       "get_profile_request_received",
@@ -290,6 +382,21 @@ Status ProfileServiceImpl::GetProfile(ServerContext* context,
         });
     return Status(StatusCode::INTERNAL, ex.what());
   }
+
+  RpcDeadlineStatus deadline_status =
+      CheckGrpcServerDeadline(context, request_deadline);
+  if (deadline_status != RpcDeadlineStatus::kOk) {
+    const string reason = GetProfileDeadlineReason(deadline_status);
+    response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
+    logger.Info(
+        GetProfileDeadlineEvent(deadline_status),
+        {
+            {"user_id", to_string(request->user_id())},
+            {"reason", reason},
+        });
+    return Status(StatusCode::DEADLINE_EXCEEDED, reason);
+  }
+
   if (!profile.has_value()) {
     response->set_status(ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
     logger.Info(

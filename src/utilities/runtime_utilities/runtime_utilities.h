@@ -4,8 +4,21 @@
 #include <string>
 #include <string_view>
 
+#include <grpcpp/grpcpp.h>
+
 namespace shooting_star {
 namespace utilities {
+
+enum class RpcDeadlineStatus {
+  kOk,
+  kCancelled,
+  kClientDeadlineExceeded,
+  kServerDeadlineExceeded,
+};
+
+RpcDeadlineStatus CheckGrpcServerDeadline(
+    const ::grpc::ServerContext* context,
+    ::std::chrono::steady_clock::time_point server_deadline);
 
 ::std::string Base64Encode(::std::string_view input);
 

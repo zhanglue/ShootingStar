@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -26,6 +27,7 @@ using ::std::string;
 using ::std::string_view;
 using ::std::vector;
 using ::std::chrono::milliseconds;
+using ::std::chrono::steady_clock;
 
 namespace {
 
@@ -33,6 +35,17 @@ namespace {
 // libcurl's C-style callback and option APIs. They keep the raw curl handles,
 // header lists, callbacks, and result construction details contained within
 // this translation unit.
+
+enum class RetryStage {
+  kNone,
+  kConnect,
+  kRequest,
+};
+
+struct CurlAttemptResult {
+  HttpResult result;
+  RetryStage retry_stage = RetryStage::kNone;
+};
 
 class CurlHeaderList {
  public:
@@ -213,6 +226,92 @@ HttpResult CreateUnsupportedHttpStatusResult(long status_code,
   return result;
 }
 
+bool IsRetryableConnectError(CURLcode code) {
+  return code == CURLE_COULDNT_RESOLVE_PROXY ||
+         code == CURLE_COULDNT_RESOLVE_HOST ||
+         code == CURLE_COULDNT_CONNECT ||
+         code == CURLE_SSL_CONNECT_ERROR;
+}
+
+bool IsRetryableRequestError(CURLcode code) {
+  return code == CURLE_SEND_ERROR ||
+         code == CURLE_RECV_ERROR ||
+         code == CURLE_GOT_NOTHING ||
+         code == CURLE_PARTIAL_FILE ||
+         code == CURLE_OPERATION_TIMEDOUT;
+}
+
+bool IsRetryableHttpStatus(int status_code) {
+  return status_code == 429 || status_code >= 500;
+}
+
+HttpResult CreateDeadlineExceededResult() {
+  HttpResult result;
+  result.error_code = HttpErrorCode::kTransportError;
+  result.error_message = "HTTP request timed out before retry attempt";
+  return result;
+}
+
+optional<milliseconds> RemainingTimeout(
+    optional<steady_clock::time_point> deadline) {
+  if (!deadline.has_value()) {
+    return ::std::nullopt;
+  }
+
+  const auto remaining = *deadline - steady_clock::now();
+  if (remaining <= steady_clock::duration::zero()) {
+    return milliseconds(0);
+  }
+  const milliseconds remaining_ms =
+      ::std::chrono::duration_cast<milliseconds>(remaining);
+  if (remaining_ms.count() <= 0) {
+    return milliseconds(0);
+  }
+  return remaining_ms;
+}
+
+bool HasTimeRemaining(optional<steady_clock::time_point> deadline) {
+  const optional<milliseconds> remaining = RemainingTimeout(deadline);
+  return !remaining.has_value() || remaining->count() > 0;
+}
+
+milliseconds MinTimeout(milliseconds first, milliseconds second) {
+  return first <= second ? first : second;
+}
+
+milliseconds BoundByDeadline(
+    milliseconds timeout,
+    optional<steady_clock::time_point> deadline) {
+  const optional<milliseconds> remaining = RemainingTimeout(deadline);
+  if (!remaining.has_value()) {
+    return timeout;
+  }
+  return MinTimeout(timeout, *remaining);
+}
+
+void SleepBeforeRetry(milliseconds delay,
+                      optional<steady_clock::time_point> deadline) {
+  const milliseconds bounded_delay = BoundByDeadline(delay, deadline);
+  if (bounded_delay.count() > 0) {
+    ::std::this_thread::sleep_for(bounded_delay);
+  }
+}
+
+void ValidateRetryConfig(string_view name, const RetryConfig& retry_config) {
+  if (retry_config.max_attempts <= 0) {
+    throw invalid_argument(string(name) + ".max_attempts must be greater than 0");
+  }
+  if (retry_config.delay.count() < 0) {
+    throw invalid_argument(string(name) + ".delay must not be negative");
+  }
+}
+
+void ValidateCurlHttpClientConfig(const CurlHttpClient::Config& config) {
+  ValidateRetryConfig("CurlHttpClient acquire_retry", config.acquire_retry);
+  ValidateRetryConfig("CurlHttpClient connect_retry", config.connect_retry);
+  ValidateRetryConfig("CurlHttpClient request_retry", config.request_retry);
+}
+
 CurlHandlePool::Config CreateCurlHandlePoolConfig(
     const CurlHttpClient::Config& config) {
   CurlHandlePool::Config pool_config;
@@ -221,7 +320,136 @@ CurlHandlePool::Config CreateCurlHandlePoolConfig(
   return pool_config;
 }
 
+CurlAttemptResult PerformOnceWithLease(
+    const CurlHttpClient::Config& config,
+    const HttpRequest& request,
+    CurlHandlePool::Lease lease,
+    milliseconds request_timeout) {
+  CURL* curl = lease.get();
+  curl_easy_reset(curl);
+
+  CurlHeaderList header_list;
+  for (const HttpHeader& header : request.headers) {
+    if (!header_list.Append(header)) {
+      return CurlAttemptResult{
+          CreateInvalidArgumentResult(
+              "Failed to allocate curl request header list"),
+          RetryStage::kNone,
+      };
+    }
+  }
+
+  HttpResponse response;
+  char error_buffer[CURL_ERROR_SIZE] = {};
+
+  SetStringOption(curl, CURLOPT_URL, request.url.c_str());
+  SetLongOption(curl, CURLOPT_NOSIGNAL, 1L);
+  SetPointerOption(curl, CURLOPT_ERRORBUFFER, error_buffer);
+  SetFunctionOption(curl, CURLOPT_WRITEFUNCTION, WriteBodyCallback);
+  SetPointerOption(curl, CURLOPT_WRITEDATA, &response.body);
+  SetFunctionOption(curl, CURLOPT_HEADERFUNCTION, WriteHeaderCallback);
+  SetPointerOption(curl, CURLOPT_HEADERDATA, &response.headers);
+  SetLongOption(curl, CURLOPT_FOLLOWLOCATION,
+                config.follow_redirects ? 1L : 0L);
+  SetLongOption(curl, CURLOPT_SSL_VERIFYPEER, config.verify_ssl ? 1L : 0L);
+  SetLongOption(curl, CURLOPT_SSL_VERIFYHOST, config.verify_ssl ? 2L : 0L);
+  if (!config.ca_cert_path.empty()) {
+    SetStringOption(curl, CURLOPT_CAINFO, config.ca_cert_path.c_str());
+    const string ca_cert_dir = path(config.ca_cert_path).parent_path().string();
+    if (!ca_cert_dir.empty()) {
+      SetStringOption(curl, CURLOPT_CAPATH, ca_cert_dir.c_str());
+    }
+  }
+  const milliseconds connect_timeout =
+      MinTimeout(config.connect_timeout, request_timeout);
+  SetLongOption(curl, CURLOPT_CONNECTTIMEOUT_MS,
+                static_cast<long>(connect_timeout.count()));
+  SetLongOption(curl, CURLOPT_TIMEOUT_MS,
+                static_cast<long>(request_timeout.count()));
+
+  if (header_list.get() != nullptr) {
+    SetHeaderListOption(curl, CURLOPT_HTTPHEADER, header_list.get());
+  }
+
+  CurlStringList resolve_list;
+  for (const string& resolve_host : config.resolve_hosts) {
+    if (!resolve_list.Append(resolve_host)) {
+      return CurlAttemptResult{
+          CreateInvalidArgumentResult(
+              "Failed to allocate curl host resolve list"),
+          RetryStage::kNone,
+      };
+    }
+  }
+  if (resolve_list.get() != nullptr) {
+    SetHeaderListOption(curl, CURLOPT_RESOLVE, resolve_list.get());
+  }
+
+  ConfigureMethod(curl, request);
+
+  // libcurl easy handles one transfer at a time and does not provide a general
+  // whole-request retry option, so retry policy is applied by the caller.
+  const CURLcode code = curl_easy_perform(curl);
+
+  long curl_response_code = 0;
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_response_code);
+
+  HttpResult result;
+
+  if (code != CURLE_OK) {
+    result.response = std::move(response);
+    result.error_code = HttpErrorCode::kTransportError;
+    result.error_message =
+        error_buffer[0] != '\0' ? error_buffer : curl_easy_strerror(code);
+
+    RetryStage retry_stage = RetryStage::kNone;
+    if (code == CURLE_OPERATION_TIMEDOUT && curl_response_code == 0) {
+      retry_stage = RetryStage::kConnect;
+    } else if (IsRetryableConnectError(code)) {
+      retry_stage = RetryStage::kConnect;
+    } else if (IsRetryableRequestError(code)) {
+      retry_stage = RetryStage::kRequest;
+    }
+    return CurlAttemptResult{std::move(result), retry_stage};
+  }
+
+  if (!IsSupportedHttpStatusCode(curl_response_code)) {
+    return CurlAttemptResult{
+        CreateUnsupportedHttpStatusResult(curl_response_code,
+                                          std::move(response)),
+        RetryStage::kNone,
+    };
+  }
+
+  response.status_code = static_cast<int>(curl_response_code);
+  result.response = std::move(response);
+
+  if (result.response.status_code < 200 || result.response.status_code >= 400) {
+    result.error_code = HttpErrorCode::kHttpStatusError;
+    result.error_message =
+        format("HTTP request returned status {}", result.response.status_code);
+    const RetryStage retry_stage =
+        IsRetryableHttpStatus(result.response.status_code)
+            ? RetryStage::kRequest
+            : RetryStage::kNone;
+    return CurlAttemptResult{
+        std::move(result),
+        retry_stage,
+    };
+  }
+
+  return CurlAttemptResult{std::move(result), RetryStage::kNone};
+}
+
 }  // namespace
+
+////////////////////////////////////////////////////////////////////////////////
+// RetryConfig
+////////////////////////////////////////////////////////////////////////////////
+
+RetryConfig::RetryConfig()
+    : max_attempts(1),
+      delay(milliseconds(0)) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // CurlHttpClient::Config
@@ -243,7 +471,9 @@ CurlHttpClient::CurlHttpClient() : CurlHttpClient(Config{}) {}
 
 CurlHttpClient::CurlHttpClient(Config config)
     : config_(config),
-      pool_(make_shared<CurlHandlePool>(CreateCurlHandlePoolConfig(config))) {}
+      pool_(make_shared<CurlHandlePool>(CreateCurlHandlePoolConfig(config))) {
+  ValidateCurlHttpClientConfig(config_);
+}
 
 CurlHttpClient::CurlHttpClient(shared_ptr<CurlHandlePool> pool)
     : CurlHttpClient(std::move(pool), Config{}) {}
@@ -253,6 +483,7 @@ CurlHttpClient::CurlHttpClient(shared_ptr<CurlHandlePool> pool, Config config)
   if (pool_ == nullptr) {
     throw invalid_argument("CurlHttpClient pool must not be null");
   }
+  ValidateCurlHttpClientConfig(config_);
 }
 
 // Implements HttpClient's virtual request execution hook on top of libcurl.
@@ -264,101 +495,76 @@ HttpResult CurlHttpClient::Execute(const HttpRequest& request) {
     return CreateInvalidArgumentResult("HTTP request URL must not be empty");
   }
 
-  optional<CurlHandlePool::Lease> lease = pool_->Acquire();
-  if (!lease.has_value()) {
-    HttpResult result;
-    result.error_code = HttpErrorCode::kPoolAcquireTimeout;
-    result.error_message = "Timed out acquiring curl handle from HTTP pool";
-    return result;
-  }
+  HttpResult last_result;
+  int connect_attempts = 0;
+  int request_attempts = 0;
+  const optional<steady_clock::time_point> deadline =
+      request.timeout.has_value()
+          ? optional<steady_clock::time_point>(
+                steady_clock::now() + *request.timeout)
+          : ::std::nullopt;
 
-  CURL* curl = lease->get();
-  curl_easy_reset(curl);
-
-  CurlHeaderList header_list;
-  for (const HttpHeader& header : request.headers) {
-    if (!header_list.Append(header)) {
-      return CreateInvalidArgumentResult(
-          "Failed to allocate curl request header list");
+  while (true) {
+    if (!HasTimeRemaining(deadline)) {
+      return CreateDeadlineExceededResult();
     }
-  }
 
-  HttpResponse response;
-  char error_buffer[CURL_ERROR_SIZE] = {};
-
-  SetStringOption(curl, CURLOPT_URL, request.url.c_str());
-  SetLongOption(curl, CURLOPT_NOSIGNAL, 1L);
-  SetPointerOption(curl, CURLOPT_ERRORBUFFER, error_buffer);
-  SetFunctionOption(curl, CURLOPT_WRITEFUNCTION, WriteBodyCallback);
-  SetPointerOption(curl, CURLOPT_WRITEDATA, &response.body);
-  SetFunctionOption(curl, CURLOPT_HEADERFUNCTION, WriteHeaderCallback);
-  SetPointerOption(curl, CURLOPT_HEADERDATA, &response.headers);
-  SetLongOption(curl, CURLOPT_FOLLOWLOCATION, config_.follow_redirects ? 1L : 0L);
-  SetLongOption(curl, CURLOPT_SSL_VERIFYPEER, config_.verify_ssl ? 1L : 0L);
-  SetLongOption(curl, CURLOPT_SSL_VERIFYHOST, config_.verify_ssl ? 2L : 0L);
-  if (!config_.ca_cert_path.empty()) {
-    SetStringOption(curl, CURLOPT_CAINFO, config_.ca_cert_path.c_str());
-    const string ca_cert_dir = path(config_.ca_cert_path).parent_path().string();
-    if (!ca_cert_dir.empty()) {
-      SetStringOption(curl, CURLOPT_CAPATH, ca_cert_dir.c_str());
+    optional<CurlHandlePool::Lease> lease;
+    for (int acquire_attempt = 1;
+         acquire_attempt <= config_.acquire_retry.max_attempts;
+         ++acquire_attempt) {
+      const milliseconds acquire_timeout =
+          BoundByDeadline(config_.acquire_timeout, deadline);
+      if (acquire_timeout.count() <= 0) {
+        return CreateDeadlineExceededResult();
+      }
+      lease = pool_->Acquire(acquire_timeout);
+      if (lease.has_value()) {
+        break;
+      }
+      if (acquire_attempt < config_.acquire_retry.max_attempts) {
+        SleepBeforeRetry(config_.acquire_retry.delay, deadline);
+      }
     }
-  }
-  SetLongOption(curl, CURLOPT_CONNECTTIMEOUT_MS,
-                static_cast<long>(config_.connect_timeout.count()));
-
-  const milliseconds request_timeout =
-      request.timeout.value_or(config_.request_timeout);
-  SetLongOption(curl, CURLOPT_TIMEOUT_MS,
-                static_cast<long>(request_timeout.count()));
-
-  if (header_list.get() != nullptr) {
-    SetHeaderListOption(curl, CURLOPT_HTTPHEADER, header_list.get());
-  }
-
-  CurlStringList resolve_list;
-  for (const string& resolve_host : config_.resolve_hosts) {
-    if (!resolve_list.Append(resolve_host)) {
-      return CreateInvalidArgumentResult(
-          "Failed to allocate curl host resolve list");
+    if (!lease.has_value()) {
+      HttpResult result;
+      result.error_code = HttpErrorCode::kPoolAcquireTimeout;
+      result.error_message =
+          format("Timed out acquiring curl handle from HTTP pool after {} "
+                 "attempt(s)",
+                 config_.acquire_retry.max_attempts);
+      return result;
     }
+
+    const milliseconds request_timeout =
+        BoundByDeadline(config_.request_timeout, deadline);
+    if (request_timeout.count() <= 0) {
+      return CreateDeadlineExceededResult();
+    }
+
+    CurlAttemptResult attempt =
+        PerformOnceWithLease(config_, request, std::move(*lease),
+                             request_timeout);
+    last_result = std::move(attempt.result);
+    if (last_result.ok() || attempt.retry_stage == RetryStage::kNone) {
+      return last_result;
+    }
+
+    if (attempt.retry_stage == RetryStage::kConnect) {
+      ++connect_attempts;
+      if (connect_attempts >= config_.connect_retry.max_attempts) {
+        return last_result;
+      }
+      SleepBeforeRetry(config_.connect_retry.delay, deadline);
+      continue;
+    }
+
+    ++request_attempts;
+    if (request_attempts >= config_.request_retry.max_attempts) {
+      return last_result;
+    }
+    SleepBeforeRetry(config_.request_retry.delay, deadline);
   }
-  if (resolve_list.get() != nullptr) {
-    SetHeaderListOption(curl, CURLOPT_RESOLVE, resolve_list.get());
-  }
-
-  ConfigureMethod(curl, request);
-
-  // It is here to launch the request via libcurl.
-  const CURLcode code = curl_easy_perform(curl);
-
-  long curl_response_code = 0;
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_response_code);
-
-  HttpResult result;
-
-  if (code != CURLE_OK) {
-    result.response = std::move(response);
-    result.error_code = HttpErrorCode::kTransportError;
-    result.error_message = error_buffer[0] != '\0' ? error_buffer : curl_easy_strerror(code);
-    return result;
-  }
-
-  if (!IsSupportedHttpStatusCode(curl_response_code)) {
-    return CreateUnsupportedHttpStatusResult(curl_response_code,
-                                             std::move(response));
-  }
-
-  response.status_code = static_cast<int>(curl_response_code);
-  result.response = std::move(response);
-
-  if (result.response.status_code < 200 || result.response.status_code >= 400) {
-    result.error_code = HttpErrorCode::kHttpStatusError;
-    result.error_message =
-        format("HTTP request returned status {}", result.response.status_code);
-    return result;
-  }
-
-  return result;
 }
 
 }  // namespace utilities

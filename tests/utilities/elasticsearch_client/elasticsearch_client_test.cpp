@@ -68,7 +68,7 @@ TEST(ElasticsearchClientTest, SearchPostsJsonToIndexSearchEndpoint) {
   EXPECT_EQ(request.method, HttpMethod::kPost);
   EXPECT_EQ(request.url, "https://es.example.com/movies/_search");
   EXPECT_EQ(request.body, R"({"query":{"match_all":{}}})");
-  EXPECT_EQ(request.timeout, ::std::nullopt);
+  EXPECT_EQ(request.timeout, milliseconds(1234));
   EXPECT_EQ(FindHeader(request.headers, "Accept"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Content-Type"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Authorization"), "Basic ZWxhc3RpYzpzZWNyZXQ=");
@@ -80,6 +80,7 @@ TEST(ElasticsearchClientTest, GetBuildsDocumentEndpointWithoutBodyHeaders) {
   http_client->next_result.response.body = R"({"_id":"42"})";
   ElasticsearchClient::Config config;
   config.base_url = "http://localhost:9200";
+  config.request_timeout = milliseconds(100);
 
   ElasticsearchClient client =
       ElasticsearchClient::Create(http_client, ::std::move(config));
@@ -92,6 +93,7 @@ TEST(ElasticsearchClientTest, GetBuildsDocumentEndpointWithoutBodyHeaders) {
   EXPECT_EQ(request.method, HttpMethod::kGet);
   EXPECT_EQ(request.url, "http://localhost:9200/movies/_doc/42");
   EXPECT_TRUE(request.body.empty());
+  EXPECT_EQ(request.timeout, milliseconds(100));
   EXPECT_EQ(FindHeader(request.headers, "Accept"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Content-Type"), ::std::nullopt);
   EXPECT_EQ(FindHeader(request.headers, "Authorization"), ::std::nullopt);
@@ -103,6 +105,7 @@ TEST(ElasticsearchClientTest, HealthBuildsClusterHealthEndpoint) {
   http_client->next_result.response.body = R"({"status":"green"})";
   ElasticsearchClient::Config config;
   config.base_url = "http://localhost:9200///";
+  config.request_timeout = milliseconds(100);
 
   ElasticsearchClient client =
       ElasticsearchClient::Create(http_client, ::std::move(config));
@@ -118,6 +121,7 @@ TEST(ElasticsearchClientTest, HealthBuildsClusterHealthEndpoint) {
   EXPECT_EQ(request.method, HttpMethod::kGet);
   EXPECT_EQ(request.url, "http://localhost:9200/_cluster/health");
   EXPECT_TRUE(request.body.empty());
+  EXPECT_EQ(request.timeout, milliseconds(100));
   EXPECT_EQ(FindHeader(request.headers, "Accept"), "application/json");
   EXPECT_EQ(FindHeader(request.headers, "Content-Type"), ::std::nullopt);
 }

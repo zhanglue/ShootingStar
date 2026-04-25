@@ -16,6 +16,8 @@ using ::std::invalid_argument;
 using ::std::string;
 using ::std::string_view;
 using ::std::chrono::milliseconds;
+using ::std::chrono::steady_clock;
+using ::std::chrono::system_clock;
 
 namespace {
 
@@ -42,6 +44,21 @@ void AddAncestorDirectories(
 }
 
 }  // namespace
+
+RpcDeadlineStatus CheckGrpcServerDeadline(
+    const ::grpc::ServerContext* context,
+    steady_clock::time_point server_deadline) {
+  if (context != nullptr && context->IsCancelled()) {
+    return RpcDeadlineStatus::kCancelled;
+  }
+  if (context != nullptr && context->deadline() <= system_clock::now()) {
+    return RpcDeadlineStatus::kClientDeadlineExceeded;
+  }
+  if (steady_clock::now() >= server_deadline) {
+    return RpcDeadlineStatus::kServerDeadlineExceeded;
+  }
+  return RpcDeadlineStatus::kOk;
+}
 
 string Base64Encode(string_view input) {
   string output;

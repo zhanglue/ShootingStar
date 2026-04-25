@@ -11,6 +11,13 @@
 namespace shooting_star {
 namespace utilities {
 
+struct RetryConfig {
+  RetryConfig();
+
+  int max_attempts;
+  ::std::chrono::milliseconds delay;
+};
+
 class CurlHttpClient : public HttpClient {
  public:
   struct Config {
@@ -20,6 +27,9 @@ class CurlHttpClient : public HttpClient {
     ::std::chrono::milliseconds acquire_timeout;
     ::std::chrono::milliseconds request_timeout;
     ::std::chrono::milliseconds connect_timeout;
+    RetryConfig acquire_retry;
+    RetryConfig connect_retry;
+    RetryConfig request_retry;
     bool follow_redirects;
     bool verify_ssl;
     ::std::string ca_cert_path;

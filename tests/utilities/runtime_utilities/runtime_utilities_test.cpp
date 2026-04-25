@@ -17,6 +17,7 @@ using std::getenv;
 using std::ofstream;
 using std::string;
 using std::chrono::milliseconds;
+using std::chrono::steady_clock;
 using std::filesystem::absolute;
 using std::filesystem::create_directories;
 using std::filesystem::current_path;
@@ -115,6 +116,17 @@ TEST_F(RuntimeUtilitiesTest, ValidatesTimeoutSumHierarchy) {
                    "first", milliseconds(30), "second", milliseconds(71),
                    "outer", milliseconds(100)),
                ::std::invalid_argument);
+}
+
+TEST_F(RuntimeUtilitiesTest, ChecksGrpcServerDeadlineWithNullContext) {
+  EXPECT_EQ(
+      CheckGrpcServerDeadline(
+          nullptr, steady_clock::now() + milliseconds(1000)),
+      RpcDeadlineStatus::kOk);
+  EXPECT_EQ(
+      CheckGrpcServerDeadline(
+          nullptr, steady_clock::now() - milliseconds(1)),
+      RpcDeadlineStatus::kServerDeadlineExceeded);
 }
 
 TEST_F(RuntimeUtilitiesTest, TrimsLeadingAndTrailingSlashes) {
