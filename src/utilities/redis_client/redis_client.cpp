@@ -13,12 +13,14 @@
 #include <utility>
 #include <vector>
 
+#include "src/utilities/global_config/global_config.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
+
 namespace shooting_star {
 namespace utilities {
 
 using ::std::make_shared;
 using ::std::optional;
-using ::std::shared_ptr;
 using ::std::string;
 using ::std::string_view;
 using ::std::vector;
@@ -206,6 +208,29 @@ class RedisClient::Impl {
 ////////////////////////////////////////////////////////////////////////////////
 // RedisClient
 ////////////////////////////////////////////////////////////////////////////////
+
+RedisClient RedisClient::Create() {
+  const GlobalConfig& global_config = GlobalConfig::Get();
+  Config config;
+  config.host = global_config.GetRedisHost();
+  config.port = global_config.GetRedisPort();
+  config.db = global_config.GetRedisDb();
+  config.user = global_config.GetRedisUsername();
+  config.password = GetEnvOrDefault(global_config.GetRedisPasswordEnv(),
+                                    global_config.GetRedisPassword());
+  config.connect_timeout = milliseconds(global_config.GetRedisConnectTimeoutMs());
+  config.socket_timeout = milliseconds(global_config.GetRedisSocketTimeoutMs());
+  config.pool_size = static_cast<::std::size_t>(global_config.GetRedisPoolSize());
+  config.pool_wait_timeout =
+      milliseconds(global_config.GetRedisPoolWaitTimeoutMs());
+  config.retry.max_attempts = global_config.GetRedisRetryMaxAttempts();
+  config.retry.delay = milliseconds(global_config.GetRedisRetryDelayMs());
+  return Create(::std::move(config));
+}
+
+RedisClient RedisClient::Create(Config config) {
+  return RedisClient(::std::move(config));
+}
 
 RedisClient::RedisClient(Config config) : config_(::std::move(config)) {
   ValidateRedisConfig(config_);

@@ -87,6 +87,9 @@ class RedisClient {
     RetryConfig retry;
   };
 
+  static RedisClient Create();
+  static RedisClient Create(Config config);
+
   explicit RedisClient(Config config);
 
   static ::std::string BuildRedisKey(::std::string_view key_prefix,

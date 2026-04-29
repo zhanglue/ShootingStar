@@ -29,6 +29,7 @@ namespace {
 
 constexpr string_view kRedactedValue = "<redacted>";
 constexpr string_view kElasticsearchConfigKeyPrefix = "elasticsearch";
+constexpr string_view kRedisConfigKeyPrefix = "redis";
 
 bool BelongsToConfigSection(string_view key, string_view config_key_prefix) {
   if (config_key_prefix.empty()) {
@@ -84,6 +85,19 @@ enum Field {
   kElasticsearchHttpClientFollowRedirects,
   kElasticsearchHttpClientVerifySsl,
   kElasticsearchHttpClientCaCertPath,
+  kRedisHost,
+  kRedisPort,
+  kRedisDb,
+  kRedisUsername,
+  kRedisPassword,
+  kRedisPasswordEnv,
+  kRedisKeyPrefix,
+  kRedisConnectTimeoutMs,
+  kRedisSocketTimeoutMs,
+  kRedisPoolSize,
+  kRedisPoolWaitTimeoutMs,
+  kRedisRetryMaxAttempts,
+  kRedisRetryDelayMs,
 };
 
 struct ConfigEntry {
@@ -134,20 +148,20 @@ constexpr ConfigEntry kConfigEntries[] = {
     {kElasticsearchPasswordEnv, "elasticsearch.password_env", "es_password_env",
      ValueType::kString, "ES_PASSWORD"},
     {kElasticsearchRequestTimeoutMs, "elasticsearch.request_timeout_ms",
-     "es_request_timeout_ms", ValueType::kInt, "1000"},
+     "es_request_timeout_ms", ValueType::kInt, "100"},
     {kElasticsearchHttpClientPoolSize,
      "elasticsearch.http_client.curl_handle_pool.pool_size",
      "es_http_client_curl_handle_pool_size", ValueType::kInt, "4"},
     {kElasticsearchHttpClientAcquireTimeoutMs,
      "elasticsearch.http_client.curl_handle_pool.acquire_timeout_ms",
      "es_http_client_curl_handle_pool_acquire_timeout_ms", ValueType::kInt,
-     "100"},
+     "30"},
     {kElasticsearchHttpClientRequestTimeoutMs,
      "elasticsearch.http_client.request_timeout_ms",
-     "es_http_client_request_timeout_ms", ValueType::kInt, "800"},
+     "es_http_client_request_timeout_ms", ValueType::kInt, "30"},
     {kElasticsearchHttpClientConnectTimeoutMs,
      "elasticsearch.http_client.connect_timeout_ms",
-     "es_http_client_connect_timeout_ms", ValueType::kInt, "300"},
+     "es_http_client_connect_timeout_ms", ValueType::kInt, "20"},
     {kElasticsearchHttpClientAcquireRetryMaxAttempts,
      "elasticsearch.http_client.curl_handle_pool.retry.max_attempts",
      "es_http_client_curl_handle_pool_retry_max_attempts", ValueType::kInt,
@@ -175,6 +189,30 @@ constexpr ConfigEntry kConfigEntries[] = {
     {kElasticsearchHttpClientCaCertPath,
      "elasticsearch.http_client.ca_cert_path", "es_http_client_ca_cert_path",
      ValueType::kString, ""},
+    {kRedisHost, "redis.host", "redis_host", ValueType::kString,
+     "localhost"},
+    {kRedisPort, "redis.port", "redis_port", ValueType::kUInt16, "6379"},
+    {kRedisDb, "redis.db", "redis_db", ValueType::kInt, "0"},
+    {kRedisUsername, "redis.username", "redis_username", ValueType::kString,
+     ""},
+    {kRedisPassword, "redis.password", "redis_password", ValueType::kString,
+     ""},
+    {kRedisPasswordEnv, "redis.password_env", "redis_password_env",
+     ValueType::kString, "REDIS_PASSWORD"},
+    {kRedisKeyPrefix, "redis.key_prefix", "redis_key_prefix",
+     ValueType::kString, "rec:item_cf:v1:neighbors"},
+    {kRedisConnectTimeoutMs, "redis.connect_timeout_ms",
+     "redis_connect_timeout_ms", ValueType::kInt, "100"},
+    {kRedisSocketTimeoutMs, "redis.socket_timeout_ms",
+     "redis_socket_timeout_ms", ValueType::kInt, "100"},
+    {kRedisPoolSize, "redis.pool_size", "redis_pool_size", ValueType::kInt,
+     "4"},
+    {kRedisPoolWaitTimeoutMs, "redis.pool_wait_timeout_ms",
+     "redis_pool_wait_timeout_ms", ValueType::kInt, "50"},
+    {kRedisRetryMaxAttempts, "redis.retry.max_attempts",
+     "redis_retry_max_attempts", ValueType::kInt, "2"},
+    {kRedisRetryDelayMs, "redis.retry.delay_ms", "redis_retry_delay_ms",
+     ValueType::kInt, "10"},
 };
 
 const ConfigEntry& EntryForField(int field) {
@@ -640,6 +678,52 @@ string GlobalConfig::GetElasticsearchHttpClientCaCertPath() const {
   return GetString(kElasticsearchHttpClientCaCertPath);
 }
 
+string GlobalConfig::GetRedisHost() const { return GetString(kRedisHost); }
+
+uint16_t GlobalConfig::GetRedisPort() const { return GetUInt16(kRedisPort); }
+
+int GlobalConfig::GetRedisDb() const { return GetNonNegativeInt(kRedisDb); }
+
+string GlobalConfig::GetRedisUsername() const {
+  return GetString(kRedisUsername);
+}
+
+string GlobalConfig::GetRedisPassword() const {
+  return GetString(kRedisPassword);
+}
+
+string GlobalConfig::GetRedisPasswordEnv() const {
+  return GetString(kRedisPasswordEnv);
+}
+
+string GlobalConfig::GetRedisKeyPrefix() const {
+  return GetString(kRedisKeyPrefix);
+}
+
+int GlobalConfig::GetRedisConnectTimeoutMs() const {
+  return GetNonNegativeInt(kRedisConnectTimeoutMs);
+}
+
+int GlobalConfig::GetRedisSocketTimeoutMs() const {
+  return GetNonNegativeInt(kRedisSocketTimeoutMs);
+}
+
+int GlobalConfig::GetRedisPoolSize() const {
+  return GetPositiveInt(kRedisPoolSize);
+}
+
+int GlobalConfig::GetRedisPoolWaitTimeoutMs() const {
+  return GetNonNegativeInt(kRedisPoolWaitTimeoutMs);
+}
+
+int GlobalConfig::GetRedisRetryMaxAttempts() const {
+  return GetPositiveInt(kRedisRetryMaxAttempts);
+}
+
+int GlobalConfig::GetRedisRetryDelayMs() const {
+  return GetNonNegativeInt(kRedisRetryDelayMs);
+}
+
 string_view GlobalConfig::GetLocalCacheCapacityKey() const {
   return Key(kLocalCacheCapacity);
 }
@@ -720,6 +804,10 @@ void GlobalConfig::LogResolvedConfigSection(
 
 void GlobalConfig::LogResolvedElasticsearchConfig(const Logger& logger) const {
   LogResolvedConfigSection(logger, kElasticsearchConfigKeyPrefix);
+}
+
+void GlobalConfig::LogResolvedRedisConfig(const Logger& logger) const {
+  LogResolvedConfigSection(logger, kRedisConfigKeyPrefix);
 }
 
 void ConfigYAML::ApplyStartupFile(int argc, char** argv,

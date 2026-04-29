@@ -67,6 +67,20 @@ class GlobalConfig final {
   bool GetElasticsearchHttpClientVerifySsl() const;
   ::std::string GetElasticsearchHttpClientCaCertPath() const;
 
+  ::std::string GetRedisHost() const;
+  uint16_t GetRedisPort() const;
+  int GetRedisDb() const;
+  ::std::string GetRedisUsername() const;
+  ::std::string GetRedisPassword() const;
+  ::std::string GetRedisPasswordEnv() const;
+  ::std::string GetRedisKeyPrefix() const;
+  int GetRedisConnectTimeoutMs() const;
+  int GetRedisSocketTimeoutMs() const;
+  int GetRedisPoolSize() const;
+  int GetRedisPoolWaitTimeoutMs() const;
+  int GetRedisRetryMaxAttempts() const;
+  int GetRedisRetryDelayMs() const;
+
   ::std::string_view GetLocalCacheCapacityKey() const;
   ::std::string_view GetLocalCacheTtlSecondsKey() const;
   ::std::string_view GetElasticsearchRequestTimeoutMsKey() const;
@@ -82,6 +96,7 @@ class GlobalConfig final {
   void LogResolvedConfigSection(const Logger& logger,
                                 ::std::string_view config_key_prefix) const;
   void LogResolvedElasticsearchConfig(const Logger& logger) const;
+  void LogResolvedRedisConfig(const Logger& logger) const;
 
  private:
   GlobalConfig();

@@ -50,6 +50,9 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetLocalCacheCapacity(), 0);
   EXPECT_EQ(config.GetProfileServiceAddress(), "localhost:50100");
   EXPECT_EQ(config.GetListenAddress(), "0.0.0.0:50000");
+  EXPECT_EQ(config.GetRedisHost(), "localhost");
+  EXPECT_EQ(config.GetRedisPort(), 6379);
+  EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:v1:neighbors");
 }
 
 TEST(GlobalConfigTest, InitializeSetsServiceName) {
@@ -200,6 +203,56 @@ TEST(GlobalConfigTest, LogsElasticsearchSectionAndRedactsPassword) {
   EXPECT_EQ(logs.find("super_secret"), string::npos);
   EXPECT_EQ(logs.find("\"local_cache.capacity\":"), string::npos);
   EXPECT_EQ(logs.find("\"server.host\":"), string::npos);
+}
+
+TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
+  GlobalConfigTestAccess::Reset();
+  const path config_path = TestFilePath("redis_config.yaml");
+  WriteFile(config_path,
+            "redis:\n"
+            "  host: redis-write.svc\n"
+            "  port: 6380\n"
+            "  db: 2\n"
+            "  username: recommender\n"
+            "  password: redis_secret\n"
+            "  password_env: REDIS_PASSWORD\n"
+            "  key_prefix: rec:item_cf:test:neighbors\n"
+            "  connect_timeout_ms: 200\n"
+            "  socket_timeout_ms: 300\n"
+            "  pool_size: 8\n"
+            "  pool_wait_timeout_ms: 40\n"
+            "  retry:\n"
+            "    max_attempts: 4\n"
+            "    delay_ms: 5\n");
+
+  ConfigYAML::ApplyFile(config_path.string());
+  const GlobalConfig& config = GlobalConfig::Get();
+
+  EXPECT_EQ(config.GetRedisHost(), "redis-write.svc");
+  EXPECT_EQ(config.GetRedisPort(), 6380);
+  EXPECT_EQ(config.GetRedisDb(), 2);
+  EXPECT_EQ(config.GetRedisUsername(), "recommender");
+  EXPECT_EQ(config.GetRedisPassword(), "redis_secret");
+  EXPECT_EQ(config.GetRedisPasswordEnv(), "REDIS_PASSWORD");
+  EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:test:neighbors");
+  EXPECT_EQ(config.GetRedisConnectTimeoutMs(), 200);
+  EXPECT_EQ(config.GetRedisSocketTimeoutMs(), 300);
+  EXPECT_EQ(config.GetRedisPoolSize(), 8);
+  EXPECT_EQ(config.GetRedisPoolWaitTimeoutMs(), 40);
+  EXPECT_EQ(config.GetRedisRetryMaxAttempts(), 4);
+  EXPECT_EQ(config.GetRedisRetryDelayMs(), 5);
+
+  const Logger logger("global_config_test");
+  ::testing::internal::CaptureStdout();
+  config.LogResolvedRedisConfig(logger);
+  const string logs = ::testing::internal::GetCapturedStdout();
+
+  EXPECT_NE(logs.find("\"event\":\"resolved_config_section\""), string::npos);
+  EXPECT_NE(logs.find("\"config_section\":\"redis\""), string::npos);
+  EXPECT_NE(logs.find("\"redis.host\":\"redis-write.svc\""), string::npos);
+  EXPECT_NE(logs.find("\"redis.password\":\"<redacted>\""), string::npos);
+  EXPECT_EQ(logs.find("redis_secret"), string::npos);
+  EXPECT_EQ(logs.find("\"elasticsearch.base_url\":"), string::npos);
 }
 
 }  // namespace
