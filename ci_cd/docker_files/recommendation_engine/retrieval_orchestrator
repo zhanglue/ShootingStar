@@ -1,6 +1,7 @@
 FROM ubuntu:24.04
 
 COPY binaries/src/recommendation_engine/retrieval/orchestrator/retrieval_orchestrator_bin /app/retrieval_orchestrator
+COPY src/recommendation_engine/retrieval/orchestrator/config.*.yaml /app/
 
 WORKDIR /app
 

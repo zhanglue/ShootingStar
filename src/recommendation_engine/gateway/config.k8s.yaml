@@ -1,0 +1,11 @@
+server:
+  port: 50000
+  log_level: INFO
+
+profile_service:
+  host: profile.recommendation-engine.svc.cluster.local
+  port: 50100
+
+retrieval_service:
+  host: retrieval-orchestrator.recommendation-engine.svc.cluster.local
+  port: 50200

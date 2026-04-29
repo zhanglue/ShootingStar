@@ -19,6 +19,8 @@ spec:
       - name: retriever-user-cf
         image: 192.168.1.101:55000/recommendation-engine-retriever-user-cf:latest
         imagePullPolicy: Always
+        args:
+        - --config_path=config.k8s.yaml
         resources:
           requests:
             memory: 256Mi
@@ -27,7 +29,7 @@ spec:
             memory: 512Mi
             cpu: "1"
         ports:
-        - containerPort: 50211
+        - containerPort: 50220
           name: grpc
 ---
 apiVersion: v1
@@ -38,6 +40,6 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 50211
+  - port: 50220
   selector:
     app: retriever-user-cf

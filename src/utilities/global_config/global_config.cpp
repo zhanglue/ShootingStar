@@ -98,7 +98,7 @@ constexpr ConfigEntry kConfigEntries[] = {
     {kRetrieverUserCfHost, "retriever_user_cf.host", "retriever_user_cf_host",
      ValueType::kString, "localhost"},
     {kRetrieverUserCfPort, "retriever_user_cf.port", "retriever_user_cf_port",
-     ValueType::kUInt16, "50211"},
+     ValueType::kUInt16, "50220"},
     {kStoreType, "store_type", "store_type", ValueType::kString, "local"},
     {kDataPath, "data_path", "data_path", ValueType::kString,
      "tests/testdata/recommendation_engine/profile/demo_profiles.json"},

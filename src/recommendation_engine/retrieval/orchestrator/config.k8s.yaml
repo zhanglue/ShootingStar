@@ -1,0 +1,11 @@
+server:
+  port: 50200
+  log_level: INFO
+
+retriever_item_cf:
+  host: retriever-item-cf.recommendation-engine.svc.cluster.local
+  port: 50210
+
+retriever_user_cf:
+  host: retriever-user-cf.recommendation-engine.svc.cluster.local
+  port: 50220

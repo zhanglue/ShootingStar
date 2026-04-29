@@ -1,0 +1,11 @@
+server:
+  port: 50000
+  log_level: DEBUG
+
+profile_service:
+  host: localhost
+  port: 50100
+
+retrieval_service:
+  host: localhost
+  port: 50200

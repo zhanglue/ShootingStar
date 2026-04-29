@@ -19,6 +19,8 @@ spec:
       - name: retriever-item-cf
         image: 192.168.1.101:55000/recommendation-engine-retriever-item-cf:latest
         imagePullPolicy: Always
+        args:
+        - --config_path=config.k8s.yaml
         resources:
           requests:
             memory: 256Mi

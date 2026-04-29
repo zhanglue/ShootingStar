@@ -19,6 +19,8 @@ spec:
       - name: profile
         image: recommendation-engine-profile:latest
         imagePullPolicy: Never
+        args:
+        - --config_path=config.k8s.yaml
         resources:
           requests:
             memory: 256Mi
