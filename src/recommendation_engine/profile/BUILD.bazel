@@ -20,8 +20,8 @@ cc_library(
     deps = [
         "//protos/recommendation_engine:profile_cc",
         "//protos/recommendation_engine:profile_cc_grpc",
-        "//src/utilities/config_helper:config_helper",
         "//src/utilities/elasticsearch_client:elasticsearch_client",
+        "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
         "//src/utilities/lru_cache:lru_cache",
         "//src/utilities/pb_data_handler:pb_data_handler",
@@ -36,12 +36,8 @@ cc_binary(
     srcs = ["main.cpp"],
     deps = [
         ":profile_lib",
-        "//src/utilities/config_helper:config_helper",
+        "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
-        "//src/utilities/runtime_utilities:runtime_utilities",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:parse",
-        "@abseil-cpp//absl/strings:str_format",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
     ],

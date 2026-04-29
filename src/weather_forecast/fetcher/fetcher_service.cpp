@@ -1,16 +1,10 @@
 #include "src/weather_forecast/fetcher/fetcher_service.h"
 
+#include <grpcpp/grpcpp.h>
+
 #include <iostream>
 #include <memory>
 #include <string>
-
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
-#include <grpcpp/grpcpp.h>
-#include <grpcpp/health_check_service_interface.h>
-
-#include "absl/flags/flag.h"
-#include "absl/flags/parse.h"
-#include "absl/strings/str_format.h"
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
 
@@ -36,11 +30,9 @@ FetcherServiceImpl::FetcherServiceImpl() {
   weather_data_map_["Denver"] = WeatherData::SNOWY;
 }
 
-Status FetcherServiceImpl::GetWeather(
-    ServerContext* context,
-    const GetWeatherRequest* request,
-    GetWeatherResponse* response) {
-
+Status FetcherServiceImpl::GetWeather(ServerContext* context,
+                                      const GetWeatherRequest* request,
+                                      GetWeatherResponse* response) {
   string city = request->city();
   auto it = weather_data_map_.find(city);
   if (it == weather_data_map_.end()) {

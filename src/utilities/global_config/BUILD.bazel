@@ -3,9 +3,9 @@ package(default_visibility = ["//visibility:public"])
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
-    name = "config_helper",
-    srcs = ["config_helper.cpp"],
-    hdrs = ["config_helper.h"],
+    name = "global_config",
+    srcs = ["global_config.cpp"],
+    hdrs = ["global_config.h"],
     deps = [
         "@yaml-cpp//:yaml-cpp",
     ],

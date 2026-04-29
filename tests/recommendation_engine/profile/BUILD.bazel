@@ -43,7 +43,7 @@ cc_test(
     size = "small",
     deps = [
         "//src/recommendation_engine/profile:profile_lib",
-        "//src/utilities/config_helper:config_helper",
+        "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
         "//src/utilities/runtime_utilities:runtime_utilities",
         "@googletest//:gtest_main",
