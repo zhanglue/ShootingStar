@@ -24,13 +24,11 @@ namespace recommendation_engine {
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
-using ::shooting_star::utilities::CheckGrpcServerDeadline;
 using ::shooting_star::utilities::ElasticsearchClient;
 using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
-using ::shooting_star::utilities::RpcDeadlineStatus;
 using ::shooting_star::utilities::ValidateTimeoutNotGreater;
 using ::shooting_star::utilities::ValidateTimeoutSumNotGreater;
 using ::std::format;
@@ -43,7 +41,6 @@ using ::std::to_string;
 using ::std::unique_ptr;
 using ::std::chrono::milliseconds;
 using ::std::chrono::seconds;
-using ::std::chrono::steady_clock;
 
 namespace {
 
@@ -99,10 +96,6 @@ ElasticsearchClient::Config CreateElasticsearchConfig(
       config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
       es_config.http_config.request_timeout,
       config.GetElasticsearchRequestTimeoutMsKey(), *es_config.request_timeout);
-  ValidateTimeoutNotGreater(config.GetElasticsearchRequestTimeoutMsKey(),
-                            *es_config.request_timeout,
-                            config.GetGetProfileTimeoutMsKey(),
-                            milliseconds(config.GetGetProfileTimeoutMs()));
   es_config.http_config.follow_redirects =
       config.GetElasticsearchHttpClientFollowRedirects();
   es_config.http_config.verify_ssl =
@@ -219,40 +212,11 @@ unique_ptr<ProfileStore> CreateProfileStore(
       config, CreateUncachedProfileStore(config, profile_store_type));
 }
 
-string GetProfileDeadlineReason(RpcDeadlineStatus deadline_status) {
-  switch (deadline_status) {
-    case RpcDeadlineStatus::kCancelled:
-      return "GetProfile request was cancelled.";
-    case RpcDeadlineStatus::kClientDeadlineExceeded:
-      return "GetProfile client deadline exceeded.";
-    case RpcDeadlineStatus::kServerDeadlineExceeded:
-      return "GetProfile service timeout exceeded.";
-    case RpcDeadlineStatus::kOk:
-      return "";
-  }
-  return "";
-}
-
-string_view GetProfileDeadlineEvent(RpcDeadlineStatus deadline_status) {
-  switch (deadline_status) {
-    case RpcDeadlineStatus::kCancelled:
-      return "get_profile_request_cancelled";
-    case RpcDeadlineStatus::kClientDeadlineExceeded:
-      return "get_profile_client_deadline_exceeded";
-    case RpcDeadlineStatus::kServerDeadlineExceeded:
-      return "get_profile_service_timeout_exceeded";
-    case RpcDeadlineStatus::kOk:
-      return "";
-  }
-  return "";
-}
-
 }  // namespace
 
 ProfileServiceImpl::ProfileServiceImpl(
     const ::shooting_star::utilities::GlobalConfig& config)
-    : config_(config),
-      get_profile_timeout_(milliseconds(config_.GetGetProfileTimeoutMs())) {
+    : config_(config) {
   const Logger& logger = LoggerRegistry::Get();
   const string profile_store_type = config_.GetStoreType();
 
@@ -260,17 +224,14 @@ ProfileServiceImpl::ProfileServiceImpl(
       "profile_store_selected",
       {
           {"profile_store_type", profile_store_type},
-          {"get_profile_timeout_ms", to_string(get_profile_timeout_.count())},
       });
 
   profile_store_ = CreateProfileStore(config_, profile_store_type);
 }
 
-Status ProfileServiceImpl::GetProfile(ServerContext* context,
+Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
                                       const GetProfileRequest* request,
                                       GetProfileResponse* response) {
-  const steady_clock::time_point request_deadline =
-      steady_clock::now() + get_profile_timeout_;
   const Logger& logger = LoggerRegistry::Get();
   logger.Info("get_profile_request_received",
               {
@@ -296,19 +257,6 @@ Status ProfileServiceImpl::GetProfile(ServerContext* context,
                     {"error_message", ex.what()},
                 });
     return Status(StatusCode::INTERNAL, ex.what());
-  }
-
-  RpcDeadlineStatus deadline_status =
-      CheckGrpcServerDeadline(context, request_deadline);
-  if (deadline_status != RpcDeadlineStatus::kOk) {
-    const string reason = GetProfileDeadlineReason(deadline_status);
-    response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
-    logger.Info(GetProfileDeadlineEvent(deadline_status),
-                {
-                    {"user_id", to_string(request->user_id())},
-                    {"reason", reason},
-                });
-    return Status(StatusCode::DEADLINE_EXCEEDED, reason);
   }
 
   if (!profile.has_value()) {

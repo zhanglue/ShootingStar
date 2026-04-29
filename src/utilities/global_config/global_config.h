@@ -41,7 +41,6 @@ class GlobalConfig final {
   uint16_t GetRetrieverUserCfPort() const;
   ::std::string GetRetrieverUserCfAddress() const;
 
-  int GetGetProfileTimeoutMs() const;
   ::std::string GetStoreType() const;
   ::std::string GetDataPath() const;
   int GetLocalCacheCapacity() const;
@@ -68,7 +67,6 @@ class GlobalConfig final {
 
   ::std::string_view GetLocalCacheCapacityKey() const;
   ::std::string_view GetLocalCacheTtlSecondsKey() const;
-  ::std::string_view GetGetProfileTimeoutMsKey() const;
   ::std::string_view GetElasticsearchRequestTimeoutMsKey() const;
   ::std::string_view GetElasticsearchHttpClientAcquireTimeoutMsKey() const;
   ::std::string_view GetElasticsearchHttpClientRequestTimeoutMsKey() const;

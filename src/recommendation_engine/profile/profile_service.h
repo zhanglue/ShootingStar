@@ -2,8 +2,6 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include <chrono>
-
 #include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/recommendation_engine/profile/profile_store.h"
 #include "src/utilities/global_config/global_config.h"
@@ -22,7 +20,6 @@ class ProfileServiceImpl final : public ProfileService::Service {
 
  private:
   const ::shooting_star::utilities::GlobalConfig& config_;
-  ::std::chrono::milliseconds get_profile_timeout_;
   ::std::unique_ptr<ProfileStore> profile_store_;
 };
 

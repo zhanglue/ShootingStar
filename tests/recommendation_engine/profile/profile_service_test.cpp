@@ -133,8 +133,6 @@ TEST(ProfileServiceImplTest, LogsReasonWhenLocalCacheIsNotConfigured) {
 TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
   const GlobalConfig& config = ApplyProfileConfig(
       "store_type: elasticsearch\n"
-      "server:\n"
-      "  get_profile_timeout_ms: 8000\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -169,7 +167,6 @@ TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
             string::npos);
   EXPECT_NE(logs.find("\"profile_es_request_timeout_ms\":\"7000\""),
             string::npos);
-  EXPECT_NE(logs.find("\"get_profile_timeout_ms\":\"8000\""), string::npos);
   EXPECT_NE(logs.find("\"profile_es_http_client_curl_handle_pool_size\":\"2\""),
             string::npos);
   EXPECT_NE(logs.find("\"profile_es_http_client_curl_handle_pool_"
@@ -221,7 +218,6 @@ TEST(ProfileServiceImplTest, UsesDefaultElasticsearchTimeoutBudget) {
 
   EXPECT_NE(logs.find("\"profile_es_request_timeout_ms\":\"100\""),
             string::npos);
-  EXPECT_NE(logs.find("\"get_profile_timeout_ms\":\"120\""), string::npos);
   EXPECT_NE(logs.find("\"profile_es_http_client_curl_handle_pool_"
                       "acquire_timeout_ms\":\"30\""),
             string::npos);
@@ -250,26 +246,9 @@ TEST(ProfileServiceImplTest, UsesDefaultElasticsearchTimeoutBudget) {
 }
 
 TEST(ProfileServiceImplTest,
-     RejectsElasticsearchRequestTimeoutAboveGetProfileTimeout) {
-  const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
-      "server:\n"
-      "  get_profile_timeout_ms: 99\n"
-      "elasticsearch:\n"
-      "  base_url: http://localhost:9200\n"
-      "  index: profiles\n"
-      "  request_timeout_ms: 100\n");
-  InstallProfileTestLogger();
-
-  EXPECT_THROW(ProfileServiceImpl service(config), ::std::invalid_argument);
-}
-
-TEST(ProfileServiceImplTest,
      RejectsElasticsearchHttpClientAcquireTimeoutAboveRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
       "store_type: elasticsearch\n"
-      "server:\n"
-      "  get_profile_timeout_ms: 8000\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -286,8 +265,6 @@ TEST(ProfileServiceImplTest,
      RejectsElasticsearchHttpClientRequestTimeoutAboveRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
       "store_type: elasticsearch\n"
-      "server:\n"
-      "  get_profile_timeout_ms: 8000\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -303,8 +280,6 @@ TEST(ProfileServiceImplTest,
      RejectsElasticsearchHttpClientConnectTimeoutAboveHttpRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
       "store_type: elasticsearch\n"
-      "server:\n"
-      "  get_profile_timeout_ms: 8000\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"

@@ -44,7 +44,6 @@ enum Field {
   kRetrieverItemCfPort,
   kRetrieverUserCfHost,
   kRetrieverUserCfPort,
-  kProfileGetProfileTimeoutMs,
   kStoreType,
   kDataPath,
   kLocalCacheCapacity,
@@ -100,8 +99,6 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kString, "localhost"},
     {kRetrieverUserCfPort, "retriever_user_cf.port", "retriever_user_cf_port",
      ValueType::kUInt16, "50211"},
-    {kProfileGetProfileTimeoutMs, "server.get_profile_timeout_ms",
-     "get_profile_timeout_ms", ValueType::kInt, "120"},
     {kStoreType, "store_type", "store_type", ValueType::kString, "local"},
     {kDataPath, "data_path", "data_path", ValueType::kString,
      "tests/testdata/recommendation_engine/profile/demo_profiles.json"},
@@ -518,10 +515,6 @@ string GlobalConfig::GetRetrieverUserCfAddress() const {
   return GetAddress(kRetrieverUserCfHost, kRetrieverUserCfPort);
 }
 
-int GlobalConfig::GetGetProfileTimeoutMs() const {
-  return GetPositiveInt(kProfileGetProfileTimeoutMs);
-}
-
 string GlobalConfig::GetStoreType() const { return GetString(kStoreType); }
 
 string GlobalConfig::GetDataPath() const { return GetString(kDataPath); }
@@ -616,10 +609,6 @@ string_view GlobalConfig::GetLocalCacheCapacityKey() const {
 
 string_view GlobalConfig::GetLocalCacheTtlSecondsKey() const {
   return Key(kLocalCacheTtlSeconds);
-}
-
-string_view GlobalConfig::GetGetProfileTimeoutMsKey() const {
-  return Key(kProfileGetProfileTimeoutMs);
 }
 
 string_view GlobalConfig::GetElasticsearchRequestTimeoutMsKey() const {
