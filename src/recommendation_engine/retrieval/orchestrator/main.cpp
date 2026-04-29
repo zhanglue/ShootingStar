@@ -2,6 +2,8 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include <cstdlib>
+#include <exception>
 #include <memory>
 #include <string>
 
@@ -35,39 +37,45 @@ constexpr const char* kServiceName = "retrieval_orchestrator";
 }  // namespace
 
 int main(int argc, char** argv) {
-  const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
-  ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
-  ConfigArguments::Apply(argc, argv);
-  LoggerRegistry::Register(make_shared<Logger>(kServiceName));
-  LoggerRegistry::SetDefaultLoggerName(kServiceName);
+  try {
+    const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
+    ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
+    ConfigArguments::Apply(argc, argv);
+    LoggerRegistry::Register(make_shared<Logger>(kServiceName));
+    LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
-  const string server_address = config.GetListenAddress();
-  const string item_cf_service_address =
-      config.GetRetrieverItemCfAddress();
-  const string user_cf_service_address =
-      config.GetRetrieverUserCfAddress();
-  RetrievalOrchestrator service(
-      CreateChannel(item_cf_service_address, InsecureChannelCredentials()),
-      CreateChannel(user_cf_service_address, InsecureChannelCredentials()));
+    const string server_address = config.GetListenAddress();
+    const string item_cf_service_address =
+        config.GetRetrieverItemCfAddress();
+    const string user_cf_service_address =
+        config.GetRetrieverUserCfAddress();
+    RetrievalOrchestrator service(
+        CreateChannel(item_cf_service_address, InsecureChannelCredentials()),
+        CreateChannel(user_cf_service_address, InsecureChannelCredentials()));
 
-  EnableDefaultHealthCheckService(true);
-  InitProtoReflectionServerBuilderPlugin();
-  ServerBuilder builder;
-  const Logger& logger = LoggerRegistry::Get();
-  builder.experimental().SetInterceptorCreators(
-      CreateServerLoggingInterceptorCreators(logger));
-  builder.AddListeningPort(server_address, InsecureServerCredentials());
-  builder.RegisterService(&service);
+    EnableDefaultHealthCheckService(true);
+    InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
+    const Logger& logger = LoggerRegistry::Get();
+    builder.experimental().SetInterceptorCreators(
+        CreateServerLoggingInterceptorCreators(logger));
+    builder.AddListeningPort(server_address, InsecureServerCredentials());
+    builder.RegisterService(&service);
 
-  unique_ptr<Server> server(builder.BuildAndStart());
-  logger.Info(
-    "server_started",
-    {
-      {"listen_address", server_address},
-      {"retriever_item_cf_address", item_cf_service_address},
-      {"retriever_user_cf_address", user_cf_service_address},
-    });
-  server->Wait();
+    unique_ptr<Server> server(builder.BuildAndStart());
+    logger.Info(
+      "server_started",
+      {
+        {"listen_address", server_address},
+        {"retriever_item_cf_address", item_cf_service_address},
+        {"retriever_user_cf_address", user_cf_service_address},
+      });
+    server->Wait();
+  } catch (const ::std::exception& ex) {
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Error("server_startup_failed", {{"error", ex.what()}, });
+    return EXIT_FAILURE;
+  }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

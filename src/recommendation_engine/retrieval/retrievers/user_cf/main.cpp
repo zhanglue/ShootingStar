@@ -2,6 +2,8 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include <cstdlib>
+#include <exception>
 #include <memory>
 #include <string>
 
@@ -33,27 +35,33 @@ constexpr const char* kServiceName = "retriever_user_cf";
 }  // namespace
 
 int main(int argc, char** argv) {
-  const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
-  ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
-  ConfigArguments::Apply(argc, argv);
-  LoggerRegistry::Register(make_shared<Logger>(kServiceName));
-  LoggerRegistry::SetDefaultLoggerName(kServiceName);
+  try {
+    const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
+    ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
+    ConfigArguments::Apply(argc, argv);
+    LoggerRegistry::Register(make_shared<Logger>(kServiceName));
+    LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
-  const string server_address = config.GetListenAddress();
-  RetrieverUserCf service;
+    const string server_address = config.GetListenAddress();
+    RetrieverUserCf service;
 
-  EnableDefaultHealthCheckService(true);
-  InitProtoReflectionServerBuilderPlugin();
-  ServerBuilder builder;
-  const Logger& logger = LoggerRegistry::Get();
-  builder.experimental().SetInterceptorCreators(
-      CreateServerLoggingInterceptorCreators(logger));
-  builder.AddListeningPort(server_address, InsecureServerCredentials());
-  builder.RegisterService(&service);
+    EnableDefaultHealthCheckService(true);
+    InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
+    const Logger& logger = LoggerRegistry::Get();
+    builder.experimental().SetInterceptorCreators(
+        CreateServerLoggingInterceptorCreators(logger));
+    builder.AddListeningPort(server_address, InsecureServerCredentials());
+    builder.RegisterService(&service);
 
-  unique_ptr<Server> server(builder.BuildAndStart());
-  logger.Info("server_started", {{"listen_address", server_address}, });
-  server->Wait();
+    unique_ptr<Server> server(builder.BuildAndStart());
+    logger.Info("server_started", {{"listen_address", server_address}, });
+    server->Wait();
+  } catch (const ::std::exception& ex) {
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Error("server_startup_failed", {{"error", ex.what()}, });
+    return EXIT_FAILURE;
+  }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
