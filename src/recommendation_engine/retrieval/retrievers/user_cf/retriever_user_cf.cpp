@@ -13,21 +13,48 @@ using ::std::format;
 using ::std::unordered_set;
 using ::std::vector;
 
-void AppendSeenItems(const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
-                     unordered_set<uint64_t>* rated_items) {
+void AppendItemIdsToFilterOut(
+    const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
+    unordered_set<uint64_t>* item_ids_to_filter_out) {
   for (const WeightedItem& item : items) {
     if (item.item_id() > 0) {
-      rated_items->insert(static_cast<uint64_t>(item.item_id()));
+      item_ids_to_filter_out->insert(static_cast<uint64_t>(item.item_id()));
     }
   }
 }
 
-void AppendSeenItems(const ::google::protobuf::RepeatedField<::int64_t>& items,
-                     unordered_set<uint64_t>* rated_items) {
+void AppendItemIdsToFilterOut(
+    const ::google::protobuf::RepeatedField<::int64_t>& items,
+    unordered_set<uint64_t>* item_ids_to_filter_out) {
   for (const int64_t item_id : items) {
     if (item_id > 0) {
-      rated_items->insert(static_cast<uint64_t>(item_id));
+      item_ids_to_filter_out->insert(static_cast<uint64_t>(item_id));
     }
+  }
+}
+
+void AppendTriggerSeeds(
+    const ::google::protobuf::RepeatedField<::int64_t>& authors,
+    double base_score,
+    unordered_set<uint64_t>* seen_authors,
+    vector<RetrieverUserCf::TriggerSeed>* trigger_seeds) {
+  int rank = 0;
+  for (const int64_t author_id : authors) {
+    ++rank;
+    if (author_id <= 0) {
+      continue;
+    }
+
+    const uint64_t trigger_author_id = static_cast<uint64_t>(author_id);
+    if (!seen_authors->insert(trigger_author_id).second) {
+      continue;
+    }
+
+    trigger_seeds->push_back(
+        RetrieverUserCf::TriggerSeed{
+            trigger_author_id,
+            base_score / static_cast<double>(rank),
+        });
   }
 }
 
@@ -37,11 +64,12 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
   const vector<TriggerSeed> trigger_seeds = CollectTriggerSeeds(request.profile());
   if (trigger_seeds.empty()) {
-    response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
+    response->set_status(RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
     return Status::OK;
   }
 
-  unordered_set<uint64_t> emitted_item_ids = CollectSeenItems(request.profile());
+  unordered_set<uint64_t> item_ids_to_filter_out =
+      CollectItemIdsToFilterOut(request.profile());
 
   for (int trigger_rank = 0;
        trigger_rank < static_cast<int>(trigger_seeds.size()) &&
@@ -55,7 +83,7 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
          ++candidate_rank) {
       const uint64_t candidate_item_id =
           BuildCandidateItemId(trigger_seed.author_id, trigger_rank, candidate_rank);
-      if (!emitted_item_ids.insert(candidate_item_id).second) {
+      if (!item_ids_to_filter_out.insert(candidate_item_id).second) {
         continue;
       }
 
@@ -87,42 +115,34 @@ vector<RetrieverUserCf::TriggerSeed> RetrieverUserCf::CollectTriggerSeeds(
   unordered_set<uint64_t> seen_authors;
   vector<TriggerSeed> trigger_seeds;
 
-  const auto append_trigger_seeds =
-      [&seen_authors, &trigger_seeds](
-          const ::google::protobuf::RepeatedField<::int64_t>& authors, double base_score) {
-        int rank = 0;
-        for (const int64_t author_id : authors) {
-          ++rank;
-          if (author_id <= 0) {
-            continue;
-          }
-
-          const uint64_t trigger_author_id = static_cast<uint64_t>(author_id);
-          if (!seen_authors.insert(trigger_author_id).second) {
-            continue;
-          }
-
-          trigger_seeds.push_back(
-              TriggerSeed{trigger_author_id, base_score / static_cast<double>(rank)});
-        }
-      };
-
-  append_trigger_seeds(profile.social().following(), 1.0);
-  append_trigger_seeds(profile.social().followers(), 0.6);
+  AppendTriggerSeeds(profile.social().following(),
+                     1.0,
+                     &seen_authors,
+                     &trigger_seeds);
+  AppendTriggerSeeds(profile.social().followers(),
+                     0.6,
+                     &seen_authors,
+                     &trigger_seeds);
 
   return trigger_seeds;
 }
 
-unordered_set<uint64_t> RetrieverUserCf::CollectSeenItems(const Profile& profile) {
-  unordered_set<uint64_t> rated_items;
+unordered_set<uint64_t> RetrieverUserCf::CollectItemIdsToFilterOut(
+    const Profile& profile) {
+  unordered_set<uint64_t> item_ids_to_filter_out;
 
-  AppendSeenItems(profile.behaviors().recent_liked_items(), &rated_items);
-  AppendSeenItems(profile.behaviors().liked_items(), &rated_items);
-  AppendSeenItems(profile.behaviors().interested_items(), &rated_items);
-  AppendSeenItems(profile.behaviors().rated_items(), &rated_items);
-  AppendSeenItems(profile.negative_feedbacks().items(), &rated_items);
+  AppendItemIdsToFilterOut(profile.behaviors().recent_liked_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().liked_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().interested_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().rated_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.negative_feedbacks().items(),
+                           &item_ids_to_filter_out);
 
-  return rated_items;
+  return item_ids_to_filter_out;
 }
 
 uint64_t RetrieverUserCf::BuildCandidateItemId(uint64_t author_id,

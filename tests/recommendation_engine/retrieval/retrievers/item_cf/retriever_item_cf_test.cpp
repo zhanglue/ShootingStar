@@ -121,5 +121,25 @@ TEST(RetrieverItemCfTest, ReturnsSystemErrorWhenSimilarityStoreFails) {
   EXPECT_EQ(response.status(), RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
 }
 
+TEST(RetrieverItemCfTest, ReturnsEmptyTriggerSeedsWhenNoValidTriggerItems) {
+  auto fake_store = ::std::make_unique<FakeItemSimilarityStore>();
+  RetrieverItemCf retriever(::std::move(fake_store));
+
+  RetrieverRequest request;
+  request.set_request_id("request-empty");
+  request.set_user_id(42);
+  request.set_max_candidate_count(3);
+  request.mutable_profile();
+
+  RetrieverResponse response;
+  const Status status = retriever.Retrieve(nullptr, &request, &response);
+
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(response.status(),
+            RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
+  EXPECT_EQ(response.candidates_size(), 0);
+  EXPECT_EQ(response.candidate_count(), 0);
+}
+
 }  // namespace
 }  // namespace recommendation_engine

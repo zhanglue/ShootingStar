@@ -37,20 +37,48 @@ using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::RedisClient;
 
-void AppendSeenItems(const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
-                     ::std::unordered_set<uint64_t>* rated_items) {
+void AppendTriggerSeeds(
+    const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
+    double base_score,
+    unordered_set<uint64_t>* seen_triggers,
+    vector<RetrieverItemCf::TriggerSeed>* trigger_seeds) {
+  int rank = 0;
+  for (const WeightedItem& item : items) {
+    ++rank;
+    if (item.item_id() <= 0) {
+      continue;
+    }
+
+    const uint64_t trigger_item_id = static_cast<uint64_t>(item.item_id());
+    if (!seen_triggers->insert(trigger_item_id).second) {
+      continue;
+    }
+
+    const double item_weight = item.weight() > 0.0 ? item.weight() : 1.0;
+    trigger_seeds->push_back(
+        RetrieverItemCf::TriggerSeed{
+            trigger_item_id,
+            base_score * item_weight / static_cast<double>(rank),
+        });
+  }
+}
+
+void AppendItemIdsToFilterOut(
+    const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
+    unordered_set<uint64_t>* item_ids_to_filter_out) {
   for (const WeightedItem& item : items) {
     if (item.item_id() > 0) {
-      rated_items->insert(static_cast<uint64_t>(item.item_id()));
+      item_ids_to_filter_out->insert(static_cast<uint64_t>(item.item_id()));
     }
   }
 }
 
-void AppendSeenItems(const ::google::protobuf::RepeatedField<::int64_t>& items,
-                     ::std::unordered_set<uint64_t>* rated_items) {
+void AppendItemIdsToFilterOut(
+    const ::google::protobuf::RepeatedField<::int64_t>& items,
+    unordered_set<uint64_t>* item_ids_to_filter_out) {
   for (const int64_t item_id : items) {
     if (item_id > 0) {
-      rated_items->insert(static_cast<uint64_t>(item_id));
+      item_ids_to_filter_out->insert(static_cast<uint64_t>(item_id));
     }
   }
 }
@@ -124,11 +152,12 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
   const vector<TriggerSeed> trigger_seeds = CollectTriggerSeeds(request.profile());
   if (trigger_seeds.empty()) {
-    response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
+    response->set_status(RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
     return Status::OK;
   }
 
-  const unordered_set<uint64_t> seen_item_ids = CollectSeenItems(request.profile());
+  const unordered_set<uint64_t> item_ids_to_filter_out =
+      CollectItemIdsToFilterOut(request.profile());
   unordered_map<uint64_t, CandidateScore> candidates;
 
   try {
@@ -137,7 +166,7 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
           item_similarity_store_->FindNeighborsByItemId(
               trigger_seed.item_id, request.max_candidate_count());
       for (const ItemNeighbor& neighbor : neighbors) {
-        if (seen_item_ids.contains(neighbor.item_id)) {
+        if (item_ids_to_filter_out.contains(neighbor.item_id)) {
           continue;
         }
         AddCandidateContribution(trigger_seed, neighbor, &candidates);
@@ -185,45 +214,38 @@ vector<RetrieverItemCf::TriggerSeed> RetrieverItemCf::CollectTriggerSeeds(
   unordered_set<uint64_t> seen_triggers;
   vector<TriggerSeed> trigger_seeds;
 
-  const auto append_trigger_seeds =
-      [&seen_triggers, &trigger_seeds](
-          const ::google::protobuf::RepeatedPtrField<WeightedItem>& items, double base_score) {
-        int rank = 0;
-        for (const WeightedItem& item : items) {
-          ++rank;
-          if (item.item_id() <= 0) {
-            continue;
-          }
-
-          const uint64_t trigger_item_id = static_cast<uint64_t>(item.item_id());
-          if (!seen_triggers.insert(trigger_item_id).second) {
-            continue;
-          }
-
-          const double item_weight = item.weight() > 0.0 ? item.weight() : 1.0;
-          trigger_seeds.push_back(
-              TriggerSeed{trigger_item_id,
-                          base_score * item_weight / static_cast<double>(rank)});
-        }
-      };
-
-  append_trigger_seeds(profile.behaviors().recent_liked_items(), 1.0);
-  append_trigger_seeds(profile.behaviors().liked_items(), 0.5);
-  append_trigger_seeds(profile.behaviors().interested_items(), 0.3);
+  AppendTriggerSeeds(profile.behaviors().recent_liked_items(),
+                     1.0,
+                     &seen_triggers,
+                     &trigger_seeds);
+  AppendTriggerSeeds(profile.behaviors().liked_items(),
+                     0.5,
+                     &seen_triggers,
+                     &trigger_seeds);
+  AppendTriggerSeeds(profile.behaviors().interested_items(),
+                     0.3,
+                     &seen_triggers,
+                     &trigger_seeds);
 
   return trigger_seeds;
 }
 
-unordered_set<uint64_t> RetrieverItemCf::CollectSeenItems(const Profile& profile) {
-  unordered_set<uint64_t> rated_items;
+unordered_set<uint64_t> RetrieverItemCf::CollectItemIdsToFilterOut(
+    const Profile& profile) {
+  unordered_set<uint64_t> item_ids_to_filter_out;
 
-  AppendSeenItems(profile.behaviors().recent_liked_items(), &rated_items);
-  AppendSeenItems(profile.behaviors().liked_items(), &rated_items);
-  AppendSeenItems(profile.behaviors().interested_items(), &rated_items);
-  AppendSeenItems(profile.behaviors().rated_items(), &rated_items);
-  AppendSeenItems(profile.negative_feedbacks().items(), &rated_items);
+  AppendItemIdsToFilterOut(profile.behaviors().recent_liked_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().liked_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().interested_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().rated_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.negative_feedbacks().items(),
+                           &item_ids_to_filter_out);
 
-  return rated_items;
+  return item_ids_to_filter_out;
 }
 
 }  // namespace recommendation_engine

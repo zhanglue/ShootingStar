@@ -35,7 +35,8 @@ class RetrieverItemCf final : public RetrieverBase {
                             RetrieverResponse* response) const override;
 
   static ::std::vector<TriggerSeed> CollectTriggerSeeds(const Profile& profile);
-  static ::std::unordered_set<uint64_t> CollectSeenItems(const Profile& profile);
+  static ::std::unordered_set<uint64_t> CollectItemIdsToFilterOut(
+      const Profile& profile);
 
   ::std::unique_ptr<ItemSimilarityStore> item_similarity_store_;
 };

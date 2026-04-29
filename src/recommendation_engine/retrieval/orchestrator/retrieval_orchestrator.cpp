@@ -15,6 +15,11 @@ using ::std::string;
 using ::std::unordered_set;
 using ::std::vector;
 
+bool IsRetrieverResponseStatusAccepted(RetrieverServiceStatus status) {
+  return status == RetrieverServiceStatus::RETRIEVER_SUCCESS ||
+         status == RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS;
+}
+
 RetrievalOrchestrator::RetrievalOrchestrator(::std::shared_ptr<::grpc::Channel> item_cf_channel,
                                              ::std::shared_ptr<::grpc::Channel> user_cf_channel)
     : retriever_stubs_() {
@@ -65,7 +70,7 @@ Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
                          retriever_status.error_message()));
   }
 
-  if (retriever_response->status() != RetrieverServiceStatus::RETRIEVER_SUCCESS) {
+  if (!IsRetrieverResponseStatusAccepted(retriever_response->status())) {
     return Status(StatusCode::INTERNAL,
                   format("{} retriever returned non-success status {}.", retriever_name,
                          static_cast<int>(retriever_response->status())));
