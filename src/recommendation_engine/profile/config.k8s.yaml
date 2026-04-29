@@ -10,16 +10,16 @@ elasticsearch:
   username: elastic
   password: ""
   password_env: ES_PASSWORD
-  request_timeout_ms: 100
+  request_timeout_ms: 1000
   http_client:
     curl_handle_pool:
       pool_size: 4
-      acquire_timeout_ms: 30
+      acquire_timeout_ms: 100
       retry:
         max_attempts: 3
         delay_ms: 0
-    request_timeout_ms: 30
-    connect_timeout_ms: 20
+    request_timeout_ms: 800
+    connect_timeout_ms: 300
     connect_retry:
       max_attempts: 3
       delay_ms: 0
