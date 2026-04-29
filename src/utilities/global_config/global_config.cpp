@@ -12,6 +12,8 @@
 #include <string>
 #include <system_error>
 
+#include "src/utilities/logger/logger.h"
+
 namespace shooting_star {
 namespace utilities {
 
@@ -21,8 +23,23 @@ using ::std::optional;
 using ::std::out_of_range;
 using ::std::string;
 using ::std::string_view;
+using ::std::vector;
 
 namespace {
+
+constexpr string_view kRedactedValue = "<redacted>";
+constexpr string_view kElasticsearchConfigKeyPrefix = "elasticsearch";
+
+bool BelongsToConfigSection(string_view key, string_view config_key_prefix) {
+  if (config_key_prefix.empty()) {
+    return true;
+  }
+  if (!key.starts_with(config_key_prefix)) {
+    return false;
+  }
+  return key.size() == config_key_prefix.size() ||
+         key[config_key_prefix.size()] == '.';
+}
 
 enum class ValueType {
   kString,
@@ -388,6 +405,25 @@ string ResolveStartupConfigPath(const StartupConfigPath& startup_config_path,
 
 GlobalConfig::GlobalConfig() { ResetToDefaults(); }
 
+const GlobalConfig& GlobalConfig::Initialize(const string& service_name) {
+  if (service_name.empty()) {
+    throw invalid_argument("service_name must not be empty");
+  }
+
+  GlobalConfig& config = MutableGet();
+  if (config.service_name_.empty()) {
+    config.service_name_ = service_name;
+    return config;
+  }
+  if (config.service_name_ != service_name) {
+    throw invalid_argument("GlobalConfig already initialized for service '" +
+                           config.service_name_ +
+                           "', cannot re-initialize with '" + service_name +
+                           "'");
+  }
+  return config;
+}
+
 const GlobalConfig& GlobalConfig::Get() { return MutableGet(); }
 
 GlobalConfig& GlobalConfig::MutableGet() {
@@ -399,6 +435,7 @@ string_view GlobalConfig::Key(int field) { return EntryForField(field).key; }
 
 void GlobalConfig::ResetToDefaults() {
   values_.clear();
+  service_name_.clear();
   for (const ConfigEntry& entry : kConfigEntries) {
     values_[entry.field] = CanonicalizeValue(entry, entry.default_value);
   }
@@ -637,6 +674,52 @@ string_view GlobalConfig::GetElasticsearchHttpClientConnectTimeoutMsKey()
     values.emplace_back(entry.key, GetString(entry.field));
   }
   return values;
+}
+
+string_view GlobalConfig::GetServiceName() const {
+  if (service_name_.empty()) {
+    throw invalid_argument("GlobalConfig service_name is not initialized");
+  }
+  return service_name_;
+}
+
+bool GlobalConfig::IsSensitiveConfigKey(string_view key) {
+  return key.find("password") != string_view::npos;
+}
+
+void GlobalConfig::LogResolvedConfig(const Logger& logger) const {
+  const vector<::std::pair<string, string>> values = GetResolvedValues();
+  vector<LogField> fields;
+  fields.reserve(values.size());
+  for (const auto& [key, value] : values) {
+    fields.push_back(
+        {key, IsSensitiveConfigKey(key) ? kRedactedValue : string_view(value)});
+  }
+  logger.Info(
+    "resolved_config",
+    fields);
+}
+
+void GlobalConfig::LogResolvedConfigSection(
+    const Logger& logger, string_view config_key_prefix) const {
+  const vector<::std::pair<string, string>> values = GetResolvedValues();
+  vector<LogField> fields;
+  fields.reserve(values.size() + 1);
+  fields.push_back({"config_section", config_key_prefix});
+  for (const auto& [key, value] : values) {
+    if (!BelongsToConfigSection(key, config_key_prefix)) {
+      continue;
+    }
+    fields.push_back(
+        {key, IsSensitiveConfigKey(key) ? kRedactedValue : string_view(value)});
+  }
+  logger.Info(
+    "resolved_config_section",
+    fields);
+}
+
+void GlobalConfig::LogResolvedElasticsearchConfig(const Logger& logger) const {
+  LogResolvedConfigSection(logger, kElasticsearchConfigKeyPrefix);
 }
 
 void ConfigYAML::ApplyStartupFile(int argc, char** argv,

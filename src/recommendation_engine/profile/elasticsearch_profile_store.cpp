@@ -65,11 +65,11 @@ optional<Profile> ElasticsearchProfileStore::FindByUserId(int user_id) const {
   if (!result.ok) {
     if (result.status_code == kHttpNotFoundStatusCode) {
       logger.Info(
-          "profile_not_found_in_elasticsearch_store",
-          {
-              {"user_id", to_string(user_id)},
-              {"profile_es_index", index_},
-          });
+        "profile_not_found_in_elasticsearch_store",
+        {
+          {"user_id", to_string(user_id)},
+          {"profile_es_index", index_},
+        });
       return ::std::nullopt;
     }
     throw runtime_error(::absl::StrFormat(
@@ -84,11 +84,11 @@ optional<Profile> ElasticsearchProfileStore::FindByUserId(int user_id) const {
   }
 
   logger.Info(
-      "profile_read_from_elasticsearch_store",
-      {
-          {"user_id", to_string(user_id)},
-          {"profile_es_index", index_},
-      });
+    "profile_read_from_elasticsearch_store",
+    {
+      {"user_id", to_string(user_id)},
+      {"profile_es_index", index_},
+    });
   return profile;
 }
 

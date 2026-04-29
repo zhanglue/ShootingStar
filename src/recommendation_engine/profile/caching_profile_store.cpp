@@ -35,18 +35,18 @@ optional<Profile> CachingProfileStore::FindByUserId(int user_id) const {
   optional<Profile> cached_profile = cache_.Get(user_id);
   if (cached_profile.has_value()) {
     logger.Info(
-        "profile_cache_hit",
-        {
-            {"user_id", to_string(user_id)},
-        });
+      "profile_cache_hit",
+      {
+        {"user_id", to_string(user_id)},
+      });
     return cached_profile;
   }
 
   logger.Info(
-      "profile_cache_miss",
-      {
-          {"user_id", to_string(user_id)},
-      });
+    "profile_cache_miss",
+    {
+      {"user_id", to_string(user_id)},
+    });
   optional<Profile> profile = profile_store_->FindByUserId(user_id);
   if (!profile.has_value()) {
     return ::std::nullopt;

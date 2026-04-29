@@ -13,9 +13,11 @@ namespace utilities {
 class ConfigArguments;
 class ConfigYAML;
 class GlobalConfigTestAccess;
+class Logger;
 
 class GlobalConfig final {
  public:
+  static const GlobalConfig& Initialize(const ::std::string& service_name);
   static const GlobalConfig& Get();
 
   GlobalConfig(const GlobalConfig&) = delete;
@@ -74,6 +76,12 @@ class GlobalConfig final {
 
   ::std::vector<::std::pair<::std::string, ::std::string>> GetResolvedValues()
       const;
+  ::std::string_view GetServiceName() const;
+  static bool IsSensitiveConfigKey(::std::string_view key);
+  void LogResolvedConfig(const Logger& logger) const;
+  void LogResolvedConfigSection(const Logger& logger,
+                                ::std::string_view config_key_prefix) const;
+  void LogResolvedElasticsearchConfig(const Logger& logger) const;
 
  private:
   GlobalConfig();
@@ -93,6 +101,7 @@ class GlobalConfig final {
   ::std::string GetAddress(int host_field, int port_field) const;
 
   ::std::map<int, ::std::string> values_;
+  ::std::string service_name_;
 
   friend class ConfigArguments;
   friend class ConfigYAML;

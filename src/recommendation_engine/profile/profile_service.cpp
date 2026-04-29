@@ -50,31 +50,34 @@ unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
   if (capacity <= 0) {
     const string reason =
         string(config.GetLocalCacheCapacityKey()) + " must be greater than 0";
-    logger.Info("profile_local_cache_disabled",
-                {
-                    {"reason", reason},
-                    {"profile_local_cache_capacity", to_string(capacity)},
-                    {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
-                });
+    logger.Info(
+      "profile_local_cache_disabled",
+      {
+        {"reason", reason},
+        {"profile_local_cache_capacity", to_string(capacity)},
+        {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
+      });
     return profile_store;
   }
   if (ttl_seconds <= 0) {
     const string reason =
         string(config.GetLocalCacheTtlSecondsKey()) + " must be greater than 0";
-    logger.Info("profile_local_cache_disabled",
-                {
-                    {"reason", reason},
-                    {"profile_local_cache_capacity", to_string(capacity)},
-                    {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
-                });
+    logger.Info(
+      "profile_local_cache_disabled",
+      {
+        {"reason", reason},
+        {"profile_local_cache_capacity", to_string(capacity)},
+        {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
+      });
     return profile_store;
   }
 
-  logger.Info("profile_local_cache_initialized",
-              {
-                  {"profile_local_cache_capacity", to_string(capacity)},
-                  {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
-              });
+  logger.Info(
+    "profile_local_cache_initialized",
+    {
+      {"profile_local_cache_capacity", to_string(capacity)},
+      {"profile_local_cache_ttl_seconds", to_string(ttl_seconds)},
+    });
   return make_unique<CachingProfileStore>(
       ::std::move(profile_store), static_cast<::std::size_t>(capacity),
       ::std::chrono::duration_cast<milliseconds>(seconds(ttl_seconds)));
@@ -87,51 +90,23 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
   if (profile_store_type == ProfileStore::kLocalStoreType) {
     const string profile_data_path =
         ResolveWorkspaceRelativePath(config.GetDataPath());
-    logger.Info("profile_store_initialized",
-                {
-                    {"profile_store_type", profile_store_type},
-                    {"profile_data_path", profile_data_path},
-                });
+    logger.Info(
+      "profile_store_initialized",
+      {
+        {"profile_store_type", profile_store_type},
+        {"profile_data_path", profile_data_path},
+      });
     return make_unique<LocalFileProfileStore>(profile_data_path);
   }
 
   if (profile_store_type == ProfileStore::kElasticsearchStoreType) {
     logger.Info(
-        "profile_store_initialized",
-        {
-            {"profile_store_type", profile_store_type},
-            {"profile_es_base_url", config.GetElasticsearchBaseUrl()},
-            {"profile_es_index", config.GetElasticsearchIndex()},
-            {"profile_es_request_timeout_ms",
-             to_string(config.GetElasticsearchRequestTimeoutMs())},
-            {"profile_es_http_client_curl_handle_pool_size",
-             to_string(config.GetElasticsearchHttpClientPoolSize())},
-            {"profile_es_http_client_curl_handle_pool_acquire_timeout_ms",
-             to_string(config.GetElasticsearchHttpClientAcquireTimeoutMs())},
-            {"profile_es_http_client_request_timeout_ms",
-             to_string(config.GetElasticsearchHttpClientRequestTimeoutMs())},
-            {"profile_es_http_client_connect_timeout_ms",
-             to_string(config.GetElasticsearchHttpClientConnectTimeoutMs())},
-            {"profile_es_http_client_curl_handle_pool_retry_max_attempts",
-             to_string(config.GetElasticsearchHttpClientAcquireRetryMaxAttempts())},
-            {"profile_es_http_client_curl_handle_pool_retry_delay_ms",
-             to_string(config.GetElasticsearchHttpClientAcquireRetryDelayMs())},
-            {"profile_es_http_client_connect_retry_max_attempts",
-             to_string(config.GetElasticsearchHttpClientConnectRetryMaxAttempts())},
-            {"profile_es_http_client_connect_retry_delay_ms",
-             to_string(config.GetElasticsearchHttpClientConnectRetryDelayMs())},
-            {"profile_es_http_client_request_retry_max_attempts",
-             to_string(config.GetElasticsearchHttpClientRequestRetryMaxAttempts())},
-            {"profile_es_http_client_request_retry_delay_ms",
-             to_string(config.GetElasticsearchHttpClientRequestRetryDelayMs())},
-            {"profile_es_http_client_follow_redirects",
-             config.GetElasticsearchHttpClientFollowRedirects() ? "true"
-                                                                 : "false"},
-            {"profile_es_http_client_verify_ssl",
-             config.GetElasticsearchHttpClientVerifySsl() ? "true" : "false"},
-            {"profile_es_http_client_ca_cert_path",
-             config.GetElasticsearchHttpClientCaCertPath()},
-        });
+      "profile_store_initialized",
+      {
+        {"profile_store_type", profile_store_type},
+        {"profile_es_base_url", config.GetElasticsearchBaseUrl()},
+        {"profile_es_index", config.GetElasticsearchIndex()},
+      });
     return make_unique<ElasticsearchProfileStore>(
         ElasticsearchClient::Create(),
         config.GetElasticsearchIndex());
@@ -157,10 +132,10 @@ ProfileServiceImpl::ProfileServiceImpl(
   const string profile_store_type = config_.GetStoreType();
 
   logger.Info(
-      "profile_store_selected",
-      {
-          {"profile_store_type", profile_store_type},
-      });
+    "profile_store_selected",
+    {
+      {"profile_store_type", profile_store_type},
+    });
 
   profile_store_ = CreateProfileStore(config_, profile_store_type);
 }
@@ -169,10 +144,11 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
                                       const GetProfileRequest* request,
                                       GetProfileResponse* response) {
   const Logger& logger = LoggerRegistry::Get();
-  logger.Info("get_profile_request_received",
-              {
-                  {"user_id", to_string(request->user_id())},
-              });
+  logger.Info(
+    "get_profile_request_received",
+    {
+      {"user_id", to_string(request->user_id())},
+    });
 
   response->mutable_request()->CopyFrom(*request);
 
@@ -186,35 +162,40 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
     profile = profile_store_->FindByUserId(request->user_id());
   } catch (const ::std::exception& ex) {
     response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
-    logger.Info("get_profile_request_failed",
-                {
-                    {"user_id", to_string(request->user_id())},
-                    {"reason", "profile store lookup failed"},
-                    {"error_message", ex.what()},
-                });
+    logger.Info(
+      "get_profile_request_failed",
+      {
+        {"user_id", to_string(request->user_id())},
+        {"reason", "profile store lookup failed"},
+        {"error_message", ex.what()},
+      });
     return Status(StatusCode::INTERNAL, ex.what());
   }
 
   if (!profile.has_value()) {
     response->set_status(ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
-    logger.Info("get_profile_user_not_found",
-                {
-                    {"user_id", to_string(request->user_id())},
-                });
-    return Status(StatusCode::NOT_FOUND,
-                  format("User ID of {} not found.", request->user_id()));
+    logger.Info(
+      "get_profile_user_not_found",
+      {
+        {"user_id", to_string(request->user_id())},
+      });
+    return Status(
+        StatusCode::NOT_FOUND,
+        format("User ID of {} not found.", request->user_id()));
   }
 
-  logger.Info("get_profile_request_succeeded",
-              {
-                  {"user_id", to_string(request->user_id())},
-              });
-  logger.Debug("profile_payload",
-               {
-                   {"user_id", to_string(request->user_id())},
-                   {"profile_size_bytes", to_string(profile->ByteSizeLong())},
-                   {"profile_proto", profile->DebugString()},
-               });
+  logger.Info(
+    "get_profile_request_succeeded",
+    {
+      {"user_id", to_string(request->user_id())},
+    });
+  logger.Debug(
+    "profile_payload",
+    {
+      {"user_id", to_string(request->user_id())},
+      {"profile_size_bytes", to_string(profile->ByteSizeLong())},
+      {"profile_proto", profile->DebugString()},
+    });
 
   response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
   response->mutable_profile()->CopyFrom(*profile);

@@ -7,6 +7,7 @@ cc_library(
     srcs = ["global_config.cpp"],
     hdrs = ["global_config.h"],
     deps = [
+        "//src/utilities/logger:logger",
         "@yaml-cpp//:yaml-cpp",
     ],
 )

@@ -6,9 +6,6 @@
 #include <exception>
 #include <memory>
 #include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
 
 #include "src/recommendation_engine/profile/profile_service.h"
 #include "src/utilities/global_config/global_config.h"
@@ -20,38 +17,19 @@ namespace {
 using ::recommendation_engine::ProfileServiceImpl;
 using ::shooting_star::utilities::ConfigArguments;
 using ::shooting_star::utilities::ConfigYAML;
+using ::shooting_star::utilities::CreateServerLoggingInterceptorCreators;
 using ::shooting_star::utilities::GlobalConfig;
-using ::shooting_star::utilities::LogField;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::std::string;
-using ::std::string_view;
-using ::std::vector;
 
-constexpr string_view kServiceName = "profile";
-constexpr string_view kRedactedValue = "<redacted>";
-
-bool IsSensitiveConfigKey(string_view key) {
-  return key.find("password") != string_view::npos;
-}
-
-void LogResolvedConfig(const GlobalConfig& config) {
-  const vector<::std::pair<string, string>> values = config.GetResolvedValues();
-  vector<LogField> fields;
-  fields.reserve(values.size());
-  for (const auto& [key, value] : values) {
-    fields.push_back(
-        {key, IsSensitiveConfigKey(key) ? kRedactedValue : string_view(value)});
-  }
-  const Logger& logger = LoggerRegistry::Get();
-  logger.Info("resolved_config", fields);
-}
+constexpr const char* kServiceName = "profile";
 
 }  // namespace
 
 int main(int argc, char** argv) {
   try {
-    const GlobalConfig& config = GlobalConfig::Get();
+    const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
     ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
     ConfigArguments::Apply(argc, argv);
 
@@ -61,10 +39,12 @@ int main(int argc, char** argv) {
     LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
     const Logger& logger = LoggerRegistry::Get();
-    logger.Info("config_loaded", {
-                                     {"config_path", config.GetConfigPath()},
-                                 });
-    LogResolvedConfig(config);
+    logger.Info(
+      "config_loaded",
+      {
+        {"config_path", config.GetConfigPath()},
+      });
+    config.LogResolvedConfig(logger);
 
     const string server_address = config.GetListenAddress();
     ProfileServiceImpl service(config);
@@ -73,22 +53,21 @@ int main(int argc, char** argv) {
     ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ::grpc::ServerBuilder builder;
     builder.experimental().SetInterceptorCreators(
-        ::shooting_star::utilities::CreateServerLoggingInterceptorCreators(
-            logger));
+        CreateServerLoggingInterceptorCreators(logger));
     builder.AddListeningPort(server_address,
                              ::grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
 
     ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-    logger.Info("server_started", {
-                                      {"listen_address", server_address},
-                                  });
+    logger.Info("server_started", {{"listen_address", server_address}});
     server->Wait();
   } catch (const ::std::exception& ex) {
     const Logger& logger = LoggerRegistry::Get();
-    logger.Error("server_startup_failed", {
-                                              {"error", ex.what()},
-                                          });
+    logger.Error(
+      "server_startup_failed",
+      {
+        {"error", ex.what()},
+      });
     return EXIT_FAILURE;
   }
 

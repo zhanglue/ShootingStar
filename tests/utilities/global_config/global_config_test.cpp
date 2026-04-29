@@ -9,6 +9,8 @@
 #include <string>
 #include <utility>
 
+#include "src/utilities/logger/logger.h"
+
 namespace shooting_star {
 namespace utilities {
 
@@ -48,6 +50,22 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetLocalCacheCapacity(), 0);
   EXPECT_EQ(config.GetProfileServiceAddress(), "localhost:50100");
   EXPECT_EQ(config.GetListenAddress(), "0.0.0.0:50000");
+}
+
+TEST(GlobalConfigTest, InitializeSetsServiceName) {
+  GlobalConfigTestAccess::Reset();
+
+  const GlobalConfig& config = GlobalConfig::Initialize("profile");
+
+  EXPECT_EQ(config.GetServiceName(), "profile");
+}
+
+TEST(GlobalConfigTest, InitializeRejectsDifferentServiceNameAfterFirstSet) {
+  GlobalConfigTestAccess::Reset();
+
+  (void)GlobalConfig::Initialize("profile");
+  EXPECT_THROW((void)GlobalConfig::Initialize("gateway"),
+               ::std::invalid_argument);
 }
 
 TEST(GlobalConfigTest, AppliesYamlOverDefaultsOnlyForConfiguredFields) {
@@ -141,6 +159,47 @@ TEST(GlobalConfigTest, RejectsInvalidCommandLineValues) {
   char* argv[] = {arg0, arg1};
 
   EXPECT_THROW(ConfigArguments::Apply(2, argv), ::std::out_of_range);
+}
+
+TEST(GlobalConfigTest, LogsOnlyRequestedConfigSection) {
+  GlobalConfigTestAccess::Reset();
+  const GlobalConfig& config = GlobalConfig::Get();
+  const Logger logger("global_config_test");
+
+  ::testing::internal::CaptureStdout();
+  config.LogResolvedConfigSection(logger, "local_cache");
+  const string logs = ::testing::internal::GetCapturedStdout();
+
+  EXPECT_NE(logs.find("\"event\":\"resolved_config_section\""), string::npos);
+  EXPECT_NE(logs.find("\"config_section\":\"local_cache\""), string::npos);
+  EXPECT_NE(logs.find("\"local_cache.capacity\":\"0\""), string::npos);
+  EXPECT_NE(logs.find("\"local_cache.ttl_seconds\":\"300\""), string::npos);
+  EXPECT_EQ(logs.find("\"elasticsearch.base_url\":"), string::npos);
+  EXPECT_EQ(logs.find("\"server.host\":"), string::npos);
+}
+
+TEST(GlobalConfigTest, LogsElasticsearchSectionAndRedactsPassword) {
+  GlobalConfigTestAccess::Reset();
+
+  char arg0[] = "profile";
+  char arg1[] = "--es_password=super_secret";
+  char* argv[] = {arg0, arg1};
+  ConfigArguments::Apply(2, argv);
+
+  const GlobalConfig& config = GlobalConfig::Get();
+  const Logger logger("global_config_test");
+  ::testing::internal::CaptureStdout();
+  config.LogResolvedElasticsearchConfig(logger);
+  const string logs = ::testing::internal::GetCapturedStdout();
+
+  EXPECT_NE(logs.find("\"event\":\"resolved_config_section\""), string::npos);
+  EXPECT_NE(logs.find("\"config_section\":\"elasticsearch\""), string::npos);
+  EXPECT_NE(logs.find("\"elasticsearch.base_url\":"), string::npos);
+  EXPECT_NE(logs.find("\"elasticsearch.password\":\"<redacted>\""),
+            string::npos);
+  EXPECT_EQ(logs.find("super_secret"), string::npos);
+  EXPECT_EQ(logs.find("\"local_cache.capacity\":"), string::npos);
+  EXPECT_EQ(logs.find("\"server.host\":"), string::npos);
 }
 
 }  // namespace
