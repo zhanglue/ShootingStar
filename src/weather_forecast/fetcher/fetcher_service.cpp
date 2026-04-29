@@ -3,24 +3,23 @@
 #include <grpcpp/grpcpp.h>
 
 #include <iostream>
-#include <memory>
 #include <string>
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
 
 namespace weather_flow {
 
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::Status;
-using grpc::StatusCode;
-using std::cout;
-using std::endl;
-using std::string;
-using weather_flow::Fetcher;
-using weather_flow::GetWeatherRequest;
-using weather_flow::GetWeatherResponse;
+using ::grpc::Server;
+using ::grpc::ServerBuilder;
+using ::grpc::ServerContext;
+using ::grpc::Status;
+using ::grpc::StatusCode;
+using ::std::cout;
+using ::std::endl;
+using ::std::string;
+using ::weather_flow::Fetcher;
+using ::weather_flow::GetWeatherRequest;
+using ::weather_flow::GetWeatherResponse;
 
 // Hardcoded weather data for cities.
 FetcherServiceImpl::FetcherServiceImpl() {
