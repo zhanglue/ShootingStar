@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "src/utilities/global_config/global_config.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace shooting_star {
@@ -87,6 +88,66 @@ ElasticsearchClient::Config::Config()
 ////////////////////////////////////////////////////////////////////////////////
 // ElasticsearchClient Factory Methods
 ////////////////////////////////////////////////////////////////////////////////
+
+ElasticsearchClient ElasticsearchClient::Create() {
+  const GlobalConfig& global_config = GlobalConfig::Get();
+  Config config;
+  config.base_url = global_config.GetElasticsearchBaseUrl();
+  config.username = global_config.GetElasticsearchUsername();
+  config.password = GetEnvOrDefault(global_config.GetElasticsearchPasswordEnv(),
+                                    global_config.GetElasticsearchPassword());
+  config.request_timeout =
+      milliseconds(global_config.GetElasticsearchRequestTimeoutMs());
+  config.http_config.pool_size = static_cast<::std::size_t>(
+      global_config.GetElasticsearchHttpClientPoolSize());
+  config.http_config.acquire_timeout =
+      milliseconds(global_config.GetElasticsearchHttpClientAcquireTimeoutMs());
+  config.http_config.request_timeout =
+      milliseconds(global_config.GetElasticsearchHttpClientRequestTimeoutMs());
+  config.http_config.connect_timeout =
+      milliseconds(global_config.GetElasticsearchHttpClientConnectTimeoutMs());
+  config.http_config.acquire_retry.max_attempts =
+      global_config.GetElasticsearchHttpClientAcquireRetryMaxAttempts();
+  config.http_config.acquire_retry.delay =
+      milliseconds(global_config.GetElasticsearchHttpClientAcquireRetryDelayMs());
+  config.http_config.connect_retry.max_attempts =
+      global_config.GetElasticsearchHttpClientConnectRetryMaxAttempts();
+  config.http_config.connect_retry.delay =
+      milliseconds(global_config.GetElasticsearchHttpClientConnectRetryDelayMs());
+  config.http_config.request_retry.max_attempts =
+      global_config.GetElasticsearchHttpClientRequestRetryMaxAttempts();
+  config.http_config.request_retry.delay =
+      milliseconds(global_config.GetElasticsearchHttpClientRequestRetryDelayMs());
+  config.http_config.follow_redirects =
+      global_config.GetElasticsearchHttpClientFollowRedirects();
+  config.http_config.verify_ssl =
+      global_config.GetElasticsearchHttpClientVerifySsl();
+  config.http_config.ca_cert_path =
+      global_config.GetElasticsearchHttpClientCaCertPath();
+  ValidateTimeoutNotGreater(
+      global_config.GetElasticsearchHttpClientAcquireTimeoutMsKey(),
+      config.http_config.acquire_timeout,
+      global_config.GetElasticsearchRequestTimeoutMsKey(),
+      *config.request_timeout);
+  ValidateTimeoutNotGreater(
+      global_config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
+      config.http_config.request_timeout,
+      global_config.GetElasticsearchRequestTimeoutMsKey(),
+      *config.request_timeout);
+  ValidateTimeoutNotGreater(
+      global_config.GetElasticsearchHttpClientConnectTimeoutMsKey(),
+      config.http_config.connect_timeout,
+      global_config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
+      config.http_config.request_timeout);
+  ValidateTimeoutSumNotGreater(
+      global_config.GetElasticsearchHttpClientAcquireTimeoutMsKey(),
+      config.http_config.acquire_timeout,
+      global_config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
+      config.http_config.request_timeout,
+      global_config.GetElasticsearchRequestTimeoutMsKey(),
+      *config.request_timeout);
+  return Create(std::move(config));
+}
 
 ElasticsearchClient ElasticsearchClient::Create(Config config) {
   CurlHttpClient::Config http_config = config.http_config;

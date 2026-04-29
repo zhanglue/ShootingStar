@@ -25,12 +25,9 @@ using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::shooting_star::utilities::ElasticsearchClient;
-using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
-using ::shooting_star::utilities::ValidateTimeoutNotGreater;
-using ::shooting_star::utilities::ValidateTimeoutSumNotGreater;
 using ::std::format;
 using ::std::invalid_argument;
 using ::std::make_unique;
@@ -43,67 +40,6 @@ using ::std::chrono::milliseconds;
 using ::std::chrono::seconds;
 
 namespace {
-
-constexpr string_view kLocalStoreType = "local";
-constexpr string_view kElasticsearchStoreType = "elasticsearch";
-
-ElasticsearchClient::Config CreateElasticsearchConfig(
-    const ::shooting_star::utilities::GlobalConfig& config) {
-  ElasticsearchClient::Config es_config;
-  es_config.base_url = config.GetElasticsearchBaseUrl();
-  es_config.username = config.GetElasticsearchUsername();
-  es_config.password = config.GetElasticsearchPassword();
-  es_config.password =
-      GetEnvOrDefault(config.GetElasticsearchPasswordEnv(), es_config.password);
-  es_config.request_timeout =
-      milliseconds(config.GetElasticsearchRequestTimeoutMs());
-  es_config.http_config.pool_size =
-      static_cast<::std::size_t>(config.GetElasticsearchHttpClientPoolSize());
-  es_config.http_config.acquire_timeout =
-      milliseconds(config.GetElasticsearchHttpClientAcquireTimeoutMs());
-  es_config.http_config.request_timeout =
-      milliseconds(config.GetElasticsearchHttpClientRequestTimeoutMs());
-  es_config.http_config.connect_timeout =
-      milliseconds(config.GetElasticsearchHttpClientConnectTimeoutMs());
-  es_config.http_config.acquire_retry.max_attempts =
-      config.GetElasticsearchHttpClientAcquireRetryMaxAttempts();
-  es_config.http_config.acquire_retry.delay =
-      milliseconds(config.GetElasticsearchHttpClientAcquireRetryDelayMs());
-  es_config.http_config.connect_retry.max_attempts =
-      config.GetElasticsearchHttpClientConnectRetryMaxAttempts();
-  es_config.http_config.connect_retry.delay =
-      milliseconds(config.GetElasticsearchHttpClientConnectRetryDelayMs());
-  es_config.http_config.request_retry.max_attempts =
-      config.GetElasticsearchHttpClientRequestRetryMaxAttempts();
-  es_config.http_config.request_retry.delay =
-      milliseconds(config.GetElasticsearchHttpClientRequestRetryDelayMs());
-  ValidateTimeoutNotGreater(
-      config.GetElasticsearchHttpClientAcquireTimeoutMsKey(),
-      es_config.http_config.acquire_timeout,
-      config.GetElasticsearchRequestTimeoutMsKey(), *es_config.request_timeout);
-  ValidateTimeoutNotGreater(
-      config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
-      es_config.http_config.request_timeout,
-      config.GetElasticsearchRequestTimeoutMsKey(), *es_config.request_timeout);
-  ValidateTimeoutNotGreater(
-      config.GetElasticsearchHttpClientConnectTimeoutMsKey(),
-      es_config.http_config.connect_timeout,
-      config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
-      es_config.http_config.request_timeout);
-  ValidateTimeoutSumNotGreater(
-      config.GetElasticsearchHttpClientAcquireTimeoutMsKey(),
-      es_config.http_config.acquire_timeout,
-      config.GetElasticsearchHttpClientRequestTimeoutMsKey(),
-      es_config.http_config.request_timeout,
-      config.GetElasticsearchRequestTimeoutMsKey(), *es_config.request_timeout);
-  es_config.http_config.follow_redirects =
-      config.GetElasticsearchHttpClientFollowRedirects();
-  es_config.http_config.verify_ssl =
-      config.GetElasticsearchHttpClientVerifySsl();
-  es_config.http_config.ca_cert_path =
-      config.GetElasticsearchHttpClientCaCertPath();
-  return es_config;
-}
 
 unique_ptr<ProfileStore> WrapWithLocalCacheIfConfigured(
     const ::shooting_star::utilities::GlobalConfig& config,
@@ -148,7 +84,7 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
     const ::shooting_star::utilities::GlobalConfig& config,
     const string& profile_store_type) {
   const Logger& logger = LoggerRegistry::Get();
-  if (profile_store_type == kLocalStoreType) {
+  if (profile_store_type == ProfileStore::kLocalStoreType) {
     const string profile_data_path =
         ResolveWorkspaceRelativePath(config.GetDataPath());
     logger.Info("profile_store_initialized",
@@ -159,45 +95,45 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
     return make_unique<LocalFileProfileStore>(profile_data_path);
   }
 
-  if (profile_store_type == kElasticsearchStoreType) {
-    ElasticsearchClient::Config es_config = CreateElasticsearchConfig(config);
+  if (profile_store_type == ProfileStore::kElasticsearchStoreType) {
     logger.Info(
         "profile_store_initialized",
         {
             {"profile_store_type", profile_store_type},
-            {"profile_es_base_url", es_config.base_url},
+            {"profile_es_base_url", config.GetElasticsearchBaseUrl()},
             {"profile_es_index", config.GetElasticsearchIndex()},
             {"profile_es_request_timeout_ms",
-             to_string(es_config.request_timeout->count())},
+             to_string(config.GetElasticsearchRequestTimeoutMs())},
             {"profile_es_http_client_curl_handle_pool_size",
-             to_string(es_config.http_config.pool_size)},
+             to_string(config.GetElasticsearchHttpClientPoolSize())},
             {"profile_es_http_client_curl_handle_pool_acquire_timeout_ms",
-             to_string(es_config.http_config.acquire_timeout.count())},
+             to_string(config.GetElasticsearchHttpClientAcquireTimeoutMs())},
             {"profile_es_http_client_request_timeout_ms",
-             to_string(es_config.http_config.request_timeout.count())},
+             to_string(config.GetElasticsearchHttpClientRequestTimeoutMs())},
             {"profile_es_http_client_connect_timeout_ms",
-             to_string(es_config.http_config.connect_timeout.count())},
+             to_string(config.GetElasticsearchHttpClientConnectTimeoutMs())},
             {"profile_es_http_client_curl_handle_pool_retry_max_attempts",
-             to_string(es_config.http_config.acquire_retry.max_attempts)},
+             to_string(config.GetElasticsearchHttpClientAcquireRetryMaxAttempts())},
             {"profile_es_http_client_curl_handle_pool_retry_delay_ms",
-             to_string(es_config.http_config.acquire_retry.delay.count())},
+             to_string(config.GetElasticsearchHttpClientAcquireRetryDelayMs())},
             {"profile_es_http_client_connect_retry_max_attempts",
-             to_string(es_config.http_config.connect_retry.max_attempts)},
+             to_string(config.GetElasticsearchHttpClientConnectRetryMaxAttempts())},
             {"profile_es_http_client_connect_retry_delay_ms",
-             to_string(es_config.http_config.connect_retry.delay.count())},
+             to_string(config.GetElasticsearchHttpClientConnectRetryDelayMs())},
             {"profile_es_http_client_request_retry_max_attempts",
-             to_string(es_config.http_config.request_retry.max_attempts)},
+             to_string(config.GetElasticsearchHttpClientRequestRetryMaxAttempts())},
             {"profile_es_http_client_request_retry_delay_ms",
-             to_string(es_config.http_config.request_retry.delay.count())},
+             to_string(config.GetElasticsearchHttpClientRequestRetryDelayMs())},
             {"profile_es_http_client_follow_redirects",
-             es_config.http_config.follow_redirects ? "true" : "false"},
+             config.GetElasticsearchHttpClientFollowRedirects() ? "true"
+                                                                 : "false"},
             {"profile_es_http_client_verify_ssl",
-             es_config.http_config.verify_ssl ? "true" : "false"},
+             config.GetElasticsearchHttpClientVerifySsl() ? "true" : "false"},
             {"profile_es_http_client_ca_cert_path",
-             es_config.http_config.ca_cert_path},
+             config.GetElasticsearchHttpClientCaCertPath()},
         });
     return make_unique<ElasticsearchProfileStore>(
-        ElasticsearchClient::Create(::std::move(es_config)),
+        ElasticsearchClient::Create(),
         config.GetElasticsearchIndex());
   }
 
