@@ -1,0 +1,13 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "retriever_item_cf_test",
+    srcs = ["retriever_item_cf_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/recommendation_engine/retrieval/retrievers/item_cf:retriever_item_cf_lib",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -28,6 +28,15 @@ spec:
           limits:
             memory: 512Mi
             cpu: "1"
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              # Kubernetes Secrets are namespace-scoped. Mirror this secret
+              # from recommendation-engine-redis into recommendation-engine
+              # before applying the Deployment.
+              name: redis-auth
+              key: password
         ports:
         - containerPort: 50210
           name: grpc

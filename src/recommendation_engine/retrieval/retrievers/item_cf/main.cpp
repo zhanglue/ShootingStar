@@ -2,8 +2,11 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include <cstdlib>
+#include <exception>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/retriever_item_cf.h"
 #include "src/utilities/global_config/global_config.h"
@@ -33,27 +36,40 @@ constexpr const char* kServiceName = "retriever_item_cf";
 }  // namespace
 
 int main(int argc, char** argv) {
-  const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
-  ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
-  ConfigArguments::Apply(argc, argv);
-  LoggerRegistry::Register(make_shared<Logger>(kServiceName));
-  LoggerRegistry::SetDefaultLoggerName(kServiceName);
+  try {
+    const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
+    ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
+    ConfigArguments::Apply(argc, argv);
 
-  const string server_address = config.GetListenAddress();
-  RetrieverItemCf service;
+    auto item_cf_logger = make_shared<Logger>(kServiceName);
+    item_cf_logger->SetMinLogLevel(config.GetLogLevel());
+    LoggerRegistry::Register(::std::move(item_cf_logger));
+    LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
-  EnableDefaultHealthCheckService(true);
-  InitProtoReflectionServerBuilderPlugin();
-  ServerBuilder builder;
-  const Logger& logger = LoggerRegistry::Get();
-  builder.experimental().SetInterceptorCreators(
-      CreateServerLoggingInterceptorCreators(logger));
-  builder.AddListeningPort(server_address, InsecureServerCredentials());
-  builder.RegisterService(&service);
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Info("config_loaded", {{"config_path", config.GetConfigPath()}, });
+    config.LogResolvedConfig(logger);
+    config.LogResolvedRedisConfig(logger);
 
-  unique_ptr<Server> server(builder.BuildAndStart());
-  logger.Info("server_started", {{"listen_address", server_address}, });
-  server->Wait();
+    const string server_address = config.GetListenAddress();
+    RetrieverItemCf service;
 
-  return 0;
+    EnableDefaultHealthCheckService(true);
+    InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
+    builder.experimental().SetInterceptorCreators(
+        CreateServerLoggingInterceptorCreators(logger));
+    builder.AddListeningPort(server_address, InsecureServerCredentials());
+    builder.RegisterService(&service);
+
+    unique_ptr<Server> server(builder.BuildAndStart());
+    logger.Info("server_started", {{"listen_address", server_address}});
+    server->Wait();
+  } catch (const ::std::exception& ex) {
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Error("server_startup_failed", {{"error", ex.what()}, });
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
 }

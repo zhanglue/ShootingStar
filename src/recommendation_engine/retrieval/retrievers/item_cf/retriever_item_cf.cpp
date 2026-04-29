@@ -1,7 +1,20 @@
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/retriever_item_cf.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <exception>
 #include <format>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <utility>
+
+#include "src/recommendation_engine/retrieval/retrievers/item_cf/redis_item_similarity_store.h"
+#include "src/utilities/global_config/global_config.h"
+#include "src/utilities/logger/logger.h"
+#include "src/utilities/logger/logger_registry.h"
+#include "src/utilities/redis_client/redis_client.h"
 
 namespace recommendation_engine {
 namespace {
@@ -9,9 +22,20 @@ namespace {
 constexpr char kRetrieverName[] = "item_cf";
 
 using ::grpc::Status;
+using ::grpc::StatusCode;
 using ::std::format;
-using ::std::vector;
+using ::std::make_unique;
+using ::std::runtime_error;
+using ::std::sort;
+using ::std::string;
+using ::std::to_string;
+using ::std::unique_ptr;
+using ::std::unordered_map;
 using ::std::unordered_set;
+using ::std::vector;
+using ::shooting_star::utilities::GlobalConfig;
+using ::shooting_star::utilities::LoggerRegistry;
+using ::shooting_star::utilities::RedisClient;
 
 void AppendSeenItems(const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
                      ::std::unordered_set<uint64_t>* rated_items) {
@@ -31,7 +55,70 @@ void AppendSeenItems(const ::google::protobuf::RepeatedField<::int64_t>& items,
   }
 }
 
+void AddCandidateContribution(
+    const RetrieverItemCf::TriggerSeed& trigger_seed,
+    const ItemNeighbor& neighbor,
+    unordered_map<uint64_t, RetrieverItemCf::CandidateScore>* candidates) {
+  if (neighbor.item_id == 0 || neighbor.score <= 0.0) {
+    return;
+  }
+
+  const double contribution = trigger_seed.score * neighbor.score;
+  if (contribution <= 0.0) {
+    return;
+  }
+
+  auto [iter, inserted] = candidates->try_emplace(neighbor.item_id);
+  RetrieverItemCf::CandidateScore& candidate = iter->second;
+  if (inserted) {
+    candidate.item_id = neighbor.item_id;
+  }
+  candidate.score += contribution;
+
+  if (inserted || contribution > candidate.reason_score) {
+    candidate.trigger_item_id = trigger_seed.item_id;
+    candidate.trigger_score = trigger_seed.score;
+    candidate.similarity_score = neighbor.score;
+    candidate.reason_score = contribution;
+  }
+}
+
+vector<RetrieverItemCf::CandidateScore> SortCandidates(
+    const unordered_map<uint64_t, RetrieverItemCf::CandidateScore>& candidates) {
+  vector<RetrieverItemCf::CandidateScore> sorted_candidates;
+  sorted_candidates.reserve(candidates.size());
+  for (const auto& [_, candidate] : candidates) {
+    sorted_candidates.push_back(candidate);
+  }
+
+  sort(sorted_candidates.begin(), sorted_candidates.end(),
+       [](const RetrieverItemCf::CandidateScore& lhs,
+          const RetrieverItemCf::CandidateScore& rhs) {
+         if (lhs.score != rhs.score) {
+           return lhs.score > rhs.score;
+         }
+         return lhs.item_id < rhs.item_id;
+       });
+  return sorted_candidates;
+}
+
 }  // namespace
+
+RetrieverItemCf::RetrieverItemCf(int default_max_candidate_count)
+    : RetrieverItemCf(
+          make_unique<RedisItemSimilarityStore>(RedisClient::Create(),
+                                                GlobalConfig::Get().GetRedisKeyPrefix()),
+          default_max_candidate_count) {}
+
+RetrieverItemCf::RetrieverItemCf(
+    unique_ptr<ItemSimilarityStore> item_similarity_store,
+    int default_max_candidate_count)
+    : RetrieverBase(default_max_candidate_count),
+      item_similarity_store_(::std::move(item_similarity_store)) {
+  if (item_similarity_store_ == nullptr) {
+    throw runtime_error("RetrieverItemCf item_similarity_store must not be null");
+  }
+}
 
 Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
@@ -41,41 +128,52 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
     return Status::OK;
   }
 
-  unordered_set<uint64_t> emitted_item_ids = CollectSeenItems(request.profile());
+  const unordered_set<uint64_t> seen_item_ids = CollectSeenItems(request.profile());
+  unordered_map<uint64_t, CandidateScore> candidates;
 
-  for (int trigger_rank = 0;
-       trigger_rank < static_cast<int>(trigger_seeds.size()) &&
-       response->candidates_size() < request.max_candidate_count();
-       ++trigger_rank) {
-    const TriggerSeed& trigger_seed = trigger_seeds[trigger_rank];
-
-    for (int neighbor_rank = 0;
-         neighbor_rank < request.max_candidate_count() &&
-         response->candidates_size() < request.max_candidate_count();
-         ++neighbor_rank) {
-      const uint64_t candidate_item_id =
-          BuildCandidateItemId(trigger_seed.item_id, trigger_rank, neighbor_rank);
-      if (!emitted_item_ids.insert(candidate_item_id).second) {
-        continue;
+  try {
+    for (const TriggerSeed& trigger_seed : trigger_seeds) {
+      const vector<ItemNeighbor> neighbors =
+          item_similarity_store_->FindNeighborsByItemId(
+              trigger_seed.item_id, request.max_candidate_count());
+      for (const ItemNeighbor& neighbor : neighbors) {
+        if (seen_item_ids.contains(neighbor.item_id)) {
+          continue;
+        }
+        AddCandidateContribution(trigger_seed, neighbor, &candidates);
       }
-
-      CandidateItem* candidate = response->add_candidates();
-      candidate->set_item_id(candidate_item_id);
-      candidate->set_item_type(candidate_item_id % 2 == 0 ? ItemType::ITEM_TYPE_VIDEO
-                                                          : ItemType::ITEM_TYPE_IMAGE_TEXT);
-      candidate->set_author_id(candidate_item_id % 100000 + 1000);
-      candidate->set_retriever(kRetrieverName);
-      candidate->set_retrieve_score(trigger_seed.score /
-                                    static_cast<double>(neighbor_rank + 1));
-
-      RetrievalReason* reason = candidate->add_reasons();
-      reason->set_reason_type(ReasonType::REASON_TYPE_ITEM_CF);
-      reason->set_reason_score(trigger_seed.score);
-      reason->set_description(format("Retrieved from item_cf using trigger item {}.",
-                                     trigger_seed.item_id));
-      reason->mutable_trigger()->set_entity_type(EntityType::ENTITY_TYPE_ITEM);
-      reason->mutable_trigger()->set_entity_id(trigger_seed.item_id);
     }
+  } catch (const ::std::exception& ex) {
+    response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
+    LoggerRegistry::Get().Error(
+        "item_cf_similarity_lookup_failed",
+        {
+            {"user_id", to_string(request.user_id())},
+            {"error", ex.what()},
+        });
+    return Status(StatusCode::INTERNAL, ex.what());
+  }
+
+  const vector<CandidateScore> sorted_candidates = SortCandidates(candidates);
+  for (const CandidateScore& scored_candidate : sorted_candidates) {
+    if (response->candidates_size() >= request.max_candidate_count()) {
+      break;
+    }
+
+    CandidateItem* candidate = response->add_candidates();
+    candidate->set_item_id(scored_candidate.item_id);
+    candidate->set_item_type(ItemType::ITEM_TYPE_UNSPECIFIED);
+    candidate->set_retriever(kRetrieverName);
+    candidate->set_retrieve_score(scored_candidate.score);
+
+    RetrievalReason* reason = candidate->add_reasons();
+    reason->set_reason_type(ReasonType::REASON_TYPE_ITEM_CF);
+    reason->set_reason_score(scored_candidate.reason_score);
+    reason->set_description(
+        format("Retrieved from item_cf using trigger item {}.",
+               scored_candidate.trigger_item_id));
+    reason->mutable_trigger()->set_entity_type(EntityType::ENTITY_TYPE_ITEM);
+    reason->mutable_trigger()->set_entity_id(scored_candidate.trigger_item_id);
   }
 
   response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
@@ -126,13 +224,6 @@ unordered_set<uint64_t> RetrieverItemCf::CollectSeenItems(const Profile& profile
   AppendSeenItems(profile.negative_feedbacks().items(), &rated_items);
 
   return rated_items;
-}
-
-uint64_t RetrieverItemCf::BuildCandidateItemId(uint64_t trigger_item_id,
-                                               int trigger_rank,
-                                               int neighbor_rank) {
-  return trigger_item_id * 1000 + static_cast<uint64_t>((trigger_rank + 1) * 100) +
-         static_cast<uint64_t>(neighbor_rank + 1);
 }
 
 }  // namespace recommendation_engine
