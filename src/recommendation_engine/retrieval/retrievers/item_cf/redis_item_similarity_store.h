@@ -15,6 +15,9 @@ class RedisItemSimilarityStore final : public ItemSimilarityStore {
 
   ::std::vector<ItemNeighbor> FindNeighborsByItemId(
       uint64_t item_id, int max_neighbor_count) const override;
+  ::std::vector<::std::vector<ItemNeighbor>> FindNeighborsByItemIds(
+      const ::std::vector<uint64_t>& item_ids,
+      int max_neighbor_count) const override;
 
  private:
   ::shooting_star::utilities::RedisClient client_;

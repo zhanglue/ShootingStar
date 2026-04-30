@@ -62,6 +62,7 @@ enum Field {
   kRetrieverItemCfPort,
   kRetrieverUserCfHost,
   kRetrieverUserCfPort,
+  kRetrieverMaxTriggerSeedCount,
   kStoreType,
   kDataPath,
   kLocalCacheCapacity,
@@ -98,6 +99,7 @@ enum Field {
   kRedisPoolWaitTimeoutMs,
   kRedisRetryMaxAttempts,
   kRedisRetryDelayMs,
+  kRedisCommandBatchSize,
 };
 
 struct ConfigEntry {
@@ -130,6 +132,8 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kString, "localhost"},
     {kRetrieverUserCfPort, "retriever_user_cf.port", "retriever_user_cf_port",
      ValueType::kUInt16, "50220"},
+    {kRetrieverMaxTriggerSeedCount, "retriever.max_trigger_seed_count",
+     "retriever_max_trigger_seed_count", ValueType::kInt, "24"},
     {kStoreType, "store_type", "store_type", ValueType::kString, "local"},
     {kDataPath, "data_path", "data_path", ValueType::kString,
      "tests/testdata/recommendation_engine/profile/demo_profiles.json"},
@@ -213,6 +217,8 @@ constexpr ConfigEntry kConfigEntries[] = {
      "redis_retry_max_attempts", ValueType::kInt, "2"},
     {kRedisRetryDelayMs, "redis.retry.delay_ms", "redis_retry_delay_ms",
      ValueType::kInt, "10"},
+    {kRedisCommandBatchSize, "redis.command_batch_size",
+     "redis_command_batch_size", ValueType::kInt, "8"},
 };
 
 const ConfigEntry& EntryForField(int field) {
@@ -590,6 +596,10 @@ string GlobalConfig::GetRetrieverUserCfAddress() const {
   return GetAddress(kRetrieverUserCfHost, kRetrieverUserCfPort);
 }
 
+int GlobalConfig::GetRetrieverMaxTriggerSeedCount() const {
+  return GetPositiveInt(kRetrieverMaxTriggerSeedCount);
+}
+
 string GlobalConfig::GetStoreType() const { return GetString(kStoreType); }
 
 string GlobalConfig::GetDataPath() const { return GetString(kDataPath); }
@@ -722,6 +732,10 @@ int GlobalConfig::GetRedisRetryMaxAttempts() const {
 
 int GlobalConfig::GetRedisRetryDelayMs() const {
   return GetNonNegativeInt(kRedisRetryDelayMs);
+}
+
+int GlobalConfig::GetRedisCommandBatchSize() const {
+  return GetPositiveInt(kRedisCommandBatchSize);
 }
 
 string_view GlobalConfig::GetLocalCacheCapacityKey() const {

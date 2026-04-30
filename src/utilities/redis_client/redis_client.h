@@ -57,6 +57,11 @@ struct RedisScoredMemberListResult {
   ::std::vector<RedisScoredMember> values;
 };
 
+struct RedisScoredMemberListsResult {
+  RedisStatus status;
+  ::std::vector<::std::vector<RedisScoredMember>> values;
+};
+
 class RedisClient {
  public:
   struct RetryConfig {
@@ -101,6 +106,10 @@ class RedisClient {
   RedisScoredMemberListResult ZRevRangeWithScores(::std::string key,
                                                   long long start,
                                                   long long stop) const;
+  RedisScoredMemberListsResult BatchZRevRangeWithScores(
+      const ::std::vector<::std::string>& keys,
+      long long start,
+      long long stop) const;
 
  private:
   class Impl;

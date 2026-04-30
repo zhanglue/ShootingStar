@@ -408,5 +408,89 @@ RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(
   return result;
 }
 
+RedisScoredMemberListsResult RedisClient::BatchZRevRangeWithScores(
+    const vector<string>& keys, long long start, long long stop) const {
+  RedisScoredMemberListsResult result;
+  if (keys.empty()) {
+    result.status = OkStatus(0);
+    return result;
+  }
+
+  for (int attempt = 1; attempt <= config_.retry.max_attempts; ++attempt) {
+    try {
+      auto pipeline = impl_->redis().pipeline(false);
+      for (const string& key : keys) {
+        pipeline.zrevrange(key, start, stop, true);
+      }
+
+      auto replies = pipeline.exec();
+      if (replies.size() != keys.size()) {
+        result.status = ErrorStatus(
+            RedisErrorCode::kProtocolError,
+            "Redis pipeline returned unexpected number of replies", attempt);
+        return result;
+      }
+
+      result.values.clear();
+      result.values.reserve(keys.size());
+
+      for (::std::size_t i = 0; i < keys.size(); ++i) {
+        vector<string> raw_values;
+        replies.get(i, ::std::back_inserter(raw_values));
+        if (raw_values.size() % 2 != 0) {
+          result.status = ErrorStatus(
+              RedisErrorCode::kProtocolError,
+              "Redis ZREVRANGE WITHSCORES returned an odd number of values",
+              attempt);
+          return result;
+        }
+
+        vector<RedisScoredMember> scored_members;
+        scored_members.reserve(raw_values.size() / 2);
+        for (::std::size_t j = 0; j < raw_values.size(); j += 2) {
+          optional<double> score = ParseDouble(raw_values[j + 1]);
+          if (!score.has_value()) {
+            result.status = ErrorStatus(
+                RedisErrorCode::kProtocolError,
+                "Redis ZREVRANGE WITHSCORES returned an invalid score",
+                attempt);
+            return result;
+          }
+          scored_members.push_back(RedisScoredMember{
+              .member = ::std::move(raw_values[j]),
+              .score = *score,
+          });
+        }
+        result.values.push_back(::std::move(scored_members));
+      }
+
+      result.status = OkStatus(attempt);
+      return result;
+    } catch (const sw::redis::TimeoutError& error) {
+      result.status = StatusFromException(error, attempt);
+    } catch (const sw::redis::ClosedError& error) {
+      result.status = StatusFromException(error, attempt);
+    } catch (const sw::redis::IoError& error) {
+      result.status = StatusFromException(error, attempt);
+    } catch (const sw::redis::ReplyError& error) {
+      result.status = StatusFromException(error, attempt);
+      return result;
+    } catch (const sw::redis::ProtoError& error) {
+      result.status = StatusFromException(error, attempt);
+      return result;
+    } catch (const sw::redis::Error& error) {
+      result.status = StatusFromException(error, attempt);
+      return result;
+    }
+
+    if (attempt < config_.retry.max_attempts &&
+        IsRetryable(result.status.error_code) &&
+        config_.retry.delay.count() > 0) {
+      ::std::this_thread::sleep_for(config_.retry.delay);
+    }
+  }
+  return result;
+}
+
 }  // namespace utilities
 }  // namespace shooting_star

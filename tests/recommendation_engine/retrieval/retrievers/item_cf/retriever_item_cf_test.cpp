@@ -141,5 +141,30 @@ TEST(RetrieverItemCfTest, ReturnsEmptyTriggerSeedsWhenNoValidTriggerItems) {
   EXPECT_EQ(response.candidate_count(), 0);
 }
 
+TEST(RetrieverItemCfTest, LimitsTriggerSeedsByConfiguredMaximum) {
+  auto fake_store = ::std::make_unique<FakeItemSimilarityStore>();
+  FakeItemSimilarityStore* raw_store = fake_store.get();
+  RetrieverItemCf retriever(::std::move(fake_store));
+
+  RetrieverRequest request;
+  request.set_request_id("request-top-k");
+  request.set_user_id(42);
+  request.set_max_candidate_count(3);
+  Profile* profile = request.mutable_profile();
+  for (int64_t item_id = 100; item_id < 130; ++item_id) {
+    AddWeightedItem(profile->mutable_behaviors()->mutable_recent_liked_items(),
+                    item_id, 1.0F);
+  }
+
+  RetrieverResponse response;
+  const Status status = retriever.Retrieve(nullptr, &request, &response);
+
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(response.status(), RetrieverServiceStatus::RETRIEVER_SUCCESS);
+  ASSERT_EQ(raw_store->requests.size(), 24);
+  EXPECT_EQ(raw_store->requests.front(), (pair<uint64_t, int>{100, 3}));
+  EXPECT_EQ(raw_store->requests.back(), (pair<uint64_t, int>{123, 3}));
+}
+
 }  // namespace
 }  // namespace recommendation_engine

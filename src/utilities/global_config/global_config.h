@@ -42,6 +42,7 @@ class GlobalConfig final {
   ::std::string GetRetrieverUserCfHost() const;
   uint16_t GetRetrieverUserCfPort() const;
   ::std::string GetRetrieverUserCfAddress() const;
+  int GetRetrieverMaxTriggerSeedCount() const;
 
   ::std::string GetStoreType() const;
   ::std::string GetDataPath() const;
@@ -80,6 +81,7 @@ class GlobalConfig final {
   int GetRedisPoolWaitTimeoutMs() const;
   int GetRedisRetryMaxAttempts() const;
   int GetRedisRetryDelayMs() const;
+  int GetRedisCommandBatchSize() const;
 
   ::std::string_view GetLocalCacheCapacityKey() const;
   ::std::string_view GetLocalCacheTtlSecondsKey() const;

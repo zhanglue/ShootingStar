@@ -53,6 +53,8 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetRedisHost(), "localhost");
   EXPECT_EQ(config.GetRedisPort(), 6379);
   EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:v1:neighbors");
+  EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 24);
+  EXPECT_EQ(config.GetRedisCommandBatchSize(), 8);
 }
 
 TEST(GlobalConfigTest, InitializeSetsServiceName) {
@@ -223,7 +225,10 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
             "  pool_wait_timeout_ms: 40\n"
             "  retry:\n"
             "    max_attempts: 4\n"
-            "    delay_ms: 5\n");
+            "    delay_ms: 5\n"
+            "  command_batch_size: 16\n"
+            "retriever:\n"
+            "  max_trigger_seed_count: 32\n");
 
   ConfigYAML::ApplyFile(config_path.string());
   const GlobalConfig& config = GlobalConfig::Get();
@@ -241,6 +246,8 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
   EXPECT_EQ(config.GetRedisPoolWaitTimeoutMs(), 40);
   EXPECT_EQ(config.GetRedisRetryMaxAttempts(), 4);
   EXPECT_EQ(config.GetRedisRetryDelayMs(), 5);
+  EXPECT_EQ(config.GetRedisCommandBatchSize(), 16);
+  EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 32);
 
   const Logger logger("global_config_test");
   ::testing::internal::CaptureStdout();

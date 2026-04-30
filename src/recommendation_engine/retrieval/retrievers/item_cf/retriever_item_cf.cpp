@@ -1,6 +1,7 @@
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/retriever_item_cf.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <format>
@@ -25,7 +26,9 @@ using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::std::format;
 using ::std::make_unique;
+using ::std::partial_sort;
 using ::std::runtime_error;
+using ::std::size_t;
 using ::std::sort;
 using ::std::string;
 using ::std::to_string;
@@ -111,6 +114,31 @@ void AddCandidateContribution(
   }
 }
 
+vector<RetrieverItemCf::TriggerSeed> SelectTopTriggerSeeds(
+    vector<RetrieverItemCf::TriggerSeed> trigger_seeds,
+    int max_trigger_seed_count) {
+  if (max_trigger_seed_count <= 0 ||
+      trigger_seeds.size() <=
+          static_cast<size_t>(max_trigger_seed_count)) {
+    return trigger_seeds;
+  }
+
+  auto higher_score_first = [](const RetrieverItemCf::TriggerSeed& lhs,
+                               const RetrieverItemCf::TriggerSeed& rhs) {
+    if (lhs.score != rhs.score) {
+      return lhs.score > rhs.score;
+    }
+    return lhs.item_id < rhs.item_id;
+  };
+
+  const auto middle =
+      trigger_seeds.begin() + static_cast<::std::ptrdiff_t>(max_trigger_seed_count);
+  partial_sort(trigger_seeds.begin(), middle, trigger_seeds.end(),
+               higher_score_first);
+  trigger_seeds.resize(static_cast<size_t>(max_trigger_seed_count));
+  return trigger_seeds;
+}
+
 vector<RetrieverItemCf::CandidateScore> SortCandidates(
     const unordered_map<uint64_t, RetrieverItemCf::CandidateScore>& candidates) {
   vector<RetrieverItemCf::CandidateScore> sorted_candidates;
@@ -150,26 +178,51 @@ RetrieverItemCf::RetrieverItemCf(
 
 Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
-  const vector<TriggerSeed> trigger_seeds = CollectTriggerSeeds(request.profile());
+  const GlobalConfig& config = GlobalConfig::Get();
+  // 1) Build trigger seeds from profile signals and cap the fan-out by Top-K.
+  const vector<TriggerSeed> trigger_seeds = SelectTopTriggerSeeds(
+      CollectTriggerSeeds(request.profile()),
+      config.GetRetrieverMaxTriggerSeedCount());
   if (trigger_seeds.empty()) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
     return Status::OK;
   }
 
+  const int redis_command_batch_size = config.GetRedisCommandBatchSize();
+  // 2) Prepare the "do-not-recommend" set from historical interactions.
   const unordered_set<uint64_t> item_ids_to_filter_out =
       CollectItemIdsToFilterOut(request.profile());
   unordered_map<uint64_t, CandidateScore> candidates;
 
   try {
-    for (const TriggerSeed& trigger_seed : trigger_seeds) {
-      const vector<ItemNeighbor> neighbors =
-          item_similarity_store_->FindNeighborsByItemId(
-              trigger_seed.item_id, request.max_candidate_count());
-      for (const ItemNeighbor& neighbor : neighbors) {
-        if (item_ids_to_filter_out.contains(neighbor.item_id)) {
-          continue;
+    // 3) Fetch item-item neighbors in batches, then aggregate contribution scores.
+    for (size_t batch_start = 0; batch_start < trigger_seeds.size();
+         batch_start += static_cast<size_t>(redis_command_batch_size)) {
+      const size_t batch_end =
+          ::std::min(batch_start + static_cast<size_t>(redis_command_batch_size),
+                     trigger_seeds.size());
+      vector<uint64_t> trigger_item_ids;
+      trigger_item_ids.reserve(batch_end - batch_start);
+      for (size_t i = batch_start; i < batch_end; ++i) {
+        trigger_item_ids.push_back(trigger_seeds[i].item_id);
+      }
+
+      const vector<vector<ItemNeighbor>> neighbors_by_item_id =
+          item_similarity_store_->FindNeighborsByItemIds(
+              trigger_item_ids, request.max_candidate_count());
+      if (neighbors_by_item_id.size() != trigger_item_ids.size()) {
+        throw runtime_error("ItemSimilarityStore batch lookup returned mismatched result size");
+      }
+
+      // 4) Filter out seen items and accumulate candidate scores with reasons.
+      for (size_t i = 0; i < neighbors_by_item_id.size(); ++i) {
+        const TriggerSeed& trigger_seed = trigger_seeds[batch_start + i];
+        for (const ItemNeighbor& neighbor : neighbors_by_item_id[i]) {
+          if (item_ids_to_filter_out.contains(neighbor.item_id)) {
+            continue;
+          }
+          AddCandidateContribution(trigger_seed, neighbor, &candidates);
         }
-        AddCandidateContribution(trigger_seed, neighbor, &candidates);
       }
     }
   } catch (const ::std::exception& ex) {
@@ -183,6 +236,7 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
     return Status(StatusCode::INTERNAL, ex.what());
   }
 
+  // 5) Sort by score and fill response up to max_candidate_count.
   const vector<CandidateScore> sorted_candidates = SortCandidates(candidates);
   for (const CandidateScore& scored_candidate : sorted_candidates) {
     if (response->candidates_size() >= request.max_candidate_count()) {

@@ -16,6 +16,17 @@ class ItemSimilarityStore {
 
   virtual ::std::vector<ItemNeighbor> FindNeighborsByItemId(
       uint64_t item_id, int max_neighbor_count) const = 0;
+
+  virtual ::std::vector<::std::vector<ItemNeighbor>> FindNeighborsByItemIds(
+      const ::std::vector<uint64_t>& item_ids, int max_neighbor_count) const {
+    ::std::vector<::std::vector<ItemNeighbor>> neighbors_by_item_id;
+    neighbors_by_item_id.reserve(item_ids.size());
+    for (const uint64_t item_id : item_ids) {
+      neighbors_by_item_id.push_back(
+          FindNeighborsByItemId(item_id, max_neighbor_count));
+    }
+    return neighbors_by_item_id;
+  }
 };
 
 }  // namespace recommendation_engine
