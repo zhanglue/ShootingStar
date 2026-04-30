@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cmath>
 #include <filesystem>
 #include <limits>
 #include <optional>
@@ -45,6 +46,7 @@ bool BelongsToConfigSection(string_view key, string_view config_key_prefix) {
 enum class ValueType {
   kString,
   kInt,
+  kDouble,
   kUInt16,
   kBool,
 };
@@ -58,6 +60,7 @@ enum Field {
   kProfileServicePort,
   kRetrievalServiceHost,
   kRetrievalServicePort,
+  kRetrievalRecallCandidateExpandRatio,
   kRetrieverItemCfHost,
   kRetrieverItemCfPort,
   kRetrieverUserCfHost,
@@ -124,6 +127,9 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kString, "localhost"},
     {kRetrievalServicePort, "retrieval_service.port", "retrieval_service_port",
      ValueType::kUInt16, "50200"},
+    {kRetrievalRecallCandidateExpandRatio,
+     "retrieval.recall_candidate_expand_ratio",
+     "recall_candidate_expand_ratio", ValueType::kDouble, "1.0"},
     {kRetrieverItemCfHost, "retriever_item_cf.host", "retriever_item_cf_host",
      ValueType::kString, "localhost"},
     {kRetrieverItemCfPort, "retriever_item_cf.port", "retriever_item_cf_port",
@@ -333,12 +339,35 @@ bool ParseBoolValue(string_view key, string_view value) {
                          string(key));
 }
 
+double ParseDoubleValue(string_view key, string_view value) {
+  const string raw(value);
+  size_t parsed_length = 0;
+  double parsed = 0.0;
+  try {
+    parsed = ::std::stod(raw, &parsed_length);
+  } catch (const ::std::invalid_argument&) {
+    throw invalid_argument("Invalid double config value for key: " +
+                           string(key));
+  } catch (const ::std::out_of_range&) {
+    throw out_of_range("Double config value is out of range for key: " +
+                       string(key));
+  }
+
+  if (parsed_length != raw.size() || !::std::isfinite(parsed)) {
+    throw invalid_argument("Invalid double config value for key: " +
+                           string(key));
+  }
+  return parsed;
+}
+
 string CanonicalizeValue(const ConfigEntry& entry, string_view value) {
   switch (entry.value_type) {
     case ValueType::kString:
       return string(value);
     case ValueType::kInt:
       return ::std::to_string(ParseIntValue(entry.key, value));
+    case ValueType::kDouble:
+      return ::std::to_string(ParseDoubleValue(entry.key, value));
     case ValueType::kUInt16: {
       const int parsed = ParseIntValue(entry.key, value);
       if (parsed < 0 || parsed > ::std::numeric_limits<uint16_t>::max()) {
@@ -503,6 +532,10 @@ int GlobalConfig::GetInt(int field) const {
   return ParseIntValue(Key(field), GetString(field));
 }
 
+double GlobalConfig::GetDouble(int field) const {
+  return ParseDoubleValue(Key(field), GetString(field));
+}
+
 int GlobalConfig::GetNonNegativeInt(int field) const {
   const int value = GetInt(field);
   if (value < 0) {
@@ -514,6 +547,14 @@ int GlobalConfig::GetNonNegativeInt(int field) const {
 int GlobalConfig::GetPositiveInt(int field) const {
   const int value = GetNonNegativeInt(field);
   if (value <= 0) {
+    throw invalid_argument(string(Key(field)) + " must be greater than 0");
+  }
+  return value;
+}
+
+double GlobalConfig::GetPositiveDouble(int field) const {
+  const double value = GetDouble(field);
+  if (value <= 0.0) {
     throw invalid_argument(string(Key(field)) + " must be greater than 0");
   }
   return value;
@@ -570,6 +611,10 @@ uint16_t GlobalConfig::GetRetrievalServicePort() const {
 
 string GlobalConfig::GetRetrievalServiceAddress() const {
   return GetAddress(kRetrievalServiceHost, kRetrievalServicePort);
+}
+
+double GlobalConfig::GetRetrievalRecallCandidateExpandRatio() const {
+  return GetPositiveDouble(kRetrievalRecallCandidateExpandRatio);
 }
 
 string GlobalConfig::GetRetrieverItemCfHost() const {

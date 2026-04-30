@@ -36,6 +36,7 @@ class GlobalConfig final {
   ::std::string GetRetrievalServiceHost() const;
   uint16_t GetRetrievalServicePort() const;
   ::std::string GetRetrievalServiceAddress() const;
+  double GetRetrievalRecallCandidateExpandRatio() const;
   ::std::string GetRetrieverItemCfHost() const;
   uint16_t GetRetrieverItemCfPort() const;
   ::std::string GetRetrieverItemCfAddress() const;
@@ -111,8 +112,10 @@ class GlobalConfig final {
 
   ::std::string GetString(int field) const;
   int GetInt(int field) const;
+  double GetDouble(int field) const;
   int GetNonNegativeInt(int field) const;
   int GetPositiveInt(int field) const;
+  double GetPositiveDouble(int field) const;
   uint16_t GetUInt16(int field) const;
   bool GetBool(int field) const;
   ::std::string GetAddress(int host_field, int port_field) const;

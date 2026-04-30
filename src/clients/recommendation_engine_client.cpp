@@ -25,11 +25,11 @@ class RecommendationEngineClient {
   explicit RecommendationEngineClient(shared_ptr<Channel> channel)
       : stub_(Gateway::NewStub(channel)) {}
 
-  void Recommend(int user_id, int max_candidate_count) {
+  void Recommend(int user_id, int recommendation_results_count) {
     RecommendRequest request;
     request.set_request_id("ABCDE-10155");
     request.set_user_id(user_id);
-    request.set_max_candidate_count(max_candidate_count);
+    request.set_recommendation_results_count(recommendation_results_count);
 
     RecommendResponse response;
     ClientContext context;
@@ -58,7 +58,8 @@ void PrintUsage() {
        << "  -i, --ip <IP>           Set server IP (default: localhost)\n"
        << "  -p, --port <PORT>       Set server port (default: 50000)\n"
        << "  -u, --user-id <USER_ID> Set user ID to recommend (default: 1001)\n"
-       << "  -m, --max-candidates <N> Set max candidate count (default: 20)\n";
+       << "  -m, --recommendation-results <N> Set recommendation results count (default: 20)\n"
+       << "      --max-candidates <N> Legacy alias for --recommendation-results\n";
 }
 
 }  // namespace
@@ -68,13 +69,14 @@ int main(int argc, char** argv) {
   string ip = "localhost";
   string port = "50000";
   int user_id = 1001;
-  int max_candidate_count = 20;
+  int recommendation_results_count = 20;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
       {"ip", required_argument, nullptr, 'i'},
       {"port", required_argument, nullptr, 'p'},
       {"user_id", required_argument, nullptr, 'u'},
+      {"recommendation-results", required_argument, nullptr, 'm'},
       {"max-candidates", required_argument, nullptr, 'm'},
       {0, 0, 0, 0}};
 
@@ -105,13 +107,14 @@ int main(int argc, char** argv) {
         break;
       case 'm':
         try {
-          max_candidate_count = ::std::stoi(optarg);
+          recommendation_results_count = ::std::stoi(optarg);
         } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: max_candidate_count is not a valid integer: " << optarg
+          ::std::cerr << "Error: recommendation_results_count is not a valid integer: " << optarg
                       << "\n";
           return 1;
         } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: max_candidate_count is out of range: " << optarg << "\n";
+          ::std::cerr << "Error: recommendation_results_count is out of range: " << optarg
+                      << "\n";
           return 1;
         }
         break;
@@ -126,11 +129,13 @@ int main(int argc, char** argv) {
   ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Recommend for user: " << user_id << ::std::endl << ::std::endl;
-  cout << "Requested max candidate count: " << max_candidate_count << ::std::endl << ::std::endl;
+  cout << "Requested recommendation results count: " << recommendation_results_count
+       << ::std::endl
+       << ::std::endl;
 
   recommendation_engine::RecommendationEngineClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.Recommend(user_id, max_candidate_count);
+  client.Recommend(user_id, recommendation_results_count);
 
   return 0;
 }

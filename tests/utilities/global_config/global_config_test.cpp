@@ -55,6 +55,7 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:v1:neighbors");
   EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 24);
   EXPECT_EQ(config.GetRedisCommandBatchSize(), 8);
+  EXPECT_DOUBLE_EQ(config.GetRetrievalRecallCandidateExpandRatio(), 1.0);
 }
 
 TEST(GlobalConfigTest, InitializeSetsServiceName) {
@@ -79,6 +80,8 @@ TEST(GlobalConfigTest, AppliesYamlOverDefaultsOnlyForConfiguredFields) {
   WriteFile(config_path,
             "server:\n"
             "  port: 51111\n"
+            "retrieval:\n"
+            "  recall_candidate_expand_ratio: 1.25\n"
             "elasticsearch:\n"
             "  http_client:\n"
             "    verify_ssl: false\n");
@@ -87,6 +90,7 @@ TEST(GlobalConfigTest, AppliesYamlOverDefaultsOnlyForConfiguredFields) {
   const GlobalConfig& config = GlobalConfig::Get();
 
   EXPECT_EQ(config.GetServerPort(), 51111);
+  EXPECT_DOUBLE_EQ(config.GetRetrievalRecallCandidateExpandRatio(), 1.25);
   EXPECT_FALSE(config.GetElasticsearchHttpClientVerifySsl());
   EXPECT_EQ(config.GetStoreType(), "local");
   EXPECT_EQ(config.GetElasticsearchUsername(), "elastic");
