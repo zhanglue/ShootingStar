@@ -1,6 +1,7 @@
 FROM ubuntu:24.04
 
 COPY binaries/src/recommendation_engine/retrieval/retrievers/item_cf/retriever_item_cf_bin /app/retriever_item_cf
+COPY src/recommendation_engine/retrieval/retrievers/item_cf/config.*.yaml /app/
 
 WORKDIR /app
 

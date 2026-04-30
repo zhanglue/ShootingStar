@@ -1,7 +1,6 @@
 server:
   port: 50100
   log_level: INFO
-  get_profile_timeout_ms: 120
 
 store_type: elasticsearch
 
@@ -11,22 +10,16 @@ elasticsearch:
   username: elastic
   password: ""
   password_env: ES_PASSWORD
-  # Timeout hierarchy for GetProfile ES lookups:
-  # request_timeout_ms is the ES client operation budget.
-  # curl_handle_pool.acquire_timeout_ms + http_client.request_timeout_ms <= request_timeout_ms
-  # http_client.connect_timeout_ms <= http_client.request_timeout_ms
-  # Retry attempts are expected to be fast in normal ES failure modes; the
-  # timeout hierarchy still applies to each individual acquire/request attempt.
-  request_timeout_ms: 100
+  request_timeout_ms: 1000
   http_client:
     curl_handle_pool:
       pool_size: 4
-      acquire_timeout_ms: 30
+      acquire_timeout_ms: 100
       retry:
         max_attempts: 3
         delay_ms: 0
-    request_timeout_ms: 30
-    connect_timeout_ms: 20
+    request_timeout_ms: 800
+    connect_timeout_ms: 300
     connect_retry:
       max_attempts: 3
       delay_ms: 0

@@ -40,11 +40,11 @@ const Logger& GetBlankLoggerLocked() {
 
   const Logger& logger = *it->second;
   logger.Info(
-      "blank_logger_used",
-      {
-          {"blank_logger_name", blank_logger_name},
-          {"reason", "logger is not registered yet"},
-      });
+    "blank_logger_used",
+    {
+      {"blank_logger_name", blank_logger_name},
+      {"reason", "logger is not registered yet"},
+    });
   return logger;
 }
 
@@ -56,10 +56,10 @@ void LoggerRegistry::Register(shared_ptr<Logger> logger) {
   if (logger == nullptr) {
     const Logger& blank_logger = Get();
     blank_logger.Info(
-        "logger_register_failed",
-        {
-            {"reason", "logger is null"},
-        });
+      "logger_register_failed",
+      {
+        {"reason", "logger is null"},
+      });
     return;
   }
 
@@ -75,12 +75,12 @@ void LoggerRegistry::SetDefaultLoggerName(string_view logger_name) {
                                ? GetBlankLoggerLocked()
                                : *default_logger_it->second;
     logger.Info(
-        "default_logger_name_set_ignored",
-        {
-            {"default_logger_name", default_logger_name},
-            {"logger_name_to_set", logger_name},
-            {"reason", "default logger name is already set"},
-        });
+      "default_logger_name_set_ignored",
+      {
+        {"default_logger_name", default_logger_name},
+        {"logger_name_to_set", logger_name},
+        {"reason", "default logger name is already set"},
+      });
     return;
   }
 
@@ -88,11 +88,11 @@ void LoggerRegistry::SetDefaultLoggerName(string_view logger_name) {
   if (LoggerMap().find(logger_name_to_set) == LoggerMap().end()) {
     const Logger& logger = GetBlankLoggerLocked();
     logger.Error(
-        "default_logger_name_set_failed",
-        {
-            {"requested_logger_name", logger_name_to_set},
-            {"reason", "logger is not registered"},
-        });
+      "default_logger_name_set_failed",
+      {
+        {"requested_logger_name", logger_name_to_set},
+        {"reason", "logger is not registered"},
+      });
     return;
   }
   default_logger_name = logger_name_to_set;

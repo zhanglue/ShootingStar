@@ -1,0 +1,14 @@
+server:
+  port: 50200
+  log_level: DEBUG
+
+retrieval:
+  recall_candidate_expand_ratio: 2.0
+
+retriever_item_cf:
+  host: localhost
+  port: 50210
+
+retriever_user_cf:
+  host: localhost
+  port: 50220

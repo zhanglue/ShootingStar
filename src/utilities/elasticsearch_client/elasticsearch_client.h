@@ -51,6 +51,7 @@ class ElasticsearchClient {
     CurlHttpClient::Config http_config;
   };
 
+  static ElasticsearchClient Create();
   static ElasticsearchClient Create(Config config);
   static ElasticsearchClient Create(::std::shared_ptr<HttpClient> http_client,
                                     Config config);

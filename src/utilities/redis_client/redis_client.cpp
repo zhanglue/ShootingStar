@@ -1,9 +1,11 @@
 #include "src/utilities/redis_client/redis_client.h"
 
+#include <sw/redis++/redis++.h>
+
 #include <charconv>
 #include <chrono>
-#include <memory>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -11,18 +13,18 @@
 #include <utility>
 #include <vector>
 
-#include <sw/redis++/redis++.h>
+#include "src/utilities/global_config/global_config.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace shooting_star {
 namespace utilities {
 
-using ::std::chrono::milliseconds;
 using ::std::make_shared;
 using ::std::optional;
-using ::std::shared_ptr;
 using ::std::string;
 using ::std::string_view;
 using ::std::vector;
+using ::std::chrono::milliseconds;
 
 namespace {
 
@@ -45,13 +47,15 @@ void ValidateRedisConfig(const RedisClient::Config& config) {
     throw ::std::invalid_argument("RedisClient host must not be empty");
   }
   if (config.port <= 0 || config.port > 65535) {
-    throw ::std::invalid_argument("RedisClient port must be between 1 and 65535");
+    throw ::std::invalid_argument(
+        "RedisClient port must be between 1 and 65535");
   }
   if (config.db < 0) {
     throw ::std::invalid_argument("RedisClient db must not be negative");
   }
   if (config.pool_size == 0) {
-    throw ::std::invalid_argument("RedisClient pool_size must be greater than zero");
+    throw ::std::invalid_argument(
+        "RedisClient pool_size must be greater than zero");
   }
   if (config.retry.max_attempts <= 0) {
     throw ::std::invalid_argument(
@@ -60,7 +64,8 @@ void ValidateRedisConfig(const RedisClient::Config& config) {
 
   ValidateNonNegativeTimeout("RedisClient connect_timeout",
                              config.connect_timeout);
-  ValidateNonNegativeTimeout("RedisClient socket_timeout", config.socket_timeout);
+  ValidateNonNegativeTimeout("RedisClient socket_timeout",
+                             config.socket_timeout);
   ValidateNonNegativeTimeout("RedisClient pool_wait_timeout",
                              config.pool_wait_timeout);
   ValidateNonNegativeTimeout("RedisClient pool_connection_lifetime",
@@ -115,8 +120,7 @@ RedisStatus ErrorStatus(RedisErrorCode code, string message, int attempts) {
 }
 
 bool IsRetryable(RedisErrorCode code) {
-  return code == RedisErrorCode::kIoError ||
-         code == RedisErrorCode::kTimeout ||
+  return code == RedisErrorCode::kIoError || code == RedisErrorCode::kTimeout ||
          code == RedisErrorCode::kClosed;
 }
 
@@ -205,9 +209,42 @@ class RedisClient::Impl {
 // RedisClient
 ////////////////////////////////////////////////////////////////////////////////
 
+RedisClient RedisClient::Create() {
+  const GlobalConfig& global_config = GlobalConfig::Get();
+  Config config;
+  config.host = global_config.GetRedisHost();
+  config.port = global_config.GetRedisPort();
+  config.db = global_config.GetRedisDb();
+  config.user = global_config.GetRedisUsername();
+  config.password = GetEnvOrDefault(global_config.GetRedisPasswordEnv(),
+                                    global_config.GetRedisPassword());
+  config.connect_timeout = milliseconds(global_config.GetRedisConnectTimeoutMs());
+  config.socket_timeout = milliseconds(global_config.GetRedisSocketTimeoutMs());
+  config.pool_size = static_cast<::std::size_t>(global_config.GetRedisPoolSize());
+  config.pool_wait_timeout =
+      milliseconds(global_config.GetRedisPoolWaitTimeoutMs());
+  config.retry.max_attempts = global_config.GetRedisRetryMaxAttempts();
+  config.retry.delay = milliseconds(global_config.GetRedisRetryDelayMs());
+  return Create(::std::move(config));
+}
+
+RedisClient RedisClient::Create(Config config) {
+  return RedisClient(::std::move(config));
+}
+
 RedisClient::RedisClient(Config config) : config_(::std::move(config)) {
   ValidateRedisConfig(config_);
   impl_ = make_shared<Impl>(config_);
+}
+
+string RedisClient::BuildRedisKey(string_view key_prefix, uint64_t item_id) {
+  string key(key_prefix);
+  while (!key.empty() && key.back() == ':') {
+    key.pop_back();
+  }
+  key.push_back(':');
+  key.append(::std::to_string(item_id));
+  return key;
 }
 
 RedisStatus RedisClient::Ping() const {
@@ -312,9 +349,8 @@ RedisStringListResult RedisClient::MGet(const vector<string>& keys) const {
   return result;
 }
 
-RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(string key,
-                                                             long long start,
-                                                             long long stop) const {
+RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(
+    string key, long long start, long long stop) const {
   RedisScoredMemberListResult result;
   for (int attempt = 1; attempt <= config_.retry.max_attempts; ++attempt) {
     try {
@@ -336,8 +372,7 @@ RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(string key,
         if (!score.has_value()) {
           result.status = ErrorStatus(
               RedisErrorCode::kProtocolError,
-              "Redis ZREVRANGE WITHSCORES returned an invalid score",
-              attempt);
+              "Redis ZREVRANGE WITHSCORES returned an invalid score", attempt);
           return result;
         }
         result.values.push_back(RedisScoredMember{
@@ -345,6 +380,90 @@ RedisScoredMemberListResult RedisClient::ZRevRangeWithScores(string key,
             .score = *score,
         });
       }
+      result.status = OkStatus(attempt);
+      return result;
+    } catch (const sw::redis::TimeoutError& error) {
+      result.status = StatusFromException(error, attempt);
+    } catch (const sw::redis::ClosedError& error) {
+      result.status = StatusFromException(error, attempt);
+    } catch (const sw::redis::IoError& error) {
+      result.status = StatusFromException(error, attempt);
+    } catch (const sw::redis::ReplyError& error) {
+      result.status = StatusFromException(error, attempt);
+      return result;
+    } catch (const sw::redis::ProtoError& error) {
+      result.status = StatusFromException(error, attempt);
+      return result;
+    } catch (const sw::redis::Error& error) {
+      result.status = StatusFromException(error, attempt);
+      return result;
+    }
+
+    if (attempt < config_.retry.max_attempts &&
+        IsRetryable(result.status.error_code) &&
+        config_.retry.delay.count() > 0) {
+      ::std::this_thread::sleep_for(config_.retry.delay);
+    }
+  }
+  return result;
+}
+
+RedisScoredMemberListsResult RedisClient::BatchZRevRangeWithScores(
+    const vector<string>& keys, long long start, long long stop) const {
+  RedisScoredMemberListsResult result;
+  if (keys.empty()) {
+    result.status = OkStatus(0);
+    return result;
+  }
+
+  for (int attempt = 1; attempt <= config_.retry.max_attempts; ++attempt) {
+    try {
+      auto pipeline = impl_->redis().pipeline(false);
+      for (const string& key : keys) {
+        pipeline.zrevrange(key, start, stop, true);
+      }
+
+      auto replies = pipeline.exec();
+      if (replies.size() != keys.size()) {
+        result.status = ErrorStatus(
+            RedisErrorCode::kProtocolError,
+            "Redis pipeline returned unexpected number of replies", attempt);
+        return result;
+      }
+
+      result.values.clear();
+      result.values.reserve(keys.size());
+
+      for (::std::size_t i = 0; i < keys.size(); ++i) {
+        vector<string> raw_values;
+        replies.get(i, ::std::back_inserter(raw_values));
+        if (raw_values.size() % 2 != 0) {
+          result.status = ErrorStatus(
+              RedisErrorCode::kProtocolError,
+              "Redis ZREVRANGE WITHSCORES returned an odd number of values",
+              attempt);
+          return result;
+        }
+
+        vector<RedisScoredMember> scored_members;
+        scored_members.reserve(raw_values.size() / 2);
+        for (::std::size_t j = 0; j < raw_values.size(); j += 2) {
+          optional<double> score = ParseDouble(raw_values[j + 1]);
+          if (!score.has_value()) {
+            result.status = ErrorStatus(
+                RedisErrorCode::kProtocolError,
+                "Redis ZREVRANGE WITHSCORES returned an invalid score",
+                attempt);
+            return result;
+          }
+          scored_members.push_back(RedisScoredMember{
+              .member = ::std::move(raw_values[j]),
+              .score = *score,
+          });
+        }
+        result.values.push_back(::std::move(scored_members));
+      }
+
       result.status = OkStatus(attempt);
       return result;
     } catch (const sw::redis::TimeoutError& error) {

@@ -1,9 +1,10 @@
 FROM ubuntu:24.04
 
 COPY binaries/src/recommendation_engine/retrieval/retrievers/user_cf/retriever_user_cf_bin /app/retriever_user_cf
+COPY src/recommendation_engine/retrieval/retrievers/user_cf/config.*.yaml /app/
 
 WORKDIR /app
 
-EXPOSE 50211
+EXPOSE 50220
 
 ENTRYPOINT ["/app/retriever_user_cf"]

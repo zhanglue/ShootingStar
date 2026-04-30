@@ -9,9 +9,11 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace shooting_star {
@@ -55,6 +57,11 @@ struct RedisScoredMemberListResult {
   ::std::vector<RedisScoredMember> values;
 };
 
+struct RedisScoredMemberListsResult {
+  RedisStatus status;
+  ::std::vector<::std::vector<RedisScoredMember>> values;
+};
+
 class RedisClient {
  public:
   struct RetryConfig {
@@ -85,7 +92,13 @@ class RedisClient {
     RetryConfig retry;
   };
 
+  static RedisClient Create();
+  static RedisClient Create(Config config);
+
   explicit RedisClient(Config config);
+
+  static ::std::string BuildRedisKey(::std::string_view key_prefix,
+                                     uint64_t item_id);
 
   RedisStatus Ping() const;
   RedisStringResult Get(::std::string key) const;
@@ -93,6 +106,10 @@ class RedisClient {
   RedisScoredMemberListResult ZRevRangeWithScores(::std::string key,
                                                   long long start,
                                                   long long stop) const;
+  RedisScoredMemberListsResult BatchZRevRangeWithScores(
+      const ::std::vector<::std::string>& keys,
+      long long start,
+      long long stop) const;
 
  private:
   class Impl;

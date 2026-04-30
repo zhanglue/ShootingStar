@@ -7,6 +7,7 @@ cc_library(
     srcs = ["elasticsearch_client.cpp"],
     hdrs = ["elasticsearch_client.h"],
     deps = [
+        "//src/utilities/global_config:global_config",
         "//src/utilities/http_client:curl_http_client",
         "//src/utilities/http_client:http_client",
         "//src/utilities/runtime_utilities:runtime_utilities",

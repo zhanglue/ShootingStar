@@ -6,5 +6,9 @@ cc_library(
     name = "redis_client",
     srcs = ["redis_client.cpp"],
     hdrs = ["redis_client.h"],
-    deps = ["@redis_plus_plus//:redis++"],
+    deps = [
+        "//src/utilities/global_config:global_config",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@redis_plus_plus//:redis++",
+    ],
 )

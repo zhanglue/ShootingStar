@@ -1,8 +1,12 @@
 #include "src/recommendation_engine/retrieval/orchestrator/retrieval_orchestrator.h"
 
+#include <algorithm>
+#include <cmath>
 #include <format>
 #include <unordered_set>
 #include <vector>
+
+#include "src/utilities/global_config/global_config.h"
 
 namespace recommendation_engine {
 
@@ -10,10 +14,28 @@ using ::grpc::ClientContext;
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
+using ::shooting_star::utilities::GlobalConfig;
 using ::std::format;
 using ::std::string;
 using ::std::unordered_set;
 using ::std::vector;
+
+bool IsRetrieverResponseStatusAccepted(RetrieverServiceStatus status) {
+  return status == RetrieverServiceStatus::RETRIEVER_SUCCESS ||
+         status == RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS;
+}
+
+int ComputeRetrieverMaxCandidateCount(int recommendation_results_count,
+                                      double expand_ratio) {
+  if (recommendation_results_count <= 0) {
+    return recommendation_results_count;
+  }
+
+  const int expanded_count = static_cast<int>(
+      ::std::ceil(static_cast<double>(recommendation_results_count) *
+                  expand_ratio));
+  return ::std::max(recommendation_results_count, expanded_count);
+}
 
 RetrievalOrchestrator::RetrievalOrchestrator(::std::shared_ptr<::grpc::Channel> item_cf_channel,
                                              ::std::shared_ptr<::grpc::Channel> user_cf_channel)
@@ -65,7 +87,7 @@ Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
                          retriever_status.error_message()));
   }
 
-  if (retriever_response->status() != RetrieverServiceStatus::RETRIEVER_SUCCESS) {
+  if (!IsRetrieverResponseStatusAccepted(retriever_response->status())) {
     return Status(StatusCode::INTERNAL,
                   format("{} retriever returned non-success status {}.", retriever_name,
                          static_cast<int>(retriever_response->status())));
@@ -80,9 +102,10 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
   retriever_request.set_request_id(request.request_id());
   retriever_request.set_user_id(request.user_id());
   retriever_request.mutable_profile()->CopyFrom(request.profile());
-  // In proto3, an unset scalar reads as 0, which downstream retrievers
-  // normalize to their own default_max_candidate_count_.
-  retriever_request.set_max_candidate_count(request.max_candidate_count());
+  retriever_request.set_max_candidate_count(
+      ComputeRetrieverMaxCandidateCount(
+          request.max_candidate_count(),
+          GlobalConfig::Get().GetRetrievalRecallCandidateExpandRatio()));
 
   vector<string> failure_messages;
   vector<RetrieverResponse> retriever_responses;

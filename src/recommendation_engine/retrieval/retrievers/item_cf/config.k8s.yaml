@@ -1,0 +1,19 @@
+server:
+  port: 50210
+  log_level: INFO
+
+redis:
+  host: redis-write.recommendation-engine-redis.svc.cluster.local
+  port: 6379
+  db: 0
+  username: ""
+  password: ""
+  password_env: REDIS_PASSWORD
+  key_prefix: rec:item_cf:v1:neighbors
+  connect_timeout_ms: 1000
+  socket_timeout_ms: 1000
+  pool_size: 4
+  pool_wait_timeout_ms: 100
+  retry:
+    max_attempts: 2
+    delay_ms: 10

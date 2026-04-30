@@ -16,4 +16,5 @@ sudo podman run -d \
   --restart=always \
   -p 55000:5000 \
   -v /home/zhanglue/work/image_registry:/var/lib/registry \
+  -e REGISTRY_STORAGE_DELETE_ENABLED=true \
   docker.io/library/registry:3.1.0

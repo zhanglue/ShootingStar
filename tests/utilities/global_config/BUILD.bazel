@@ -3,11 +3,11 @@ package(default_visibility = ["//visibility:public"])
 load("@rules_cc//cc:defs.bzl", "cc_test")
 
 cc_test(
-    name = "config_helper_test",
-    srcs = ["config_helper_test.cpp"],
+    name = "global_config_test",
+    srcs = ["global_config_test.cpp"],
     size = "small",
     deps = [
-        "//src/utilities/config_helper:config_helper",
+        "//src/utilities/global_config:global_config",
         "@googletest//:gtest_main",
     ],
 )

@@ -86,18 +86,18 @@ optional<Profile> LocalFileProfileStore::FindByUserId(int user_id) const {
   const auto it = profiles_.find(user_id);
   if (it == profiles_.end()) {
     logger.Error(
-        "profile_not_found_in_local_file_store",
-        {
-            {"user_id", to_string(user_id)},
-        });
+      "profile_not_found_in_local_file_store",
+      {
+        {"user_id", to_string(user_id)},
+      });
     return ::std::nullopt;
   }
 
   logger.Info(
-      "profile_read_from_local_file_store",
-      {
-          {"user_id", to_string(user_id)},
-      });
+    "profile_read_from_local_file_store",
+    {
+      {"user_id", to_string(user_id)},
+    });
   return it->second;
 }
 

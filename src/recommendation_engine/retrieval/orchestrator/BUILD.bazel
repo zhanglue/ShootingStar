@@ -15,6 +15,7 @@ cc_library(
         "//protos/recommendation_engine:retriever_cc_grpc",
         "//protos/recommendation_engine:retrieval_cc",
         "//protos/recommendation_engine:retrieval_cc_grpc",
+        "//src/utilities/global_config:global_config",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
     ],
@@ -27,9 +28,7 @@ cc_binary(
     ],
     deps = [
         ":retrieval_orchestrator_lib",
+        "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:parse",
-        "@abseil-cpp//absl/strings:str_format",
     ],
 )

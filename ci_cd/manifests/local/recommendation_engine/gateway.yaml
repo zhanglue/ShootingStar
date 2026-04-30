@@ -20,10 +20,7 @@ spec:
         image: recommendation-engine-gateway:latest
         imagePullPolicy: Never
         args:
-        - --profile_service_host=profile.recommendation-engine.svc.cluster.local
-        - --profile_service_port=50100
-        - --retrieval_service_host=retrieval-orchestrator.recommendation-engine.svc.cluster.local
-        - --retrieval_service_port=50200
+        - --config_path=config.k8s.yaml
         resources:
           requests:
             memory: 256Mi

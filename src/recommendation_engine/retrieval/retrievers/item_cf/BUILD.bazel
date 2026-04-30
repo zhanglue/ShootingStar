@@ -5,13 +5,19 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 cc_library(
     name = "retriever_item_cf_lib",
     srcs = [
+        "redis_item_similarity_store.cpp",
         "retriever_item_cf.cpp",
     ],
     hdrs = [
+        "item_similarity_store.h",
+        "redis_item_similarity_store.h",
         "retriever_item_cf.h",
     ],
     deps = [
         "//src/recommendation_engine/retrieval/retrievers/base:retriever_base_lib",
+        "//src/utilities/global_config:global_config",
+        "//src/utilities/logger:logger",
+        "//src/utilities/redis_client:redis_client",
         "//protos/recommendation_engine:retriever_cc",
         "//protos/recommendation_engine:retriever_cc_grpc",
         "@grpc//:grpc++",
@@ -26,9 +32,7 @@ cc_binary(
     ],
     deps = [
         ":retriever_item_cf_lib",
+        "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:parse",
-        "@abseil-cpp//absl/strings:str_format",
     ],
 )

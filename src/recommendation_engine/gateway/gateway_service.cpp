@@ -93,7 +93,7 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
   retrieval_request.set_request_id(request.request_id());
   retrieval_request.set_user_id(request.user_id());
   retrieval_request.mutable_profile()->CopyFrom(profile);
-  retrieval_request.set_max_candidate_count(request.max_candidate_count());
+  retrieval_request.set_max_candidate_count(request.recommendation_results_count());
 
   RetrieveResponse retrieval_response;
   ClientContext retrieval_context;

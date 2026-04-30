@@ -20,10 +20,7 @@ spec:
         image: 192.168.1.101:55000/recommendation-engine-retrieval-orchestrator:latest
         imagePullPolicy: Always
         args:
-        - --retriever_item_cf_host=retriever-item-cf.recommendation-engine.svc.cluster.local
-        - --retriever_item_cf_port=50210
-        - --retriever_user_cf_host=retriever-user-cf.recommendation-engine.svc.cluster.local
-        - --retriever_user_cf_port=50211
+        - --config_path=config.k8s.yaml
         resources:
           requests:
             memory: 256Mi

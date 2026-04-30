@@ -12,7 +12,7 @@ service Gateway {
 message RecommendRequest {
   string request_id = 1;
   int32 user_id = 2;
-  int32 max_candidate_count = 3;
+  int32 recommendation_results_count = 3;
 }
 
 message RecommendResponse {
