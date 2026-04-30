@@ -179,12 +179,33 @@ RetrieverItemCf::RetrieverItemCf(
 Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
   const GlobalConfig& config = GlobalConfig::Get();
+  const auto& logger = LoggerRegistry::Get();
+  logger.Debug(
+      "item_cf_retrieve_started",
+      {
+          {"user_id", to_string(request.user_id())},
+          {"max_candidate_count", to_string(request.max_candidate_count())},
+      });
+
   // 1) Build trigger seeds from profile signals and cap the fan-out by Top-K.
   const vector<TriggerSeed> trigger_seeds = SelectTopTriggerSeeds(
       CollectTriggerSeeds(request.profile()),
       config.GetRetrieverMaxTriggerSeedCount());
+  logger.Debug(
+      "item_cf_trigger_seeds_ready",
+      {
+          {"user_id", to_string(request.user_id())},
+          {"trigger_seed_count", to_string(trigger_seeds.size())},
+          {"max_trigger_seed_count",
+           to_string(config.GetRetrieverMaxTriggerSeedCount())},
+      });
   if (trigger_seeds.empty()) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
+    logger.Debug(
+        "item_cf_retrieve_early_return_empty_trigger_seeds",
+        {
+            {"user_id", to_string(request.user_id())},
+        });
     return Status::OK;
   }
 
@@ -193,14 +214,25 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
   const unordered_set<uint64_t> item_ids_to_filter_out =
       CollectItemIdsToFilterOut(request.profile());
   unordered_map<uint64_t, CandidateScore> candidates;
+  logger.Debug(
+      "item_cf_filter_set_ready",
+      {
+          {"user_id", to_string(request.user_id())},
+          {"redis_command_batch_size", to_string(redis_command_batch_size)},
+          {"item_ids_to_filter_out_count", to_string(item_ids_to_filter_out.size())},
+      });
 
   try {
+    size_t total_neighbors_fetched = 0;
+    size_t total_neighbors_filtered_out = 0;
     // 3) Fetch item-item neighbors in batches, then aggregate contribution scores.
     for (size_t batch_start = 0; batch_start < trigger_seeds.size();
          batch_start += static_cast<size_t>(redis_command_batch_size)) {
       const size_t batch_end =
           ::std::min(batch_start + static_cast<size_t>(redis_command_batch_size),
                      trigger_seeds.size());
+      const size_t batch_index =
+          batch_start / static_cast<size_t>(redis_command_batch_size);
       vector<uint64_t> trigger_item_ids;
       trigger_item_ids.reserve(batch_end - batch_start);
       for (size_t i = batch_start; i < batch_end; ++i) {
@@ -215,16 +247,43 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
       }
 
       // 4) Filter out seen items and accumulate candidate scores with reasons.
+      size_t batch_neighbors_fetched = 0;
+      size_t batch_neighbors_filtered_out = 0;
       for (size_t i = 0; i < neighbors_by_item_id.size(); ++i) {
         const TriggerSeed& trigger_seed = trigger_seeds[batch_start + i];
+        batch_neighbors_fetched += neighbors_by_item_id[i].size();
         for (const ItemNeighbor& neighbor : neighbors_by_item_id[i]) {
           if (item_ids_to_filter_out.contains(neighbor.item_id)) {
+            ++batch_neighbors_filtered_out;
             continue;
           }
           AddCandidateContribution(trigger_seed, neighbor, &candidates);
         }
       }
+      total_neighbors_fetched += batch_neighbors_fetched;
+      total_neighbors_filtered_out += batch_neighbors_filtered_out;
+      logger.Debug(
+          "item_cf_batch_processed",
+          {
+              {"user_id", to_string(request.user_id())},
+              {"batch_index", to_string(batch_index)},
+              {"batch_trigger_item_count", to_string(trigger_item_ids.size())},
+              {"batch_neighbors_fetched", to_string(batch_neighbors_fetched)},
+              {"batch_neighbors_filtered_out",
+               to_string(batch_neighbors_filtered_out)},
+              {"current_candidate_pool_size", to_string(candidates.size())},
+          });
     }
+
+    logger.Debug(
+        "item_cf_similarity_aggregation_done",
+        {
+            {"user_id", to_string(request.user_id())},
+            {"total_neighbors_fetched", to_string(total_neighbors_fetched)},
+            {"total_neighbors_filtered_out",
+             to_string(total_neighbors_filtered_out)},
+            {"candidate_pool_size", to_string(candidates.size())},
+        });
   } catch (const ::std::exception& ex) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
     LoggerRegistry::Get().Error(
@@ -260,6 +319,12 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
   }
 
   response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
+  logger.Debug(
+      "item_cf_retrieve_finished",
+      {
+          {"user_id", to_string(request.user_id())},
+          {"candidate_count", to_string(response->candidates_size())},
+      });
   return Status::OK;
 }
 

@@ -13,6 +13,7 @@ cc_library(
     deps = [
         "//protos/recommendation_engine:retriever_cc",
         "//protos/recommendation_engine:retriever_cc_grpc",
+        "//src/utilities/logger:logger",
         "@grpc//:grpc++",
     ],
 )

@@ -2,11 +2,14 @@
 
 #include <format>
 
+#include "src/utilities/logger/logger_registry.h"
+
 namespace recommendation_engine {
 
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::std::format;
 
 RetrieverBase::RetrieverBase(int default_max_candidate_count)
@@ -15,6 +18,7 @@ RetrieverBase::RetrieverBase(int default_max_candidate_count)
 Status RetrieverBase::Retrieve(ServerContext* context,
                                const RetrieverRequest* request,
                                RetrieverResponse* response) {
+  const auto logger = LoggerRegistry::Get();
   (void)context;
   response->set_candidate_count(0);
 
@@ -27,6 +31,14 @@ Status RetrieverBase::Retrieve(ServerContext* context,
 
   const Status request_status = IsRequestValid(normalized_request, response);
   if (!request_status.ok()) {
+    logger.Info(
+        "retriever_base_retrieve_response",
+        {
+            {"grpc_status_code",
+             format("{}", static_cast<int>(request_status.error_code()))},
+            {"grpc_status_message", request_status.error_message()},
+            {"response", response->ShortDebugString()},
+        });
     return request_status;
   }
 
@@ -34,6 +46,14 @@ Status RetrieverBase::Retrieve(ServerContext* context,
   if (retrieve_status.ok()) {
     response->set_candidate_count(response->candidates_size());
   }
+  logger.Info(
+      "retriever_base_retrieve_response",
+      {
+          {"grpc_status_code",
+           format("{}", static_cast<int>(retrieve_status.error_code()))},
+          {"grpc_status_message", retrieve_status.error_message()},
+          {"response", response->ShortDebugString()},
+      });
   return retrieve_status;
 }
 
