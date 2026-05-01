@@ -6,7 +6,6 @@
 #include <exception>
 #include <format>
 #include <memory>
-#include <optional>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -35,7 +34,6 @@ using ::shooting_star::utilities::RedisClient;
 using ::std::format;
 using ::std::make_shared;
 using ::std::make_unique;
-using ::std::optional;
 using ::std::runtime_error;
 using ::std::shared_ptr;
 using ::std::size_t;
@@ -171,6 +169,7 @@ RetrieverUserCf::RetrieverUserCf(
 
 Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
+  // Initialize request-scoped context and log the retrieval start.
   const auto& logger = LoggerRegistry::Get();
   logger.Debug(
       "user_cf_retrieve_started",
@@ -181,20 +180,24 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
 
   const auto session = make_shared<SessionData>();
 
+  // Load similar users as trigger seeds; return early when unavailable.
   const Status trigger_seed_status =
       LoadTriggerSeeds(request, session, response);
   if (!trigger_seed_status.ok() || session->trigger_seeds.empty()) {
     return trigger_seed_status;
   }
 
+  // Build the set of item IDs to exclude based on the requester profile.
   BuildFilterSet(request.profile(), session);
 
+  // Fetch profiles for trigger users to prepare candidate generation.
   const Status profile_status =
       LoadTriggerUserProfiles(request, session, response);
   if (!profile_status.ok()) {
     return profile_status;
   }
 
+  // Aggregate candidate items from trigger user profiles.
   AggregateCandidates(session);
   logger.Debug(
       "user_cf_profile_aggregation_done",
@@ -208,8 +211,10 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
           {"candidate_pool_size", to_string(session->candidates.size())},
       });
 
+  // Rank and write the final candidate list into the response.
   FillResponseCandidates(session, request, response);
 
+  // Mark success and emit completion logs.
   response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
   logger.Debug(
       "user_cf_retrieve_finished",
