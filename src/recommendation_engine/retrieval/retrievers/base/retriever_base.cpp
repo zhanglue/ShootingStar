@@ -1,16 +1,59 @@
 #include "src/recommendation_engine/retrieval/retrievers/base/retriever_base.h"
 
 #include <format>
+#include <unordered_set>
 
 #include "src/utilities/logger/logger_registry.h"
 
 namespace recommendation_engine {
+namespace {
 
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::std::format;
+using ::std::unordered_set;
+
+void AppendItemIdsToFilterOut(
+    const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
+    unordered_set<uint64_t>* item_ids_to_filter_out) {
+  for (const WeightedItem& item : items) {
+    if (item.item_id() > 0) {
+      item_ids_to_filter_out->insert(static_cast<uint64_t>(item.item_id()));
+    }
+  }
+}
+
+void AppendItemIdsToFilterOut(
+    const ::google::protobuf::RepeatedField<::int64_t>& items,
+    unordered_set<uint64_t>* item_ids_to_filter_out) {
+  for (const int64_t item_id : items) {
+    if (item_id > 0) {
+      item_ids_to_filter_out->insert(static_cast<uint64_t>(item_id));
+    }
+  }
+}
+
+}  // namespace
+
+unordered_set<uint64_t> RetrieverBase::CollectItemIdsToFilterOut(
+    const Profile& profile) {
+  unordered_set<uint64_t> item_ids_to_filter_out;
+
+  AppendItemIdsToFilterOut(profile.behaviors().recent_liked_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().liked_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().interested_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.behaviors().rated_items(),
+                           &item_ids_to_filter_out);
+  AppendItemIdsToFilterOut(profile.negative_feedbacks().items(),
+                           &item_ids_to_filter_out);
+
+  return item_ids_to_filter_out;
+}
 
 RetrieverBase::RetrieverBase(int default_max_candidate_count)
     : default_max_candidate_count_(default_max_candidate_count) {}

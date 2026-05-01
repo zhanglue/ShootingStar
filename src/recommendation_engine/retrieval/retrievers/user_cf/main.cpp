@@ -6,6 +6,7 @@
 #include <exception>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/retriever_user_cf.h"
 #include "src/utilities/global_config/global_config.h"
@@ -39,8 +40,16 @@ int main(int argc, char** argv) {
     const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
     ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
     ConfigArguments::Apply(argc, argv);
-    LoggerRegistry::Register(make_shared<Logger>(kServiceName));
+
+    auto user_cf_logger = make_shared<Logger>(kServiceName);
+    user_cf_logger->SetMinLogLevel(config.GetLogLevel());
+    LoggerRegistry::Register(::std::move(user_cf_logger));
     LoggerRegistry::SetDefaultLoggerName(kServiceName);
+
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Info("config_loaded", {{"config_path", config.GetConfigPath()}, });
+    config.LogResolvedConfig(logger);
+    config.LogResolvedRedisConfig(logger);
 
     const string server_address = config.GetListenAddress();
     RetrieverUserCf service;
@@ -48,7 +57,6 @@ int main(int argc, char** argv) {
     EnableDefaultHealthCheckService(true);
     InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
-    const Logger& logger = LoggerRegistry::Get();
     builder.experimental().SetInterceptorCreators(
         CreateServerLoggingInterceptorCreators(logger));
     builder.AddListeningPort(server_address, InsecureServerCredentials());

@@ -42,7 +42,7 @@ class FakeItemSimilarityStore final : public ItemSimilarityStore {
       if (static_cast<int>(neighbors.size()) >= max_neighbor_count) {
         break;
       }
-      neighbors.push_back(neighbor);
+      neighbors.emplace_back(neighbor);
     }
     return neighbors;
   }

@@ -17,6 +17,10 @@ class ProfileServiceImpl final : public ProfileService::Service {
   ::grpc::Status GetProfile(::grpc::ServerContext* context,
                             const GetProfileRequest* request,
                             GetProfileResponse* response) override;
+  ::grpc::Status BatchGetUserCfProfiles(
+      ::grpc::ServerContext* context,
+      const BatchGetUserCfProfilesRequest* request,
+      BatchGetUserCfProfilesResponse* response) override;
 
  private:
   const ::shooting_star::utilities::GlobalConfig& config_;

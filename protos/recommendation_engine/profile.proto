@@ -4,7 +4,13 @@ package recommendation_engine;
 
 service ProfileService {
   rpc GetProfile (GetProfileRequest) returns (GetProfileResponse);
+  rpc BatchGetUserCfProfiles (BatchGetUserCfProfilesRequest)
+      returns (BatchGetUserCfProfilesResponse);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Request/response for general user profile.
+////////////////////////////////////////////////////////////////////////////////
 
 message GetProfileRequest {
   string request_id = 1;
@@ -79,6 +85,7 @@ message ProfileStats {
   int32 weak_positive_rating_count = 3;
   int32 negative_rating_count = 4;
   float avg_rating = 5;
+  // Population standard deviation of the user's ratings.
   float rating_stddev = 6;
   int64 first_event_time = 7;
   int64 last_event_time = 8;
@@ -113,4 +120,32 @@ message WeightedItem {
 enum WeightedItemSource {
   WEIGHTED_ITEM_SOURCE_UNSPECIFIED = 0;
   WEIGHTED_ITEM_SOURCE_RATING = 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Batch request/response for user collaborative filtering profiles.
+////////////////////////////////////////////////////////////////////////////////
+
+message BatchGetUserCfProfilesRequest {
+  string request_id = 1;
+  repeated int64 user_ids = 2;
+}
+
+message UserCfProfile {
+  int64 user_id = 1;
+  repeated WeightedItem recent_liked_items = 2;
+  repeated WeightedItem liked_items = 3;
+  repeated WeightedItem interested_items = 4;
+}
+
+message UserCfProfileResult {
+  ProfileServiceStatus status = 1;
+  int64 user_id = 2;
+  UserCfProfile profile = 3;
+}
+
+message BatchGetUserCfProfilesResponse {
+  ProfileServiceStatus status = 1;
+  BatchGetUserCfProfilesRequest request = 2;
+  repeated UserCfProfileResult results = 3;
 }

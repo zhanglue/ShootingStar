@@ -44,6 +44,7 @@ class GlobalConfig final {
   uint16_t GetRetrieverUserCfPort() const;
   ::std::string GetRetrieverUserCfAddress() const;
   int GetRetrieverMaxTriggerSeedCount() const;
+  int GetUserCfTriggerSeedUserCount() const;
 
   ::std::string GetStoreType() const;
   ::std::string GetDataPath() const;

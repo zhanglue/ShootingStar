@@ -66,6 +66,7 @@ enum Field {
   kRetrieverUserCfHost,
   kRetrieverUserCfPort,
   kRetrieverMaxTriggerSeedCount,
+  kUserCfTriggerSeedUserCount,
   kStoreType,
   kDataPath,
   kLocalCacheCapacity,
@@ -140,6 +141,8 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kUInt16, "50220"},
     {kRetrieverMaxTriggerSeedCount, "retriever.max_trigger_seed_count",
      "retriever_max_trigger_seed_count", ValueType::kInt, "24"},
+    {kUserCfTriggerSeedUserCount, "retriever_user_cf.trigger_seed_user_count",
+     "user_cf_trigger_seed_user_count", ValueType::kInt, "10"},
     {kStoreType, "store_type", "store_type", ValueType::kString, "local"},
     {kDataPath, "data_path", "data_path", ValueType::kString,
      "tests/testdata/recommendation_engine/profile/demo_profiles.json"},
@@ -643,6 +646,10 @@ string GlobalConfig::GetRetrieverUserCfAddress() const {
 
 int GlobalConfig::GetRetrieverMaxTriggerSeedCount() const {
   return GetPositiveInt(kRetrieverMaxTriggerSeedCount);
+}
+
+int GlobalConfig::GetUserCfTriggerSeedUserCount() const {
+  return GetPositiveInt(kUserCfTriggerSeedUserCount);
 }
 
 string GlobalConfig::GetStoreType() const { return GetString(kStoreType); }

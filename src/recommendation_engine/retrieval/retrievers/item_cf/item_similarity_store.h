@@ -22,7 +22,7 @@ class ItemSimilarityStore {
     ::std::vector<::std::vector<ItemNeighbor>> neighbors_by_item_id;
     neighbors_by_item_id.reserve(item_ids.size());
     for (const uint64_t item_id : item_ids) {
-      neighbors_by_item_id.push_back(
+      neighbors_by_item_id.emplace_back(
           FindNeighborsByItemId(item_id, max_neighbor_count));
     }
     return neighbors_by_item_id;

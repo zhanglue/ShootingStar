@@ -69,7 +69,7 @@ vector<ItemNeighbor> RedisItemSimilarityStore::FindNeighborsByItemId(
           "Redis item similarity key {} contains invalid neighbor item id: {}",
           key, value.member));
     }
-    neighbors.push_back(ItemNeighbor{
+    neighbors.emplace_back(ItemNeighbor{
         .item_id = *neighbor_item_id,
         .score = value.score,
     });
@@ -93,8 +93,8 @@ vector<vector<ItemNeighbor>> RedisItemSimilarityStore::FindNeighborsByItemIds(
     if (item_ids[i] == 0) {
       continue;
     }
-    valid_item_indexes.push_back(i);
-    redis_keys.push_back(RedisClient::BuildRedisKey(key_prefix_, item_ids[i]));
+    valid_item_indexes.emplace_back(i);
+    redis_keys.emplace_back(RedisClient::BuildRedisKey(key_prefix_, item_ids[i]));
   }
 
   if (redis_keys.empty()) {
@@ -124,7 +124,7 @@ vector<vector<ItemNeighbor>> RedisItemSimilarityStore::FindNeighborsByItemIds(
             "Redis item similarity key {} contains invalid neighbor item id: {}",
             redis_keys[i], value.member));
       }
-      neighbors.push_back(ItemNeighbor{
+      neighbors.emplace_back(ItemNeighbor{
           .item_id = *neighbor_item_id,
           .score = value.score,
       });

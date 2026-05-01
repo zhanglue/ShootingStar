@@ -40,11 +40,14 @@ using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::RedisClient;
 
+using TriggerSeed = RetrieverBase::TriggerSeed;
+using CandidateScore = RetrieverBase::CandidateScore;
+
 void AppendTriggerSeeds(
     const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
     double base_score,
     unordered_set<uint64_t>* seen_triggers,
-    vector<RetrieverItemCf::TriggerSeed>* trigger_seeds) {
+    vector<TriggerSeed>* trigger_seeds) {
   int rank = 0;
   for (const WeightedItem& item : items) {
     ++rank;
@@ -58,38 +61,17 @@ void AppendTriggerSeeds(
     }
 
     const double item_weight = item.weight() > 0.0 ? item.weight() : 1.0;
-    trigger_seeds->push_back(
-        RetrieverItemCf::TriggerSeed{
-            trigger_item_id,
-            base_score * item_weight / static_cast<double>(rank),
-        });
-  }
-}
-
-void AppendItemIdsToFilterOut(
-    const ::google::protobuf::RepeatedPtrField<WeightedItem>& items,
-    unordered_set<uint64_t>* item_ids_to_filter_out) {
-  for (const WeightedItem& item : items) {
-    if (item.item_id() > 0) {
-      item_ids_to_filter_out->insert(static_cast<uint64_t>(item.item_id()));
-    }
-  }
-}
-
-void AppendItemIdsToFilterOut(
-    const ::google::protobuf::RepeatedField<::int64_t>& items,
-    unordered_set<uint64_t>* item_ids_to_filter_out) {
-  for (const int64_t item_id : items) {
-    if (item_id > 0) {
-      item_ids_to_filter_out->insert(static_cast<uint64_t>(item_id));
-    }
+    trigger_seeds->emplace_back(TriggerSeed{
+        .entity_id = trigger_item_id,
+        .score = base_score * item_weight / static_cast<double>(rank),
+    });
   }
 }
 
 void AddCandidateContribution(
-    const RetrieverItemCf::TriggerSeed& trigger_seed,
+    const TriggerSeed& trigger_seed,
     const ItemNeighbor& neighbor,
-    unordered_map<uint64_t, RetrieverItemCf::CandidateScore>* candidates) {
+    unordered_map<uint64_t, CandidateScore>* candidates) {
   if (neighbor.item_id == 0 || neighbor.score <= 0.0) {
     return;
   }
@@ -100,22 +82,22 @@ void AddCandidateContribution(
   }
 
   auto [iter, inserted] = candidates->try_emplace(neighbor.item_id);
-  RetrieverItemCf::CandidateScore& candidate = iter->second;
+  CandidateScore& candidate = iter->second;
   if (inserted) {
     candidate.item_id = neighbor.item_id;
   }
   candidate.score += contribution;
 
   if (inserted || contribution > candidate.reason_score) {
-    candidate.trigger_item_id = trigger_seed.item_id;
+    candidate.trigger_entity_id = trigger_seed.entity_id;
     candidate.trigger_score = trigger_seed.score;
-    candidate.similarity_score = neighbor.score;
+    candidate.source_score = neighbor.score;
     candidate.reason_score = contribution;
   }
 }
 
-vector<RetrieverItemCf::TriggerSeed> SelectTopTriggerSeeds(
-    vector<RetrieverItemCf::TriggerSeed> trigger_seeds,
+vector<TriggerSeed> SelectTopTriggerSeeds(
+    vector<TriggerSeed> trigger_seeds,
     int max_trigger_seed_count) {
   if (max_trigger_seed_count <= 0 ||
       trigger_seeds.size() <=
@@ -123,12 +105,12 @@ vector<RetrieverItemCf::TriggerSeed> SelectTopTriggerSeeds(
     return trigger_seeds;
   }
 
-  auto higher_score_first = [](const RetrieverItemCf::TriggerSeed& lhs,
-                               const RetrieverItemCf::TriggerSeed& rhs) {
+  auto higher_score_first = [](const TriggerSeed& lhs,
+                               const TriggerSeed& rhs) {
     if (lhs.score != rhs.score) {
       return lhs.score > rhs.score;
     }
-    return lhs.item_id < rhs.item_id;
+    return lhs.entity_id < rhs.entity_id;
   };
 
   const auto middle =
@@ -139,17 +121,16 @@ vector<RetrieverItemCf::TriggerSeed> SelectTopTriggerSeeds(
   return trigger_seeds;
 }
 
-vector<RetrieverItemCf::CandidateScore> SortCandidates(
-    const unordered_map<uint64_t, RetrieverItemCf::CandidateScore>& candidates) {
-  vector<RetrieverItemCf::CandidateScore> sorted_candidates;
+vector<CandidateScore> SortCandidates(
+    const unordered_map<uint64_t, CandidateScore>& candidates) {
+  vector<CandidateScore> sorted_candidates;
   sorted_candidates.reserve(candidates.size());
   for (const auto& [_, candidate] : candidates) {
-    sorted_candidates.push_back(candidate);
+    sorted_candidates.emplace_back(candidate);
   }
 
   sort(sorted_candidates.begin(), sorted_candidates.end(),
-       [](const RetrieverItemCf::CandidateScore& lhs,
-          const RetrieverItemCf::CandidateScore& rhs) {
+       [](const CandidateScore& lhs, const CandidateScore& rhs) {
          if (lhs.score != rhs.score) {
            return lhs.score > rhs.score;
          }
@@ -236,7 +217,7 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
       vector<uint64_t> trigger_item_ids;
       trigger_item_ids.reserve(batch_end - batch_start);
       for (size_t i = batch_start; i < batch_end; ++i) {
-        trigger_item_ids.push_back(trigger_seeds[i].item_id);
+        trigger_item_ids.emplace_back(trigger_seeds[i].entity_id);
       }
 
       const vector<vector<ItemNeighbor>> neighbors_by_item_id =
@@ -313,9 +294,9 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
     reason->set_reason_score(scored_candidate.reason_score);
     reason->set_description(
         format("Retrieved from item_cf using trigger item {}.",
-               scored_candidate.trigger_item_id));
+               scored_candidate.trigger_entity_id));
     reason->mutable_trigger()->set_entity_type(EntityType::ENTITY_TYPE_ITEM);
-    reason->mutable_trigger()->set_entity_id(scored_candidate.trigger_item_id);
+    reason->mutable_trigger()->set_entity_id(scored_candidate.trigger_entity_id);
   }
 
   response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
@@ -328,7 +309,7 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
   return Status::OK;
 }
 
-vector<RetrieverItemCf::TriggerSeed> RetrieverItemCf::CollectTriggerSeeds(
+vector<TriggerSeed> RetrieverItemCf::CollectTriggerSeeds(
     const Profile& profile) {
   unordered_set<uint64_t> seen_triggers;
   vector<TriggerSeed> trigger_seeds;
@@ -347,24 +328,6 @@ vector<RetrieverItemCf::TriggerSeed> RetrieverItemCf::CollectTriggerSeeds(
                      &trigger_seeds);
 
   return trigger_seeds;
-}
-
-unordered_set<uint64_t> RetrieverItemCf::CollectItemIdsToFilterOut(
-    const Profile& profile) {
-  unordered_set<uint64_t> item_ids_to_filter_out;
-
-  AppendItemIdsToFilterOut(profile.behaviors().recent_liked_items(),
-                           &item_ids_to_filter_out);
-  AppendItemIdsToFilterOut(profile.behaviors().liked_items(),
-                           &item_ids_to_filter_out);
-  AppendItemIdsToFilterOut(profile.behaviors().interested_items(),
-                           &item_ids_to_filter_out);
-  AppendItemIdsToFilterOut(profile.behaviors().rated_items(),
-                           &item_ids_to_filter_out);
-  AppendItemIdsToFilterOut(profile.negative_feedbacks().items(),
-                           &item_ids_to_filter_out);
-
-  return item_ids_to_filter_out;
 }
 
 }  // namespace recommendation_engine
