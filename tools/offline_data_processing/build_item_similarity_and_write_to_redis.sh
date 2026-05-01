@@ -8,13 +8,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #
 # Typical scenarios:
 #   1. Full rebuild and Redis write after port-forwarding Redis to 6379:
-#        ./build_similarity_and_write_to_redis.sh
+#        ./build_item_similarity_and_write_to_redis.sh
 #   2. Build JSONL only, useful for sampling the generated neighbor rows:
-#        ./build_similarity_and_write_to_redis.sh --skip-write
+#        ./build_item_similarity_and_write_to_redis.sh --skip-write
 #   3. Validate an existing JSONL without mutating Redis:
-#        ./build_similarity_and_write_to_redis.sh --skip-build --dry-run
+#        ./build_item_similarity_and_write_to_redis.sh --skip-build --dry-run
 #   4. Write to a different logical DB or key prefix for an experiment:
-#        REDIS_DB=1 KEY_PREFIX=rec:item_cf:test:neighbors ./build_similarity_and_write_to_redis.sh
+#        REDIS_DB=1 KEY_PREFIX=rec:item_cf:test:neighbors ./build_item_similarity_and_write_to_redis.sh
 #
 # Assumption: Redis is reachable at REDIS_HOST:REDIS_PORT, usually through:
 #   kubectl -n recommendation-engine-redis port-forward svc/redis-data-master 6379:6379
