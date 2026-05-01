@@ -53,6 +53,7 @@ void AppendNeighborCandidateItems(
     double base_score,
     unordered_set<uint64_t>* seen_candidate_items,
     vector<ScoredItem>* candidate_items) {
+  // Convert a neighbor profile channel into ranked weighted candidate items.
   int rank = 0;
   for (const WeightedItem& item : items) {
     ++rank;
@@ -77,6 +78,7 @@ void AddCandidateContribution(
     const TriggerSeed& trigger_seed,
     const ScoredItem& neighbor_item,
     unordered_map<uint64_t, CandidateScore>* candidates) {
+  // Accumulate contribution and keep the strongest explanation edge.
   if (neighbor_item.item_id == 0 || neighbor_item.score <= 0.0) {
     return;
   }
@@ -103,6 +105,7 @@ void AddCandidateContribution(
 
 vector<ScoredItem> CollectNeighborCandidateItems(
     const UserCfProfile& profile) {
+  // Merge multiple behavior channels from one similar user's profile.
   unordered_set<uint64_t> seen_candidate_items;
   vector<ScoredItem> candidate_items;
 
@@ -124,6 +127,7 @@ vector<ScoredItem> CollectNeighborCandidateItems(
 
 vector<CandidateScore> SortCandidates(
     const unordered_map<uint64_t, CandidateScore>& candidates) {
+  // Produce deterministic ranking: higher score first, then smaller item id.
   vector<CandidateScore> sorted_candidates;
   sorted_candidates.reserve(candidates.size());
   for (const auto& [_, candidate] : candidates) {
@@ -180,24 +184,24 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
 
   const auto session = make_shared<SessionData>();
 
-  // Load similar users as trigger seeds; return early when unavailable.
+  // Step 1: Load similar users as trigger seeds.
   const Status trigger_seed_status =
       LoadTriggerSeeds(request, session, response);
   if (!trigger_seed_status.ok() || session->trigger_seeds.empty()) {
     return trigger_seed_status;
   }
 
-  // Build the set of item IDs to exclude based on the requester profile.
+  // Step 2: Build requester item exclusion set.
   BuildFilterSet(request.profile(), session);
 
-  // Fetch profiles for trigger users to prepare candidate generation.
+  // Step 3: Load profiles for trigger users.
   const Status profile_status =
       LoadTriggerUserProfiles(request, session, response);
   if (!profile_status.ok()) {
     return profile_status;
   }
 
-  // Aggregate candidate items from trigger user profiles.
+  // Step 4: Aggregate candidate contributions from similar users.
   AggregateCandidates(session);
   logger.Debug(
       "user_cf_profile_aggregation_done",
@@ -211,7 +215,7 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
           {"candidate_pool_size", to_string(session->candidates.size())},
       });
 
-  // Rank and write the final candidate list into the response.
+  // Step 5: Rank and write the final candidate list into the response.
   FillResponseCandidates(session, request, response);
 
   // Mark success and emit completion logs.
@@ -233,6 +237,7 @@ Status RetrieverUserCf::LoadTriggerSeeds(
   const auto& logger = LoggerRegistry::Get();
 
   try {
+    // Query top-N similar users and convert them into trigger seeds.
     const uint64_t request_user_id = static_cast<uint64_t>(request.user_id());
     const int max_trigger_user_count = config.GetUserCfTriggerSeedUserCount();
     const vector<user_cf::UserNeighbor> user_neighbors =
@@ -282,6 +287,7 @@ Status RetrieverUserCf::LoadTriggerUserProfiles(
     RetrieverResponse* response) const {
   const auto& logger = LoggerRegistry::Get();
 
+  // Build batch request user ids from trigger seeds.
   session->trigger_user_ids.clear();
   session->trigger_user_ids.reserve(session->trigger_seeds.size());
   for (const TriggerSeed& trigger_seed : session->trigger_seeds) {
@@ -289,6 +295,7 @@ Status RetrieverUserCf::LoadTriggerUserProfiles(
   }
 
   try {
+    // ProfileStore must return one entry per requested user id.
     session->trigger_user_profiles =
         profile_store_->FindByUserIds(session->trigger_user_ids);
     if (session->trigger_user_profiles.size() !=
@@ -311,11 +318,13 @@ Status RetrieverUserCf::LoadTriggerUserProfiles(
 
 void RetrieverUserCf::AggregateCandidates(
     const shared_ptr<SessionData>& session) const {
+  // Reset per-request aggregation counters and candidate pool.
   session->missing_profile_count = 0;
   session->total_neighbor_items_seen = 0;
   session->total_neighbor_items_filtered_out = 0;
   session->candidates.clear();
 
+  // Merge each valid trigger user's items into the global candidate map.
   for (size_t i = 0; i < session->trigger_user_profiles.size(); ++i) {
     if (!session->trigger_user_profiles[i].has_value()) {
       ++session->missing_profile_count;
@@ -340,6 +349,7 @@ void RetrieverUserCf::FillResponseCandidates(
     const shared_ptr<SessionData>& session,
     const RetrieverRequest& request,
     RetrieverResponse* response) const {
+  // Convert aggregated map to an ordered top-K response.
   const vector<CandidateScore> sorted_candidates =
       SortCandidates(session->candidates);
   for (const CandidateScore& scored_candidate : sorted_candidates) {
@@ -367,6 +377,7 @@ void RetrieverUserCf::FillResponseCandidates(
 vector<TriggerSeed> RetrieverUserCf::CollectTriggerSeeds(
     uint64_t request_user_id,
     const vector<user_cf::UserNeighbor>& user_neighbors) {
+  // Keep valid similar users only and deduplicate by user id.
   vector<TriggerSeed> trigger_seeds;
   trigger_seeds.reserve(user_neighbors.size());
   unordered_set<uint64_t> seen_user_ids;

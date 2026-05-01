@@ -22,6 +22,7 @@ class RetrieverUserCf final : public RetrieverBase {
                   int default_max_candidate_count = 10);
 
  private:
+  // Shared mutable state for one retrieval request.
   struct SessionData {
     ::std::vector<RetrieverBase::TriggerSeed> trigger_seeds;
     ::std::vector<uint64_t> trigger_user_ids;
@@ -33,26 +34,33 @@ class RetrieverUserCf final : public RetrieverBase {
     ::std::size_t total_neighbor_items_filtered_out = 0;
   };
 
+  // Main retrieval pipeline: similar-user seeds -> profile fetch -> aggregation -> response.
   ::grpc::Status DoRetrieve(const RetrieverRequest& request,
                             RetrieverResponse* response) const override;
 
+  // Load similar users and convert them into trigger seeds.
   ::grpc::Status LoadTriggerSeeds(
       const RetrieverRequest& request,
       const ::std::shared_ptr<SessionData>& session,
       RetrieverResponse* response) const;
+  // Build item ids that should never be recommended back to the requester.
   void BuildFilterSet(
       const Profile& profile,
       const ::std::shared_ptr<SessionData>& session) const;
+  // Fetch trigger users' profiles in batch for candidate extraction.
   ::grpc::Status LoadTriggerUserProfiles(
       const RetrieverRequest& request,
       const ::std::shared_ptr<SessionData>& session,
       RetrieverResponse* response) const;
+  // Aggregate candidate contributions from trigger-user item lists.
   void AggregateCandidates(const ::std::shared_ptr<SessionData>& session) const;
+  // Sort candidate pool and materialize the final response list.
   void FillResponseCandidates(
       const ::std::shared_ptr<SessionData>& session,
       const RetrieverRequest& request,
       RetrieverResponse* response) const;
 
+  // Convert raw user neighbors into valid, deduplicated trigger seeds.
   static ::std::vector<RetrieverBase::TriggerSeed> CollectTriggerSeeds(
       uint64_t request_user_id,
       const ::std::vector<user_cf::UserNeighbor>& user_neighbors);
