@@ -32,7 +32,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Skip the build step and only write an existing file.",
     )
     parser.add_argument(
-        "--skip-index",
+        "--skip-write",
         dest="run_index",
         action="store_false",
         help="Skip Elasticsearch writing and only build the output file.",

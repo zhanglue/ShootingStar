@@ -685,10 +685,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # Direct item similarity run example, after port-forwarding Redis to localhost:6379:
+    # Direct item similarity run example, after port-forwarding Redis to localhost:56379:
     #   REDIS_PASSWORD=... \
     #   python3 tools/offline_data_processing/src/writers/redis_writer.py \
     #     --input tools/offline_data_processing/item_similarity.jsonl \
     #     --input-schema item-similarity \
-    #     --redis-host localhost --redis-port 6379 --redis-db 0
+    #     --redis-host 127.0.0.1 --redis-port 56379 --redis-db 0
     main()
