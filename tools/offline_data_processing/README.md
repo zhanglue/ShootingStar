@@ -4,6 +4,7 @@ This directory stores offline data processing jobs that build serving data and w
 
 1. Build movie item-index documents from MovieLens-style CSV files and write them into Elasticsearch.
 2. Build item similarity neighbors from MovieLens-style ratings and write them into Redis.
+3. Build user similarity neighbors from MovieLens-style ratings and write them into Redis.
 
 The current default target index name is `movielens_32m_item_index`.
 
@@ -21,7 +22,8 @@ Here is the [README](https://files.grouplens.org/datasets/movielens/ml-32m-READM
 ```text
 tools/offline_data_processing/
 ├── build_index_and_write_to_es.sh
-├── build_similarity_and_write_to_redis.sh
+├── build_item_similarity_and_write_to_redis.sh
+├── build_user_similarity_and_write_to_redis.sh
 ├── check_es_rollout_stats.sh
 ├── check_redis_functionality.sh
 ├── check_redis_rollout_status.sh
@@ -34,10 +36,12 @@ tools/offline_data_processing/
 └── src/
     ├── builders/
     │   ├── item_index_builder.py
-    │   └── item_similarity_builder.py
+    │   ├── item_similarity_builder.py
+    │   └── user_similarity_builder.py
     ├── jobs/
     │   ├── item_index_to_es.py
-    │   └── item_similarity_to_redis.py
+    │   ├── item_similarity_to_redis.py
+    │   └── user_similarity_to_redis.py
     └── writers/
         ├── elasticsearch_writer.py
         └── redis_writer.py
@@ -48,7 +52,8 @@ tools/offline_data_processing/
 - `src/builders/` stores data builders.
 - `src/writers/` stores middleware writers.
 - `build_index_and_write_to_es.sh` is the one-command local entrypoint for the item-index ES job.
-- `build_similarity_and_write_to_redis.sh` is the one-command local entrypoint for the item-similarity Redis job.
+- `build_item_similarity_and_write_to_redis.sh` is the one-command local entrypoint for the item-similarity Redis job.
+- `build_user_similarity_and_write_to_redis.sh` is the one-command local entrypoint for the user-similarity Redis job.
 - `clear_db.sh` clears ES/Redis data before a full validation run.
 - `check_*.sh` scripts inspect ES/Redis rollout and runtime functionality.
 
@@ -236,6 +241,55 @@ python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
   --ensure-index \
   --no-verify-certs \
   --es-log-every 5000
+```
+
+### `RedisWriter` and `SimilarityDataAdapter`
+
+File: [src/writers/redis_writer.py](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/src/writers/redis_writer.py)
+
+Responsibilities:
+
+- `SimilarityDataAdapter` converts item/user similarity rows into Redis-ready records
+- `RedisWriter` writes Redis-ready records and does not inspect item/user fields
+- Current Redis-ready records support sorted sets:
+
+```json
+{"key": "rec:user_cf:v1:neighbors:1", "data_type": "zset", "values": {"2": 0.42}}
+```
+
+### `UserSimilarityBuilder`
+
+File: [src/builders/user_similarity_builder.py](/Volumes/DataBase/Work/ShootingStar/tools/offline_data_processing/src/builders/user_similarity_builder.py)
+
+Responsibilities:
+
+- Read MovieLens-style `ratings.csv`
+- Treat ratings at or above `min_rating` as positive feedback
+- Build user-user cosine similarity from shared positive items
+- Use shard files so the full ratings file does not need to be held in memory
+- Cap very popular items with deterministic sampling via `max_item_users`
+- Write one JSON row per user:
+
+```json
+{"user_id": 1, "neighbors": [{"user_id": 2, "score": 0.42, "cooccurrence": 5}]}
+```
+
+The local wrapper uses conservative defaults for the 32M dataset and writes the
+generated neighbors into Redis sorted sets under
+`rec:user_cf:v1:neighbors:<user_id>` by default:
+
+```bash
+tools/offline_data_processing/build_user_similarity_and_write_to_redis.sh
+```
+
+Useful overrides:
+
+```bash
+tools/offline_data_processing/build_user_similarity_and_write_to_redis.sh --skip-write
+tools/offline_data_processing/build_user_similarity_and_write_to_redis.sh --skip-build --dry-run
+TOP_K=50 MAX_ITEM_USERS=50 tools/offline_data_processing/build_user_similarity_and_write_to_redis.sh
+USE_RATING_WEIGHT=1 tools/offline_data_processing/build_user_similarity_and_write_to_redis.sh
+REDIS_DB=1 KEY_PREFIX=rec:user_cf:test:neighbors tools/offline_data_processing/build_user_similarity_and_write_to_redis.sh
 ```
 
 ## Mapping Notes
