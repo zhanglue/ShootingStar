@@ -736,11 +736,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # Direct writer-only run example, after port-forwarding ES to localhost:9200:
+    # Direct writer-only run example, after port-forwarding ES to localhost:59200:
     #   ES_USERNAME=elastic ES_PASSWORD=... \
     #   python3 tools/offline_data_processing/src/writers/elasticsearch_writer.py \
     #     --input tools/offline_data_processing/item_index.jsonl \
-    #     --es-url https://localhost:9200 \
+    #     --es-url https://127.0.0.1:59200 \
     #     --index-name movielens_32m_item_index \
     #     --ensure-index --no-verify-certs \
     #     --es-log-every 5000

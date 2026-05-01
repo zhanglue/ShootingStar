@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <format>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -151,6 +152,15 @@ unique_ptr<ProfileStore> CreateProfileStore(
       config, CreateUncachedProfileStore(config, profile_store_type));
 }
 
+void FillUserCfProfile(const Profile& source, UserCfProfile* target) {
+  target->set_user_id(source.user_id());
+  target->mutable_recent_liked_items()->CopyFrom(
+      source.behaviors().recent_liked_items());
+  target->mutable_liked_items()->CopyFrom(source.behaviors().liked_items());
+  target->mutable_interested_items()->CopyFrom(
+      source.behaviors().interested_items());
+}
+
 }  // namespace
 
 ProfileServiceImpl::ProfileServiceImpl(
@@ -227,6 +237,68 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
 
   response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
   response->mutable_profile()->CopyFrom(*profile);
+  return Status::OK;
+}
+
+Status ProfileServiceImpl::BatchGetUserCfProfiles(
+    ServerContext* /*context*/,
+    const BatchGetUserCfProfilesRequest* request,
+    BatchGetUserCfProfilesResponse* response) {
+  const Logger& logger = LoggerRegistry::Get();
+  logger.Info(
+    "batch_get_user_cf_profiles_request_received",
+    {
+      {"user_count", to_string(request->user_ids_size())},
+    });
+
+  response->mutable_request()->CopyFrom(*request);
+
+  if (profile_store_ == nullptr) {
+    response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
+    return Status(StatusCode::INTERNAL, "Profile store is not initialized.");
+  }
+
+  for (const int64_t user_id : request->user_ids()) {
+    UserCfProfileResult* result = response->add_results();
+    result->set_user_id(user_id);
+
+    if (user_id <= 0 ||
+        user_id > ::std::numeric_limits<int>::max()) {
+      result->set_status(ProfileServiceStatus::PROFILE_INVALID_REQUEST);
+      continue;
+    }
+
+    optional<Profile> profile;
+    try {
+      profile = profile_store_->FindByUserId(static_cast<int>(user_id));
+    } catch (const ::std::exception& ex) {
+      response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
+      logger.Info(
+        "batch_get_user_cf_profiles_request_failed",
+        {
+          {"user_id", to_string(user_id)},
+          {"reason", "profile store lookup failed"},
+          {"error_message", ex.what()},
+        });
+      return Status(StatusCode::INTERNAL, ex.what());
+    }
+
+    if (!profile.has_value()) {
+      result->set_status(ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
+      continue;
+    }
+
+    result->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
+    FillUserCfProfile(*profile, result->mutable_profile());
+  }
+
+  response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
+  logger.Info(
+    "batch_get_user_cf_profiles_request_succeeded",
+    {
+      {"user_count", to_string(request->user_ids_size())},
+      {"result_count", to_string(response->results_size())},
+    });
   return Status::OK;
 }
 

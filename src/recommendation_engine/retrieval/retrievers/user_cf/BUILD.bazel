@@ -5,15 +5,26 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 cc_library(
     name = "retriever_user_cf_lib",
     srcs = [
+        "grpc_profile_store.cpp",
+        "redis_user_similarity_store.cpp",
         "retriever_user_cf.cpp",
     ],
     hdrs = [
+        "grpc_profile_store.h",
+        "profile_store.h",
+        "redis_user_similarity_store.h",
         "retriever_user_cf.h",
+        "user_similarity_store.h",
     ],
     deps = [
-        "//src/recommendation_engine/retrieval/retrievers/base:retriever_base_lib",
+        "//protos/recommendation_engine:profile_cc",
+        "//protos/recommendation_engine:profile_cc_grpc",
         "//protos/recommendation_engine:retriever_cc",
         "//protos/recommendation_engine:retriever_cc_grpc",
+        "//src/recommendation_engine/retrieval/retrievers/base:retriever_base_lib",
+        "//src/utilities/global_config:global_config",
+        "//src/utilities/logger:logger",
+        "//src/utilities/redis_client:redis_client",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
     ],

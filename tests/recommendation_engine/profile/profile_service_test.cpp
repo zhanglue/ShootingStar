@@ -130,6 +130,42 @@ TEST(ProfileServiceImplTest, LogsReasonWhenLocalCacheIsNotConfigured) {
             string::npos);
 }
 
+TEST(ProfileServiceImplTest, BatchGetUserCfProfilesReturnsFocusedProfiles) {
+  const GlobalConfig& config = CreateBaseConfig();
+  InstallProfileTestLogger();
+  ProfileServiceImpl service(config);
+
+  BatchGetUserCfProfilesRequest request;
+  request.set_request_id("request-user-cf");
+  request.add_user_ids(1001);
+  request.add_user_ids(999999);
+  request.add_user_ids(-1);
+  BatchGetUserCfProfilesResponse response;
+
+  const ::grpc::Status status =
+      service.BatchGetUserCfProfiles(nullptr, &request, &response);
+
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(response.status(), ProfileServiceStatus::PROFILE_SUCCESS);
+  ASSERT_EQ(response.results_size(), 3);
+
+  EXPECT_EQ(response.results(0).status(), ProfileServiceStatus::PROFILE_SUCCESS);
+  EXPECT_EQ(response.results(0).user_id(), 1001);
+  ASSERT_TRUE(response.results(0).has_profile());
+  EXPECT_EQ(response.results(0).profile().user_id(), 1001);
+  EXPECT_EQ(response.results(0).profile().recent_liked_items_size(), 1);
+  EXPECT_EQ(response.results(0).profile().liked_items_size(), 1);
+  EXPECT_EQ(response.results(0).profile().interested_items_size(), 1);
+
+  EXPECT_EQ(response.results(1).status(),
+            ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
+  EXPECT_FALSE(response.results(1).has_profile());
+
+  EXPECT_EQ(response.results(2).status(),
+            ProfileServiceStatus::PROFILE_INVALID_REQUEST);
+  EXPECT_FALSE(response.results(2).has_profile());
+}
+
 TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
   const GlobalConfig& config = ApplyProfileConfig(
       "store_type: elasticsearch\n"

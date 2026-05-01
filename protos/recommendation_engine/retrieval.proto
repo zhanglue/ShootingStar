@@ -63,6 +63,7 @@ enum EntityType {
   ENTITY_TYPE_QUERY = 3;
   ENTITY_TYPE_TAG = 4;
   ENTITY_TYPE_TOPIC = 5;
+  ENTITY_TYPE_USER = 6;
 }
 
 enum ReasonType {

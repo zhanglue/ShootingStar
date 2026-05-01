@@ -54,6 +54,7 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetRedisPort(), 6379);
   EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:v1:neighbors");
   EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 24);
+  EXPECT_EQ(config.GetUserCfTriggerSeedUserCount(), 10);
   EXPECT_EQ(config.GetRedisCommandBatchSize(), 8);
   EXPECT_DOUBLE_EQ(config.GetRetrievalRecallCandidateExpandRatio(), 1.0);
 }
@@ -108,13 +109,15 @@ TEST(GlobalConfigTest, AppliesOnlyExplicitCommandLineOverrides) {
   char arg0[] = "profile";
   char arg1[] = "--port=50124";
   char arg2[] = "--es_http_client_verify_ssl=false";
-  char* argv[] = {arg0, arg1, arg2};
-  ConfigArguments::Apply(3, argv);
+  char arg3[] = "--user_cf_trigger_seed_user_count=17";
+  char* argv[] = {arg0, arg1, arg2, arg3};
+  ConfigArguments::Apply(4, argv);
 
   const GlobalConfig& config = GlobalConfig::Get();
   EXPECT_EQ(config.GetServerPort(), 50124);
   EXPECT_EQ(config.GetLogLevel(), "WARNING");
   EXPECT_FALSE(config.GetElasticsearchHttpClientVerifySsl());
+  EXPECT_EQ(config.GetUserCfTriggerSeedUserCount(), 17);
 }
 
 TEST(GlobalConfigTest, SupportsGlobalLegacyArguments) {
@@ -232,7 +235,9 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
             "    delay_ms: 5\n"
             "  command_batch_size: 16\n"
             "retriever:\n"
-            "  max_trigger_seed_count: 32\n");
+            "  max_trigger_seed_count: 32\n"
+            "retriever_user_cf:\n"
+            "  trigger_seed_user_count: 12\n");
 
   ConfigYAML::ApplyFile(config_path.string());
   const GlobalConfig& config = GlobalConfig::Get();
@@ -252,6 +257,7 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
   EXPECT_EQ(config.GetRedisRetryDelayMs(), 5);
   EXPECT_EQ(config.GetRedisCommandBatchSize(), 16);
   EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 32);
+  EXPECT_EQ(config.GetUserCfTriggerSeedUserCount(), 12);
 
   const Logger logger("global_config_test");
   ::testing::internal::CaptureStdout();
