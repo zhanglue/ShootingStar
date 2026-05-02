@@ -98,6 +98,13 @@ remove_docker_image() {
     ${DOCKER_CMD} rmi ${image_name}:${image_tag}
 
     if [[ $? != 0 ]]; then
+        # Deleting an already-missing image is acceptable: desired end-state is "not exists".
+        ${DOCKER_CMD} image inspect "${image_name}:${image_tag}" > /dev/null 2>&1
+        if [[ $? != 0 ]]; then
+            echo_warning "Docker image ${image_name}:${image_tag} does not exist, skipping remove."
+            return 0
+        fi
+
         echo_error "Failed to remove existing Docker image ${image_name}:${image_tag}."
         exit 4
     fi
