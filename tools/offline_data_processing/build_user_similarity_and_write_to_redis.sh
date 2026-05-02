@@ -16,59 +16,62 @@ source "${SCRIPT_DIR}/k8s_port_forward.sh"
 #   3. Validate an existing JSONL without mutating Redis:
 #        ./build_user_similarity_and_write_to_redis.sh --skip-build --dry-run
 #   4. Write to a different logical DB or key prefix for an experiment:
-#        REDIS_DB=1 KEY_PREFIX=rec:user_cf:test:neighbors ./build_user_similarity_and_write_to_redis.sh
-#   5. Keep rating-strength information instead of binary positive feedback:
-#        USE_RATING_WEIGHT=1 ./build_user_similarity_and_write_to_redis.sh
+#        ./build_user_similarity_and_write_to_redis.sh --redis-db 1 --key-prefix rec:user_cf:test:neighbors
 #
 # By default the write phase maps Kubernetes Redis to localhost:56379.
-# Set AUTO_PORT_FORWARD=0 to use REDIS_HOST:REDIS_PORT directly.
+# Set AUTO_PORT_FORWARD=0 and pass --redis-host/--redis-port to use an existing tunnel.
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="python3"
 
-RATINGS_PATH="${RATINGS_PATH:-/Volumes/DataBase/Work/raw_dataset_32m_rating/ratings.csv}"
-OUTPUT_PATH="${OUTPUT_PATH:-${SCRIPT_DIR}/user_similarity.jsonl}"
-OUTPUT_FORMAT="${OUTPUT_FORMAT:-jsonl}"
+RATINGS_PATH="/Volumes/DataBase/Work/raw_dataset_32m_rating/ratings.csv"
+OUTPUT_PATH="${SCRIPT_DIR}/user_similarity.jsonl"
+OUTPUT_FORMAT="jsonl"
 
-# Similarity builder settings. max_item_users is intentionally conservative:
-# popular MovieLens items otherwise generate very large user-pair expansions.
-MIN_RATING="${MIN_RATING:-4.0}"
-MIN_USER_ITEMS="${MIN_USER_ITEMS:-5}"
-MIN_ITEM_USERS="${MIN_ITEM_USERS:-2}"
-MAX_ITEM_USERS="${MAX_ITEM_USERS:-30}"
-MIN_COOCCURRENCE="${MIN_COOCCURRENCE:-2}"
-MIN_SIMILARITY="${MIN_SIMILARITY:-0.0}"
-TOP_K="${TOP_K:-10}"
-SHARD_COUNT="${SHARD_COUNT:-512}"
-SHARD_BUFFER_ROWS="${SHARD_BUFFER_ROWS:-100000}"
-TEMP_DIR="${TEMP_DIR:-${SCRIPT_DIR}/temp}"
+# Similarity builder settings. This experimental default keeps more signal so
+# downstream scoring can inspect coverage and score/cooccurrence distributions.
+MIN_RATING=3.5
+USE_RATING_WEIGHT=1
+POSITIVE_WEIGHT_OFFSET=3.0
+MIN_USER_ITEMS=5
+MIN_ITEM_USERS=2
+MAX_ITEM_USERS=100
+COVERAGE_ANCHOR_ITEMS_PER_USER=3
+COVERAGE_PAIR_SAMPLE_SIZE=300
+MIN_COOCCURRENCE=2
+MIN_SIMILARITY=0.0
+TOP_K=50
+SHARD_COUNT=512
+SHARD_BUFFER_ROWS=100000
+TEMP_DIR="${SCRIPT_DIR}/temp/user_similarity"
 
 # Progress settings. The first two stages rescan ratings.csv, while the later
 # stages work over generated shards.
-USER_STATS_LOG_EVERY="${USER_STATS_LOG_EVERY:-2000000}"
-ITEM_MAPPING_LOG_EVERY="${ITEM_MAPPING_LOG_EVERY:-200000}"
-SHARD_LOG_DIVISOR="${SHARD_LOG_DIVISOR:-32}"
-LOG_LEVEL="${LOG_LEVEL:-INFO}"
+USER_STATS_LOG_EVERY=2000000
+ITEM_MAPPING_LOG_EVERY=2000000
+SHARD_LOG_DIVISOR=32
+LOG_LEVEL="INFO"
 
 # Redis settings. For local runs, the script owns a temporary port-forward.
 # KEY_PREFIX is part of the serving contract: final keys are
 # "${KEY_PREFIX}:<user_id>" sorted sets.
-REDIS_NAMESPACE="${REDIS_NAMESPACE:-recommendation-engine-redis}"
-REDIS_SERVICE_NAME="${REDIS_SERVICE_NAME:-}"
-REDIS_LOCAL_PORT="${REDIS_LOCAL_PORT:-56379}"
-REDIS_REMOTE_PORT="${REDIS_REMOTE_PORT:-6379}"
-REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
-REDIS_PORT="${REDIS_PORT:-${REDIS_LOCAL_PORT}}"
-REDIS_DB="${REDIS_DB:-0}"
-REDIS_USERNAME="${REDIS_USERNAME:-}"
-REDIS_PASSWORD_SECRET_NAME="${REDIS_PASSWORD_SECRET_NAME:-redis-auth}"
-REDIS_PASSWORD_SECRET_KEY="${REDIS_PASSWORD_SECRET_KEY:-password}"
-REDIS_SSL="${REDIS_SSL:-false}"
-KEY_PREFIX="${KEY_PREFIX:-rec:user_cf:v1:neighbors}"
-BATCH_SIZE="${BATCH_SIZE:-500}"
-SOCKET_TIMEOUT="${SOCKET_TIMEOUT:-5}"
-REDIS_SOCKET_TIMEOUT="${REDIS_SOCKET_TIMEOUT:-${SOCKET_TIMEOUT}}"
-REDIS_PORT_FORWARD_LOG="${REDIS_PORT_FORWARD_LOG:-/tmp/offline-data-redis-write-port-forward.log}"
-REDIS_LOG_EVERY="${REDIS_LOG_EVERY:-300000}"
+REDIS_NAMESPACE="recommendation-engine-redis"
+REDIS_SERVICE_NAME="redis-data-master"
+REDIS_LOCAL_PORT=56379
+REDIS_REMOTE_PORT=6379
+REDIS_HOST="127.0.0.1"
+REDIS_PORT="${REDIS_LOCAL_PORT}"
+REDIS_DB=0
+REDIS_USERNAME=""
+REDIS_PASSWORD=""
+REDIS_PASSWORD_SECRET_NAME="redis-auth"
+REDIS_PASSWORD_SECRET_KEY="password"
+REDIS_SSL=false
+KEY_PREFIX="rec:user_cf:v1:neighbors"
+BATCH_SIZE=500
+SOCKET_TIMEOUT=5
+REDIS_SOCKET_TIMEOUT="${SOCKET_TIMEOUT}"
+REDIS_PORT_FORWARD_LOG="/tmp/offline-data-redis-write-port-forward.log"
+REDIS_LOG_EVERY=300000
 
 RUN_BUILD=1
 RUN_WRITE=1
@@ -77,7 +80,7 @@ HELP_REQUESTED=0
 HAS_REDIS_CLI_AUTH=0
 
 ARGS=()
-if [[ "${USE_RATING_WEIGHT:-0}" == "1" ]]; then
+if [[ "${USE_RATING_WEIGHT}" == "1" ]]; then
   ARGS+=(--use-rating-weight)
 fi
 
@@ -131,8 +134,8 @@ load_redis_credentials_if_needed() {
   fi
 
   export REDIS_USERNAME
-  if [[ -n "${REDIS_PASSWORD:-}" || "${HAS_REDIS_CLI_AUTH}" == "1" ]]; then
-    export REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+  if [[ -n "${REDIS_PASSWORD}" || "${HAS_REDIS_CLI_AUTH}" == "1" ]]; then
+    export REDIS_PASSWORD
     return 0
   fi
 
@@ -161,9 +164,12 @@ run_user_similarity_job() {
     --output "${OUTPUT_PATH}"
     --output-format "${OUTPUT_FORMAT}"
     --min-rating "${MIN_RATING}"
+    --positive-weight-offset "${POSITIVE_WEIGHT_OFFSET}"
     --min-user-items "${MIN_USER_ITEMS}"
     --min-item-users "${MIN_ITEM_USERS}"
     --max-item-users "${MAX_ITEM_USERS}"
+    --coverage-anchor-items-per-user "${COVERAGE_ANCHOR_ITEMS_PER_USER}"
+    --coverage-pair-sample-size "${COVERAGE_PAIR_SAMPLE_SIZE}"
     --min-cooccurrence "${MIN_COOCCURRENCE}"
     --min-similarity "${MIN_SIMILARITY}"
     --top-k "${TOP_K}"

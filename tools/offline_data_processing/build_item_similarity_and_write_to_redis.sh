@@ -16,12 +16,12 @@ source "${SCRIPT_DIR}/k8s_port_forward.sh"
 #   3. Validate an existing JSONL without mutating Redis:
 #        ./build_item_similarity_and_write_to_redis.sh --skip-build --dry-run
 #   4. Write to a different logical DB or key prefix for an experiment:
-#        REDIS_DB=1 KEY_PREFIX=rec:item_cf:test:neighbors ./build_item_similarity_and_write_to_redis.sh
+#        ./build_item_similarity_and_write_to_redis.sh --redis-db 1 --key-prefix rec:item_cf:test:neighbors
 #
 # By default the write phase maps Kubernetes Redis to localhost:56379.
-# Set AUTO_PORT_FORWARD=0 to use REDIS_HOST:REDIS_PORT directly.
+# Set AUTO_PORT_FORWARD=0 and pass --redis-host/--redis-port to use an existing tunnel.
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="python3"
 
 # Input/output settings. The generated JSONL is the handoff between the
 # similarity builder and the Redis writer.
@@ -31,7 +31,9 @@ OUTPUT_FORMAT="jsonl"
 
 # Similarity builder settings. These thresholds define positive feedback, pair
 # eligibility, and the number of neighbors kept per item.
-MIN_RATING=4.0
+MIN_RATING=3.5
+USE_RATING_WEIGHT=1
+POSITIVE_WEIGHT_OFFSET=3.0
 MAX_USER_ITEMS=300
 MIN_ITEM_USERS=5
 MIN_COOCCURRENCE=3
@@ -39,34 +41,35 @@ MIN_SIMILARITY=0.0
 TOP_K=100
 SHARD_COUNT=512
 SHARD_BUFFER_ROWS=100000
-TEMP_DIR="${SCRIPT_DIR}/temp"
+TEMP_DIR="${SCRIPT_DIR}/temp/item_similarity"
 
 # Similarity progress settings. Different stages have very different costs, so
 # keep their progress cadence separate instead of sharing one generic interval.
 ITEM_STATS_LOG_EVERY=2000000
-PAIR_MAPPING_LOG_EVERY=200000
+PAIR_MAPPING_LOG_EVERY=1000000
 SHARD_LOG_DIVISOR=32
 USER_LOG_EVERY=30000
 
 # Redis settings. For local runs, the script owns a temporary port-forward.
 # KEY_PREFIX is part of the serving contract: final keys are
 # "${KEY_PREFIX}:<item_id>" sorted sets.
-REDIS_NAMESPACE="${REDIS_NAMESPACE:-recommendation-engine-redis}"
-REDIS_SERVICE_NAME="${REDIS_SERVICE_NAME:-}"
-REDIS_LOCAL_PORT="${REDIS_LOCAL_PORT:-56379}"
-REDIS_REMOTE_PORT="${REDIS_REMOTE_PORT:-6379}"
-REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
-REDIS_PORT="${REDIS_PORT:-${REDIS_LOCAL_PORT}}"
-REDIS_DB="${REDIS_DB:-0}"
-REDIS_USERNAME="${REDIS_USERNAME:-}"
-REDIS_PASSWORD_SECRET_NAME="${REDIS_PASSWORD_SECRET_NAME:-redis-auth}"
-REDIS_PASSWORD_SECRET_KEY="${REDIS_PASSWORD_SECRET_KEY:-password}"
-REDIS_SSL="${REDIS_SSL:-false}"
-KEY_PREFIX="${KEY_PREFIX:-rec:item_cf:v1:neighbors}"
+REDIS_NAMESPACE="recommendation-engine-redis"
+REDIS_SERVICE_NAME="redis-data-master"
+REDIS_LOCAL_PORT=56379
+REDIS_REMOTE_PORT=6379
+REDIS_HOST="127.0.0.1"
+REDIS_PORT="${REDIS_LOCAL_PORT}"
+REDIS_DB=0
+REDIS_USERNAME=""
+REDIS_PASSWORD=""
+REDIS_PASSWORD_SECRET_NAME="redis-auth"
+REDIS_PASSWORD_SECRET_KEY="password"
+REDIS_SSL=false
+KEY_PREFIX="rec:item_cf:v1:neighbors"
 BATCH_SIZE=500
 SOCKET_TIMEOUT=5
-REDIS_SOCKET_TIMEOUT="${REDIS_SOCKET_TIMEOUT:-${SOCKET_TIMEOUT}}"
-REDIS_PORT_FORWARD_LOG="${REDIS_PORT_FORWARD_LOG:-/tmp/offline-data-redis-write-port-forward.log}"
+REDIS_SOCKET_TIMEOUT="${SOCKET_TIMEOUT}"
+REDIS_PORT_FORWARD_LOG="/tmp/offline-data-redis-write-port-forward.log"
 LOG_LEVEL="INFO"
 REDIS_LOG_EVERY=300000
 
@@ -75,6 +78,11 @@ RUN_WRITE=1
 NEEDS_REDIS_CONNECTION=1
 HELP_REQUESTED=0
 HAS_REDIS_CLI_AUTH=0
+
+ARGS=()
+if [[ "${USE_RATING_WEIGHT}" == "1" ]]; then
+  ARGS+=(--use-rating-weight)
+fi
 
 parse_runtime_flags() {
   while [[ $# -gt 0 ]]; do
@@ -126,8 +134,8 @@ load_redis_credentials_if_needed() {
   fi
 
   export REDIS_USERNAME
-  if [[ -n "${REDIS_PASSWORD:-}" || "${HAS_REDIS_CLI_AUTH}" == "1" ]]; then
-    export REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+  if [[ -n "${REDIS_PASSWORD}" || "${HAS_REDIS_CLI_AUTH}" == "1" ]]; then
+    export REDIS_PASSWORD
     return 0
   fi
 
@@ -156,6 +164,7 @@ run_item_similarity_job() {
     --output "${OUTPUT_PATH}"
     --output-format "${OUTPUT_FORMAT}"
     --min-rating "${MIN_RATING}"
+    --positive-weight-offset "${POSITIVE_WEIGHT_OFFSET}"
     --max-user-items "${MAX_USER_ITEMS}"
     --min-item-users "${MIN_ITEM_USERS}"
     --min-cooccurrence "${MIN_COOCCURRENCE}"
@@ -177,6 +186,7 @@ run_item_similarity_job() {
     --pair-mapping-log-every "${PAIR_MAPPING_LOG_EVERY}"
     --user-log-every "${USER_LOG_EVERY}"
     --shard-log-divisor "${SHARD_LOG_DIVISOR}"
+    "${ARGS[@]}"
   )
 
   if [[ "${force_redis_endpoint_last}" == "true" ]]; then

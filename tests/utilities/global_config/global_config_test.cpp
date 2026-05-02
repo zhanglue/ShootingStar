@@ -55,6 +55,8 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:v1:neighbors");
   EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 24);
   EXPECT_EQ(config.GetUserCfTriggerSeedUserCount(), 10);
+  EXPECT_DOUBLE_EQ(config.GetRetrieverItemCfScoreMultiplier(), 1.0);
+  EXPECT_DOUBLE_EQ(config.GetRetrieverUserCfScoreMultiplier(), 1.0);
   EXPECT_EQ(config.GetRedisCommandBatchSize(), 8);
   EXPECT_DOUBLE_EQ(config.GetRetrievalRecallCandidateExpandRatio(), 1.0);
 }
@@ -110,14 +112,18 @@ TEST(GlobalConfigTest, AppliesOnlyExplicitCommandLineOverrides) {
   char arg1[] = "--port=50124";
   char arg2[] = "--es_http_client_verify_ssl=false";
   char arg3[] = "--user_cf_trigger_seed_user_count=17";
-  char* argv[] = {arg0, arg1, arg2, arg3};
-  ConfigArguments::Apply(4, argv);
+  char arg4[] = "--item_cf_score_multiplier=0.75";
+  char arg5[] = "--user_cf_score_multiplier=7.5";
+  char* argv[] = {arg0, arg1, arg2, arg3, arg4, arg5};
+  ConfigArguments::Apply(6, argv);
 
   const GlobalConfig& config = GlobalConfig::Get();
   EXPECT_EQ(config.GetServerPort(), 50124);
   EXPECT_EQ(config.GetLogLevel(), "WARNING");
   EXPECT_FALSE(config.GetElasticsearchHttpClientVerifySsl());
   EXPECT_EQ(config.GetUserCfTriggerSeedUserCount(), 17);
+  EXPECT_DOUBLE_EQ(config.GetRetrieverItemCfScoreMultiplier(), 0.75);
+  EXPECT_DOUBLE_EQ(config.GetRetrieverUserCfScoreMultiplier(), 7.5);
 }
 
 TEST(GlobalConfigTest, SupportsGlobalLegacyArguments) {
@@ -236,8 +242,11 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
             "  command_batch_size: 16\n"
             "retriever:\n"
             "  max_trigger_seed_count: 32\n"
+            "retriever_item_cf:\n"
+            "  score_multiplier: 0.8\n"
             "retriever_user_cf:\n"
-            "  trigger_seed_user_count: 12\n");
+            "  trigger_seed_user_count: 12\n"
+            "  score_multiplier: 8.0\n");
 
   ConfigYAML::ApplyFile(config_path.string());
   const GlobalConfig& config = GlobalConfig::Get();
@@ -258,6 +267,8 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
   EXPECT_EQ(config.GetRedisCommandBatchSize(), 16);
   EXPECT_EQ(config.GetRetrieverMaxTriggerSeedCount(), 32);
   EXPECT_EQ(config.GetUserCfTriggerSeedUserCount(), 12);
+  EXPECT_DOUBLE_EQ(config.GetRetrieverItemCfScoreMultiplier(), 0.8);
+  EXPECT_DOUBLE_EQ(config.GetRetrieverUserCfScoreMultiplier(), 8.0);
 
   const Logger logger("global_config_test");
   ::testing::internal::CaptureStdout();
