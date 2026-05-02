@@ -4,6 +4,7 @@ server:
 
 retriever_user_cf:
   trigger_seed_user_count: 10
+  score_multiplier: 8.0
 
 profile_service:
   host: localhost

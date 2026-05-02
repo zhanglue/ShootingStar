@@ -66,6 +66,8 @@ enum Field {
   kRetrieverUserCfHost,
   kRetrieverUserCfPort,
   kRetrieverMaxTriggerSeedCount,
+  kRetrieverItemCfScoreMultiplier,
+  kRetrieverUserCfScoreMultiplier,
   kUserCfTriggerSeedUserCount,
   kStoreType,
   kDataPath,
@@ -141,6 +143,10 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kUInt16, "50220"},
     {kRetrieverMaxTriggerSeedCount, "retriever.max_trigger_seed_count",
      "retriever_max_trigger_seed_count", ValueType::kInt, "24"},
+    {kRetrieverItemCfScoreMultiplier, "retriever_item_cf.score_multiplier",
+     "item_cf_score_multiplier", ValueType::kDouble, "1.0"},
+    {kRetrieverUserCfScoreMultiplier, "retriever_user_cf.score_multiplier",
+     "user_cf_score_multiplier", ValueType::kDouble, "1.0"},
     {kUserCfTriggerSeedUserCount, "retriever_user_cf.trigger_seed_user_count",
      "user_cf_trigger_seed_user_count", ValueType::kInt, "10"},
     {kStoreType, "store_type", "store_type", ValueType::kString, "local"},
@@ -646,6 +652,14 @@ string GlobalConfig::GetRetrieverUserCfAddress() const {
 
 int GlobalConfig::GetRetrieverMaxTriggerSeedCount() const {
   return GetPositiveInt(kRetrieverMaxTriggerSeedCount);
+}
+
+double GlobalConfig::GetRetrieverItemCfScoreMultiplier() const {
+  return GetPositiveDouble(kRetrieverItemCfScoreMultiplier);
+}
+
+double GlobalConfig::GetRetrieverUserCfScoreMultiplier() const {
+  return GetPositiveDouble(kRetrieverUserCfScoreMultiplier);
 }
 
 int GlobalConfig::GetUserCfTriggerSeedUserCount() const {

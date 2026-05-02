@@ -40,6 +40,8 @@ class UserSimilarityBuilder:
         "min_user_items": 5,
         "min_item_users": 2,
         "max_item_users": 30,
+        "coverage_anchor_items_per_user": 0,
+        "coverage_pair_sample_size": 0,
         "min_cooccurrence": 2,
         "min_similarity": 0.0,
         "top_k": 10,
@@ -81,6 +83,10 @@ class UserSimilarityBuilder:
         normalized["min_user_items"] = int(normalized["min_user_items"])
         normalized["min_item_users"] = int(normalized["min_item_users"])
         normalized["max_item_users"] = int(normalized["max_item_users"])
+        normalized["coverage_anchor_items_per_user"] = int(
+            normalized["coverage_anchor_items_per_user"]
+        )
+        normalized["coverage_pair_sample_size"] = int(normalized["coverage_pair_sample_size"])
         normalized["min_cooccurrence"] = int(normalized["min_cooccurrence"])
         normalized["min_similarity"] = float(normalized["min_similarity"])
         normalized["top_k"] = int(normalized["top_k"])
@@ -98,6 +104,10 @@ class UserSimilarityBuilder:
             raise ValueError("min_user_items must be positive")
         if normalized["min_item_users"] <= 0:
             raise ValueError("min_item_users must be positive")
+        if normalized["coverage_anchor_items_per_user"] < 0:
+            raise ValueError("coverage_anchor_items_per_user must be non-negative")
+        if normalized["coverage_pair_sample_size"] < 0:
+            raise ValueError("coverage_pair_sample_size must be non-negative")
         if normalized["min_cooccurrence"] <= 0:
             raise ValueError("min_cooccurrence must be positive")
         if normalized["shard_count"] <= 0:
@@ -167,6 +177,24 @@ class UserSimilarityBuilder:
             dest="max_item_users",
             type=int,
             help="Maximum positive users sampled per item. <=0 disables cap.",
+        )
+        parser.add_argument(
+            "--coverage-anchor-items-per-user",
+            dest="coverage_anchor_items_per_user",
+            type=int,
+            help=(
+                "Number of low-popularity positive items each valid user may anchor "
+                "when item user caps would otherwise drop them. 0 disables."
+            ),
+        )
+        parser.add_argument(
+            "--coverage-pair-sample-size",
+            dest="coverage_pair_sample_size",
+            type=int,
+            help=(
+                "Optional per-item sample size used only for linear coverage-anchor "
+                "pairs. 0 uses max_item_users."
+            ),
         )
         parser.add_argument(
             "--min-cooccurrence",
@@ -251,9 +279,9 @@ class UserSimilarityBuilder:
                 config[key] = value
         return config
 
-    def build_user_stats(self) -> tuple[set[int], dict[int, float], Counter[int]]:
+    def build_user_stats(self) -> tuple[set[int], dict[int, float], Counter[int], Counter[int]]:
         """
-        Find valid users and compute vector norms from positive ratings.
+        Find valid users and compute vector norms and item positive-user counts.
         """
         self.logger.info(
             "Building user stats with min_rating=%s, min_user_items=%s.",
@@ -262,13 +290,15 @@ class UserSimilarityBuilder:
         )
         user_norm_sq: dict[int, float] = defaultdict(float)
         user_item_counts: Counter[int] = Counter()
+        item_user_counts: Counter[int] = Counter()
         positive_rating_count = 0
 
-        for user_id, _, weight, _ in self._iter_positive_ratings(
+        for user_id, movie_id, weight, _ in self._iter_positive_ratings(
             "user stats",
             self.config["user_stats_log_every"],
         ):
             user_item_counts[user_id] += 1
+            item_user_counts[movie_id] += 1
             user_norm_sq[user_id] += weight * weight
             positive_rating_count += 1
 
@@ -283,7 +313,7 @@ class UserSimilarityBuilder:
             positive_rating_count,
             len(user_item_counts),
         )
-        return valid_users, user_norm_sq, user_item_counts
+        return valid_users, user_norm_sq, user_item_counts, item_user_counts
 
     def map_ratings_to_item_shards(
         self,
@@ -320,10 +350,78 @@ class UserSimilarityBuilder:
         self.logger.info("Wrote %s positive rating rows to item shards.", written_count)
         return written_count
 
+    def build_coverage_anchor_users_by_item(
+        self,
+        valid_users: set[int],
+        item_user_counts: Counter[int],
+    ) -> dict[int, set[int]]:
+        """
+        Pick a few lower-popularity positive items per user as coverage anchors.
+
+        The item cap protects pair expansion from very popular titles, but a
+        pure item-local cap can erase mainstream active users from every item
+        they touched. Anchors let those users contribute linear user-item pairs
+        against each item's sampled baseline without raising the quadratic cap.
+        """
+        anchor_count = self.config["coverage_anchor_items_per_user"]
+        if anchor_count <= 0:
+            self.logger.info("Coverage anchors disabled.")
+            return {}
+        if self.config["max_item_users"] <= 0:
+            self.logger.info("Coverage anchors skipped because max_item_users is disabled.")
+            return {}
+
+        self.logger.info(
+            "Building up to %s coverage anchor item(s) per valid user.",
+            anchor_count,
+        )
+        anchors_by_user: dict[int, list[tuple[tuple[int, float, int, int, int], int]]] = (
+            defaultdict(list)
+        )
+        positive_rating_count = 0
+        for user_id, movie_id, weight, timestamp in self._iter_positive_ratings(
+            "coverage anchor selection",
+            self.config["item_mapping_log_every"],
+        ):
+            if user_id not in valid_users:
+                continue
+
+            item_user_count = item_user_counts[movie_id]
+            sample_rank = self._stable_sample_rank(movie_id, user_id)
+            rank = (-item_user_count, weight, timestamp, -sample_rank, -movie_id)
+            heap = anchors_by_user[user_id]
+            entry = (rank, movie_id)
+            if len(heap) < anchor_count:
+                heapq.heappush(heap, entry)
+            elif rank > heap[0][0]:
+                heapq.heapreplace(heap, entry)
+            positive_rating_count += 1
+
+        anchor_users_by_item: dict[int, set[int]] = defaultdict(set)
+        for user_id, heap in anchors_by_user.items():
+            for _, movie_id in heap:
+                anchor_users_by_item[movie_id].add(user_id)
+
+        anchor_assignment_count = sum(
+            len(user_ids) for user_ids in anchor_users_by_item.values()
+        )
+        self.logger.info(
+            (
+                "Built %s coverage anchor assignments for %s users across %s items "
+                "from %s valid positive ratings."
+            ),
+            anchor_assignment_count,
+            len(anchors_by_user),
+            len(anchor_users_by_item),
+            positive_rating_count,
+        )
+        return anchor_users_by_item
+
     def reduce_item_shards_to_pair_shards(
         self,
         item_shard_dir: Path,
         pair_shard_dir: Path,
+        coverage_anchor_users_by_item: dict[int, set[int]] | None = None,
     ) -> int:
         """
         Expand item-owned user lists into weighted user-pair contribution rows.
@@ -365,6 +463,7 @@ class UserSimilarityBuilder:
                     movie_id,
                     interactions,
                     buffers,
+                    (coverage_anchor_users_by_item or {}).get(movie_id, set()),
                 )
                 if written_count == 0:
                     continue
@@ -581,9 +680,17 @@ class UserSimilarityBuilder:
         Run the four-stage user-similarity pipeline.
         """
         item_shard_dir, pair_shard_dir, neighbor_shard_dir = self._prepare_temp_dirs()
-        valid_users, user_norm_sq, _ = self.build_user_stats()
+        valid_users, user_norm_sq, _, item_user_counts = self.build_user_stats()
+        coverage_anchor_users_by_item = self.build_coverage_anchor_users_by_item(
+            valid_users,
+            item_user_counts,
+        )
         self.map_ratings_to_item_shards(valid_users, item_shard_dir)
-        self.reduce_item_shards_to_pair_shards(item_shard_dir, pair_shard_dir)
+        self.reduce_item_shards_to_pair_shards(
+            item_shard_dir,
+            pair_shard_dir,
+            coverage_anchor_users_by_item,
+        )
         self.reduce_pair_shards_to_neighbor_shards(
             pair_shard_dir,
             neighbor_shard_dir,
@@ -733,6 +840,22 @@ class UserSimilarityBuilder:
         """
         Deduplicate and cap one item's positive user interactions.
         """
+        sampled, _, _ = self._select_item_pair_participants(movie_id, interactions, set())
+        return sampled
+
+    def _select_item_pair_participants(
+        self,
+        movie_id: int,
+        interactions: list[tuple[int, float, int]],
+        coverage_anchor_users: set[int],
+    ) -> tuple[list[tuple[int, float]], list[tuple[int, float]], list[tuple[int, float]]]:
+        """
+        Select baseline sampled users and uncapped coverage extras for one item.
+
+        The baseline remains capped and is fully pair-expanded. Coverage extras
+        are users whose personal anchor item is this item; they pair only with
+        the baseline sample, which adds coverage at linear cost.
+        """
         deduped: dict[int, tuple[float, int]] = {}
         for user_id, weight, timestamp in interactions:
             existing = deduped.get(user_id)
@@ -749,15 +872,84 @@ class UserSimilarityBuilder:
             for user_id, (weight, timestamp) in deduped.items()
         ]
 
+        if len(ranked) < self.config["min_item_users"]:
+            return [], [], []
+
         max_item_users = self.config["max_item_users"]
         if max_item_users > 0 and len(ranked) > max_item_users:
-            ranked.sort(key=lambda item: (-item[1], item[3], -item[2], item[0]))
-            ranked = ranked[:max_item_users]
+            sampled_ranked = self._stratified_sample_item_interactions(
+                ranked,
+                max_item_users,
+            )
+        else:
+            sampled_ranked = ranked
 
-        if len(ranked) < self.config["min_item_users"]:
-            return []
+        sampled_ids = {user_id for user_id, _, _, _ in sampled_ranked}
+        coverage_extra_ranked = [
+            item
+            for item in ranked
+            if item[0] in coverage_anchor_users and item[0] not in sampled_ids
+        ]
 
-        return sorted((user_id, weight) for user_id, weight, _, _ in ranked)
+        coverage_pair_sample_size = self.config["coverage_pair_sample_size"]
+        if (
+            coverage_extra_ranked
+            and max_item_users > 0
+            and coverage_pair_sample_size > len(sampled_ranked)
+        ):
+            coverage_sample_ranked = self._stratified_sample_item_interactions(
+                ranked,
+                coverage_pair_sample_size,
+            )
+        else:
+            coverage_sample_ranked = sampled_ranked
+
+        sampled = sorted((user_id, weight) for user_id, weight, _, _ in sampled_ranked)
+        coverage_extra = sorted(
+            (user_id, weight) for user_id, weight, _, _ in coverage_extra_ranked
+        )
+        coverage_sample = sorted(
+            (user_id, weight) for user_id, weight, _, _ in coverage_sample_ranked
+        )
+        return sampled, coverage_extra, coverage_sample
+
+    @staticmethod
+    def _stratified_sample_item_interactions(
+        ranked: list[tuple[int, float, int, int]],
+        sample_size: int,
+    ) -> list[tuple[int, float, int, int]]:
+        """
+        Sample evenly across rating-weight buckets using stable item-user ranks.
+        """
+        if sample_size <= 0 or len(ranked) <= sample_size:
+            return list(ranked)
+
+        buckets: dict[float, list[tuple[int, float, int, int]]] = defaultdict(list)
+        for item in ranked:
+            buckets[item[1]].append(item)
+
+        bucket_keys = sorted(buckets.keys(), reverse=True)
+        for bucket in buckets.values():
+            bucket.sort(key=lambda item: (item[3], -item[2], item[0]))
+
+        selected: list[tuple[int, float, int, int]] = []
+        offsets = {weight: 0 for weight in bucket_keys}
+        while len(selected) < sample_size:
+            progressed = False
+            for weight in bucket_keys:
+                offset = offsets[weight]
+                bucket = buckets[weight]
+                if offset >= len(bucket):
+                    continue
+                selected.append(bucket[offset])
+                offsets[weight] = offset + 1
+                progressed = True
+                if len(selected) >= sample_size:
+                    break
+            if not progressed:
+                break
+
+        return selected
 
     @staticmethod
     def _stable_sample_rank(movie_id: int, user_id: int) -> int:
@@ -884,24 +1076,64 @@ class UserSimilarityBuilder:
         movie_id: int,
         interactions: list[tuple[int, float, int]],
         buffers: list[list[str]],
+        coverage_anchor_users: set[int] | None = None,
     ) -> int:
         """
         Write all user pairs contributed by one item into shard buffers.
         """
-        normalized = self._normalize_item_interactions(movie_id, interactions)
-        if len(normalized) < 2:
+        sampled, coverage_extra, coverage_sample = self._select_item_pair_participants(
+            movie_id,
+            interactions,
+            coverage_anchor_users or set(),
+        )
+        if len(sampled) < 2:
             return 0
 
         written_count = 0
-        for (left_user_id, left_weight), (right_user_id, right_weight) in combinations(
-            normalized, 2
-        ):
-            shard_id = self._pair_shard_id(left_user_id, right_user_id)
-            pair_weight = left_weight * right_weight
-            buffers[shard_id].append(f"{left_user_id},{right_user_id},{pair_weight:.12g}\n")
+        for (left_user_id, left_weight), (right_user_id, right_weight) in combinations(sampled, 2):
+            self._append_pair_contribution(
+                left_user_id,
+                left_weight,
+                right_user_id,
+                right_weight,
+                buffers,
+            )
             written_count += 1
 
+        for left_user_id, left_weight in coverage_extra:
+            for right_user_id, right_weight in coverage_sample:
+                if self._append_pair_contribution(
+                    left_user_id,
+                    left_weight,
+                    right_user_id,
+                    right_weight,
+                    buffers,
+                ):
+                    written_count += 1
+
         return written_count
+
+    def _append_pair_contribution(
+        self,
+        left_user_id: int,
+        left_weight: float,
+        right_user_id: int,
+        right_weight: float,
+        buffers: list[list[str]],
+    ) -> bool:
+        """
+        Append one undirected user-pair contribution to the proper pair shard.
+        """
+        if left_user_id == right_user_id:
+            return False
+        if left_user_id > right_user_id:
+            left_user_id, right_user_id = right_user_id, left_user_id
+            left_weight, right_weight = right_weight, left_weight
+
+        shard_id = self._pair_shard_id(left_user_id, right_user_id)
+        pair_weight = left_weight * right_weight
+        buffers[shard_id].append(f"{left_user_id},{right_user_id},{pair_weight:.12g}\n")
+        return True
 
     def _topk_rows_for_neighbor_shard(
         self,
@@ -973,7 +1205,8 @@ if __name__ == "__main__":
     #   python3 tools/offline_data_processing/src/builders/user_similarity_builder.py \
     #     --ratings /Volumes/DataBase/Work/raw_dataset_32m_rating/ratings.csv \
     #     --output tools/offline_data_processing/user_similarity.jsonl \
-    #     --top-k 10 --min-rating 4.0 --max-item-users 30 \
+    #     --top-k 50 --min-rating 3.5 --max-item-users 100 \
+    #     --coverage-anchor-items-per-user 3 --coverage-pair-sample-size 300 \
     #     --user-stats-log-every 2000000 \
     #     --item-mapping-log-every 200000 \
     #     --shard-log-divisor 32

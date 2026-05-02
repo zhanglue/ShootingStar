@@ -351,6 +351,8 @@ void RetrieverItemCf::FillResponseCandidates(
   // Convert aggregated map to an ordered top-K response.
   const vector<CandidateScore> sorted_candidates =
       SortCandidates(session->candidates);
+  const double score_multiplier =
+      GlobalConfig::Get().GetRetrieverItemCfScoreMultiplier();
   for (const CandidateScore& scored_candidate : sorted_candidates) {
     if (response->candidates_size() >= request.max_candidate_count()) {
       break;
@@ -360,11 +362,11 @@ void RetrieverItemCf::FillResponseCandidates(
     candidate->set_item_id(scored_candidate.item_id);
     candidate->set_item_type(ItemType::ITEM_TYPE_UNSPECIFIED);
     candidate->set_retriever(kRetrieverName);
-    candidate->set_retrieve_score(scored_candidate.score);
+    candidate->set_retrieve_score(scored_candidate.score * score_multiplier);
 
     RetrievalReason* reason = candidate->add_reasons();
     reason->set_reason_type(ReasonType::REASON_TYPE_ITEM_CF);
-    reason->set_reason_score(scored_candidate.reason_score);
+    reason->set_reason_score(scored_candidate.reason_score * score_multiplier);
     reason->set_description(
         format("Retrieved from item_cf using trigger item {}.",
                scored_candidate.trigger_entity_id));

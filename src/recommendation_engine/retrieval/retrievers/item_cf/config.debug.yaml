@@ -2,6 +2,9 @@ server:
   port: 50210
   log_level: DEBUG
 
+retriever_item_cf:
+  score_multiplier: 0.8
+
 redis:
   host: localhost
   port: 6379
