@@ -9,6 +9,7 @@
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
 #include "src/clients/client_runtime.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 
 using ::grpc::Channel;
@@ -38,7 +39,7 @@ class RetrieverClient {
                 const string& profile_data_path,
                 const string& executable_path) {
     RetrieverRequest request;
-    request.set_request_id("ABCDE-10210");
+    request.set_request_id(::shooting_star::utilities::GenerateGuid());
     request.set_user_id(user_id);
     request.set_max_candidate_count(max_candidate_count);
 

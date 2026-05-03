@@ -9,6 +9,7 @@
 
 #include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
 #include "src/clients/client_runtime.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -31,7 +32,7 @@ class RecommendationEngineClient {
 
   void Recommend(int user_id, int max_results) {
     RecommendRequest request;
-    request.set_request_id("ABCDE-10155");
+    request.set_request_id(::shooting_star::utilities::GenerateGuid());
     request.set_user_id(user_id);
     request.set_max_results(max_results);
 

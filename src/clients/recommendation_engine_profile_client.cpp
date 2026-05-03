@@ -8,6 +8,7 @@
 
 #include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/clients/client_runtime.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -29,7 +30,7 @@ class ProfileClient {
 
   void GetProfile(int user_id) {
     GetProfileRequest request;
-    request.set_request_id("ABCDE-10156");
+    request.set_request_id(::shooting_star::utilities::GenerateGuid());
     request.set_user_id(user_id);
 
     GetProfileResponse response;

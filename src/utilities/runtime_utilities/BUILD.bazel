@@ -7,6 +7,7 @@ cc_library(
     srcs = ["runtime_utilities.cpp"],
     hdrs = ["runtime_utilities.h"],
     deps = [
+        "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
         "@grpc//:grpc++",
     ],

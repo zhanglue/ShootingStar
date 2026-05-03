@@ -1,12 +1,16 @@
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
+#include <cstdint>
+#include <array>
 #include <filesystem>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
 
+#include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 
 namespace shooting_star {
@@ -184,6 +188,26 @@ void TrimWhitespace(string_view& value) {
          ::std::isspace(static_cast<unsigned char>(value.back())) != 0) {
     value.remove_suffix(1);
   }
+}
+
+string GenerateGuid() {
+  absl::BitGen bitgen;
+  ::std::array<uint8_t, 16> guid;
+  for (auto& byte : guid) {
+    byte = absl::Uniform<uint8_t>(bitgen);
+  }
+
+  guid[6] = static_cast<uint8_t>((guid[6] & 0x0F) | 0x40);
+  guid[8] = static_cast<uint8_t>((guid[8] & 0x3F) | 0x80);
+
+  char buffer[37];
+  std::snprintf(buffer, sizeof(buffer),
+                "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"
+                "%02x%02x%02x%02x%02x%02x",
+                guid[0], guid[1], guid[2], guid[3], guid[4], guid[5], guid[6],
+                guid[7], guid[8], guid[9], guid[10], guid[11], guid[12],
+                guid[13], guid[14], guid[15]);
+  return string(buffer);
 }
 
 }  // namespace utilities
