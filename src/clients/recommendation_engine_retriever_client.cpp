@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
 #include "src/clients/client_runtime.h"
@@ -20,6 +21,7 @@ using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
+using ::std::vector;
 
 constexpr char kDefaultProfileDataPath[] =
     "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
@@ -78,8 +80,8 @@ void PrintUsage() {
           "127.0.0.1)\n"
        << "  -p, --port <PORT>                 Set server port (default: "
           "50210)\n"
-       << "  -u, --user-id <USER_ID>           Set user ID to retrieve for "
-          "(default: 1001)\n"
+       << "  -u, --user-id <USER_ID>           Add user ID to retrieve for "
+          "(repeatable; default: {85566})\n"
        << "  -c, --max-candidate-count <COUNT> Set requested max candidate "
           "count (default: 20)\n"
        << "  -f, --profile-data-path <PATH>    Set demo profile jsonl path\n"
@@ -94,7 +96,8 @@ int main(int argc, char** argv) {
   string ip = "127.0.0.1";
   string port = "50210";
   string profile_data_path = kDefaultProfileDataPath;
-  int64_t user_id = 85566;
+  vector<int64_t> user_ids = {};
+  int64_t default_user_id = 85566;
   int max_candidate_count = 20;
 
   struct option long_options[] = {
@@ -124,7 +127,7 @@ int main(int argc, char** argv) {
         break;
       case 'u':
         try {
-          user_id = ::std::stoll(optarg);
+          user_ids.push_back(::std::stoll(optarg));
         } catch (const ::std::invalid_argument&) {
           ::std::cerr << "Error: user_id is not a valid integer: " << optarg
                       << "\n";
@@ -157,10 +160,17 @@ int main(int argc, char** argv) {
   }
 
   const string target_str = ip + ":" + port;
+  if (user_ids.empty()) {
+    user_ids.push_back(default_user_id);
+  }
 
   ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
-  cout << "Retrieving candidates for user: " << user_id << ::std::endl;
+  cout << "Retrieving candidates for users:";
+  for (int64_t user_id : user_ids) {
+    cout << " " << user_id;
+  }
+  cout << ::std::endl;
   cout << "Using profile data from: " << profile_data_path << ::std::endl;
   cout << "Requested max candidate count: " << max_candidate_count
        << ::std::endl
@@ -168,7 +178,10 @@ int main(int argc, char** argv) {
 
   recommendation_engine::RetrieverClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.Retrieve(user_id, max_candidate_count, profile_data_path, argv[0]);
+  for (int64_t user_id : user_ids) {
+    cout << "Retrieving candidates for user: " << user_id << ::std::endl;
+    client.Retrieve(user_id, max_candidate_count, profile_data_path, argv[0]);
+  }
 
   return 0;
 }
