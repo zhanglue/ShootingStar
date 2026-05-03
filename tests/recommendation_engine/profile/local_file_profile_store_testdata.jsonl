@@ -1,0 +1,2 @@
+{"user_id":2001,"demographics":{"username":"jsonl_user_2001"},"behaviors":{"liked_items":[{"item_id":9001,"weight":1.0}]}}
+{"user_id":2002,"demographics":{"username":"jsonl_user_2002"},"behaviors":{"recent_liked_items":[{"item_id":9002,"weight":0.8}]}}

@@ -10,11 +10,13 @@
 #include <unordered_map>
 #include <utility>
 
+#include "src/recommendation_engine/retrieval/retrievers/item_cf/local_file_item_similarity_store.h"
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/redis_item_similarity_store.h"
 #include "src/utilities/global_config/global_config.h"
 #include "src/utilities/logger/logger.h"
 #include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/redis_client/redis_client.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
 namespace {
@@ -24,6 +26,7 @@ constexpr char kRetrieverName[] = "item_cf";
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::std::format;
+using ::std::invalid_argument;
 using ::std::make_shared;
 using ::std::make_unique;
 using ::std::partial_sort;
@@ -31,6 +34,7 @@ using ::std::runtime_error;
 using ::std::shared_ptr;
 using ::std::size_t;
 using ::std::sort;
+using ::std::string;
 using ::std::to_string;
 using ::std::unique_ptr;
 using ::std::unordered_map;
@@ -39,6 +43,7 @@ using ::std::vector;
 using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::RedisClient;
+using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 
 using TriggerSeed = RetrieverBase::TriggerSeed;
 using CandidateScore = RetrieverBase::CandidateScore;
@@ -143,13 +148,32 @@ vector<CandidateScore> SortCandidates(
   return sorted_candidates;
 }
 
+unique_ptr<ItemSimilarityStore> CreateItemSimilarityStore(
+    const GlobalConfig& config) {
+  const string store_type = config.GetSimilarityStoreType();
+  if (store_type == ItemSimilarityStore::kRedisStoreType) {
+    return make_unique<RedisItemSimilarityStore>(
+        RedisClient::Create(), config.GetRedisKeyPrefix());
+  }
+  if (store_type == ItemSimilarityStore::kLocalStoreType) {
+    const string data_path = ResolveWorkspaceRelativePath(
+        config.GetSimilarityDataPath());
+    if (data_path.empty()) {
+      throw invalid_argument(
+          "similarity_store.data_path must not be empty for local item_cf store");
+    }
+    return make_unique<LocalFileItemSimilarityStore>(data_path);
+  }
+
+  throw invalid_argument(format("Unsupported item similarity store type: {}",
+                                store_type));
+}
+
 }  // namespace
 
 RetrieverItemCf::RetrieverItemCf(int default_max_candidate_count)
-    : RetrieverItemCf(
-          make_unique<RedisItemSimilarityStore>(RedisClient::Create(),
-                                                GlobalConfig::Get().GetRedisKeyPrefix()),
-          default_max_candidate_count) {}
+    : RetrieverItemCf(CreateItemSimilarityStore(GlobalConfig::Get()),
+                      default_max_candidate_count) {}
 
 RetrieverItemCf::RetrieverItemCf(
     unique_ptr<ItemSimilarityStore> item_similarity_store,

@@ -48,8 +48,10 @@ class GlobalConfig final {
   double GetRetrieverUserCfScoreMultiplier() const;
   int GetUserCfTriggerSeedUserCount() const;
 
-  ::std::string GetStoreType() const;
-  ::std::string GetDataPath() const;
+  ::std::string GetProfileStoreType() const;
+  ::std::string GetProfileStoreDataPath() const;
+  ::std::string GetSimilarityStoreType() const;
+  ::std::string GetSimilarityDataPath() const;
   int GetLocalCacheCapacity() const;
   int GetLocalCacheTtlSeconds() const;
   ::std::string GetElasticsearchBaseUrl() const;
@@ -101,8 +103,6 @@ class GlobalConfig final {
   void LogResolvedConfig(const Logger& logger) const;
   void LogResolvedConfigSection(const Logger& logger,
                                 ::std::string_view config_key_prefix) const;
-  void LogResolvedElasticsearchConfig(const Logger& logger) const;
-  void LogResolvedRedisConfig(const Logger& logger) const;
 
  private:
   GlobalConfig();

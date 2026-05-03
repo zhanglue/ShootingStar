@@ -51,5 +51,7 @@ void TrimTrailingSlashes(::std::string& value);
 
 void TrimWhitespace(::std::string_view& value);
 
+::std::string GenerateGuid();
+
 }  // namespace utilities
 }  // namespace shooting_star

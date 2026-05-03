@@ -7,13 +7,16 @@ namespace utilities {
 
 namespace {
 
+using ::std::make_shared;
+using ::std::shared_ptr;
+
 ////////////////////////////////////////////////////////////////////////////////
 // CurlGlobalInitializer
 ////////////////////////////////////////////////////////////////////////////////
 
 ::std::shared_ptr<CurlGlobalInitializer> GetCurlGlobalInitializer() {
-  static ::std::shared_ptr<CurlGlobalInitializer> initializer =
-      ::std::make_shared<CurlGlobalInitializer>();
+  static shared_ptr<CurlGlobalInitializer> initializer =
+      make_shared<CurlGlobalInitializer>();
   return initializer;
 }
 

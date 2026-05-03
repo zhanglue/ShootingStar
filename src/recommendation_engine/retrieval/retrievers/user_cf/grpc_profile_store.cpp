@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
+
 namespace recommendation_engine::user_cf {
 
 using ::grpc::ClientContext;
@@ -45,7 +47,8 @@ vector<optional<UserCfProfile>> GrpcProfileStore::FindByUserIds(
   }
 
   BatchGetUserCfProfilesRequest request;
-  request.set_request_id("user_cf_neighbor_batch");
+  request.set_trace_id("user_cf_neighbor_batch"); // TODO: use trace_id from session_data.
+  request.set_request_id(::shooting_star::utilities::GenerateGuid());
   vector<size_t> valid_indexes;
   valid_indexes.reserve(user_ids.size());
   for (size_t i = 0; i < user_ids.size(); ++i) {

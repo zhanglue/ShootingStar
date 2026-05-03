@@ -1,8 +1,9 @@
 #include <getopt.h>
+#include <grpcpp/grpcpp.h>
+
 #include <iostream>
 #include <memory>
-
-#include <grpcpp/grpcpp.h>
+#include <chrono>
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
 #include "src/clients/client_runtime.h"
@@ -10,6 +11,8 @@
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
@@ -32,13 +35,19 @@ class FetcherClient {
     GetWeatherResponse response;
     ClientContext context;
 
+    const auto start = steady_clock::now();
     const Status status = stub_->GetWeather(&context, request, &response);
+    const auto elapsed_ms =
+        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
+            .count();
+    cout << "GetWeather RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
 
     if (status.ok()) {
-      cout << "Weather in " << city << ": " << response.data().DebugString() << ::std::endl;
+      cout << "Weather in " << city << ": " << response.data().DebugString()
+           << ::std::endl;
     } else {
-      ::std::cerr << "RPC failed: " << status.error_code() << ", " << status.error_message()
-                  << ::std::endl;
+      ::std::cerr << "RPC failed: " << status.error_code() << ", "
+                  << status.error_message() << ::std::endl;
     }
   }
 
@@ -50,30 +59,31 @@ void PrintUsage() {
   cout << "Usage: weather_client [options]\n"
        << "Options:\n"
        << "  -h, --help           Show this help message\n"
-       << "  -i, --ip <IP>        Set server IP (default: localhost)\n"
+       << "  -i, --ip <IP>        Set server IP (default: 127.0.0.1)\n"
        << "  -p, --port <PORT>    Set server port (default: 40000)\n"
-       << "  -c, --city <CITY>    Set city name for weather query (default: Denver)\n";
+       << "  -c, --city <CITY>    Set city name for weather query (default: "
+          "Denver)\n";
 }
 
 }  // namespace
 }  // namespace weather_flow
 
 int main(int argc, char** argv) {
-  string ip = "localhost";
+  string ip = "127.0.0.1";
   string port = "40000";
   string city = "Denver";
 
-  struct option long_options[] = {
-      {"help", no_argument, nullptr, 'h'},
-      {"ip", required_argument, nullptr, 'i'},
-      {"port", required_argument, nullptr, 'p'},
-      {"city", required_argument, nullptr, 'c'},
-      {0, 0, 0, 0}};
+  struct option long_options[] = {{"help", no_argument, nullptr, 'h'},
+                                  {"ip", required_argument, nullptr, 'i'},
+                                  {"port", required_argument, nullptr, 'p'},
+                                  {"city", required_argument, nullptr, 'c'},
+                                  {0, 0, 0, 0}};
 
   int opt;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "hi:p:c:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hi:p:c:", long_options,
+                            &option_index)) != -1) {
     switch (opt) {
       case 'h':
         weather_flow::PrintUsage();

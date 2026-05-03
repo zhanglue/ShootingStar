@@ -16,6 +16,7 @@ cc_library(
         "//protos/recommendation_engine:retrieval_cc",
         "//protos/recommendation_engine:retrieval_cc_grpc",
         "//src/utilities/global_config:global_config",
+        "//src/utilities/runtime_utilities:runtime_utilities",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
     ],

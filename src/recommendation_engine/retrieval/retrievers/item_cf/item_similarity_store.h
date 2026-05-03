@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 namespace recommendation_engine {
@@ -12,6 +13,9 @@ struct ItemNeighbor {
 
 class ItemSimilarityStore {
  public:
+  static constexpr ::std::string_view kLocalStoreType = "local";
+  static constexpr ::std::string_view kRedisStoreType = "redis";
+
   virtual ~ItemSimilarityStore() = default;
 
   virtual ::std::vector<ItemNeighbor> FindNeighborsByItemId(

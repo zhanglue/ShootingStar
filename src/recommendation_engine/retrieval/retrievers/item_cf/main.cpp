@@ -49,7 +49,6 @@ int main(int argc, char** argv) {
     const Logger& logger = LoggerRegistry::Get();
     logger.Info("config_loaded", {{"config_path", config.GetConfigPath()}, });
     config.LogResolvedConfig(logger);
-    config.LogResolvedRedisConfig(logger);
 
     const string server_address = config.GetListenAddress();
     RetrieverItemCf service;

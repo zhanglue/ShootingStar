@@ -17,7 +17,8 @@ class LocalFileProfileStore final : public ProfileStore {
   ::std::optional<Profile> FindByUserId(int user_id) const override;
 
  private:
-  bool LoadFromJsonFile(const ::std::string& file_path, ::std::string* error_msg = nullptr);
+  bool LoadFromJsonlFile(const ::std::string& file_path,
+                         ::std::string* error_msg = nullptr);
 
   UserIdProfileMap profiles_;
 };

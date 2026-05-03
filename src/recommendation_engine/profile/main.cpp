@@ -14,6 +14,13 @@
 
 namespace {
 
+using ::grpc::CreateChannel;
+using ::grpc::EnableDefaultHealthCheckService;
+using ::grpc::InsecureChannelCredentials;
+using ::grpc::InsecureServerCredentials;
+using ::grpc::Server;
+using ::grpc::ServerBuilder;
+using ::grpc::reflection::InitProtoReflectionServerBuilderPlugin;
 using ::recommendation_engine::ProfileServiceImpl;
 using ::shooting_star::utilities::ConfigArguments;
 using ::shooting_star::utilities::ConfigYAML;
@@ -21,7 +28,9 @@ using ::shooting_star::utilities::CreateServerLoggingInterceptorCreators;
 using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
+using ::std::make_shared;
 using ::std::string;
+using ::std::unique_ptr;
 
 constexpr const char* kServiceName = "profile";
 
@@ -33,32 +42,27 @@ int main(int argc, char** argv) {
     ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
     ConfigArguments::Apply(argc, argv);
 
-    auto profile_logger = ::std::make_shared<Logger>(kServiceName);
+    auto profile_logger = make_shared<Logger>(kServiceName);
     profile_logger->SetMinLogLevel(config.GetLogLevel());
     LoggerRegistry::Register(::std::move(profile_logger));
     LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
     const Logger& logger = LoggerRegistry::Get();
-    logger.Info(
-      "config_loaded",
-      {
-        {"config_path", config.GetConfigPath()},
-      });
+    logger.Info("config_loaded", {{"config_path", config.GetConfigPath()}, });
     config.LogResolvedConfig(logger);
 
     const string server_address = config.GetListenAddress();
     ProfileServiceImpl service(config);
 
-    ::grpc::EnableDefaultHealthCheckService(true);
-    ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-    ::grpc::ServerBuilder builder;
+    EnableDefaultHealthCheckService(true);
+    InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
     builder.experimental().SetInterceptorCreators(
         CreateServerLoggingInterceptorCreators(logger));
-    builder.AddListeningPort(server_address,
-                             ::grpc::InsecureServerCredentials());
+    builder.AddListeningPort(server_address, InsecureServerCredentials());
     builder.RegisterService(&service);
 
-    ::std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
+    unique_ptr<Server> server(builder.BuildAndStart());
     logger.Info("server_started", {{"listen_address", server_address}});
     server->Wait();
   } catch (const ::std::exception& ex) {

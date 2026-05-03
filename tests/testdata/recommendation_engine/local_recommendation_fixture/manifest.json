@@ -1,0 +1,324 @@
+{
+  "description": "Tiny local fixture extracted from offline recommendation JSONL files.",
+  "parameters": {
+    "target_user_count": 10,
+    "max_user_neighbors": 10,
+    "max_trigger_seeds": 24,
+    "max_candidates": 20
+  },
+  "paths": {
+    "profiles": "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl",
+    "user_similarity": "tests/testdata/recommendation_engine/local_recommendation_fixture/user_similarity.jsonl",
+    "item_similarity": "tests/testdata/recommendation_engine/local_recommendation_fixture/item_similarity.jsonl",
+    "item_index": "tests/testdata/recommendation_engine/local_recommendation_fixture/item_index.jsonl"
+  },
+  "formats": {
+    "profiles": "jsonl",
+    "user_similarity": "jsonl",
+    "item_similarity": "jsonl",
+    "item_index": "jsonl"
+  },
+  "selected_user_ids": [
+    153,
+    217,
+    300,
+    634,
+    669,
+    906,
+    47845,
+    85566,
+    105400,
+    137209
+  ],
+  "counts": {
+    "profiles": 92,
+    "gateway_users": 10,
+    "user_similarity_rows": 10,
+    "item_similarity_rows": 196,
+    "related_item_ids": 5457,
+    "item_index_rows": 5457,
+    "missing_item_index_rows": 0
+  },
+  "users": [
+    {
+      "user_id": 217,
+      "profile_item_count": 22,
+      "trigger_seed_count": 17,
+      "filter_item_count": 22,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 10,
+      "user_cf_filtered_count": 19,
+      "top_item_cf_items": [
+        2959,
+        296,
+        1089,
+        2858,
+        54503
+      ],
+      "top_user_cf_items": [
+        1231,
+        112,
+        227,
+        234,
+        16
+      ]
+    },
+    {
+      "user_id": 300,
+      "profile_item_count": 67,
+      "trigger_seed_count": 24,
+      "filter_item_count": 67,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 301,
+      "user_cf_filtered_count": 113,
+      "top_item_cf_items": [
+        457,
+        593,
+        349,
+        296,
+        454
+      ],
+      "top_user_cf_items": [
+        2321,
+        543,
+        2657,
+        173,
+        31
+      ]
+    },
+    {
+      "user_id": 634,
+      "profile_item_count": 368,
+      "trigger_seed_count": 24,
+      "filter_item_count": 376,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 110,
+      "user_cf_filtered_count": 125,
+      "top_item_cf_items": [
+        1028,
+        914,
+        953,
+        899,
+        920
+      ],
+      "top_user_cf_items": [
+        5995,
+        778,
+        70286,
+        3415,
+        4886
+      ]
+    },
+    {
+      "user_id": 85566,
+      "profile_item_count": 328,
+      "trigger_seed_count": 24,
+      "filter_item_count": 328,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 313,
+      "user_cf_filtered_count": 947,
+      "top_item_cf_items": [
+        1719,
+        2599,
+        2289,
+        1673,
+        2395
+      ],
+      "top_user_cf_items": [
+        22,
+        135,
+        284,
+        379,
+        6
+      ]
+    },
+    {
+      "user_id": 47845,
+      "profile_item_count": 261,
+      "trigger_seed_count": 24,
+      "filter_item_count": 261,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 243,
+      "user_cf_filtered_count": 868,
+      "top_item_cf_items": [
+        1719,
+        2289,
+        2599,
+        1594,
+        562
+      ],
+      "top_user_cf_items": [
+        798,
+        22,
+        799,
+        1411,
+        829
+      ]
+    },
+    {
+      "user_id": 137209,
+      "profile_item_count": 102,
+      "trigger_seed_count": 24,
+      "filter_item_count": 102,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 19,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 1,
+      "item_cf_filtered_count": 207,
+      "user_cf_filtered_count": 197,
+      "top_item_cf_items": [
+        153919,
+        153909,
+        191317,
+        155135,
+        142841
+      ],
+      "top_user_cf_items": [
+        166291,
+        57183,
+        155135,
+        167392,
+        277412
+      ]
+    },
+    {
+      "user_id": 153,
+      "profile_item_count": 29,
+      "trigger_seed_count": 24,
+      "filter_item_count": 29,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 2,
+      "item_cf_filtered_count": 133,
+      "user_cf_filtered_count": 70,
+      "top_item_cf_items": [
+        1443,
+        860,
+        1094,
+        1398,
+        614
+      ],
+      "top_user_cf_items": [
+        1047,
+        986,
+        1073,
+        293,
+        808
+      ]
+    },
+    {
+      "user_id": 669,
+      "profile_item_count": 20,
+      "trigger_seed_count": 16,
+      "filter_item_count": 20,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 20,
+      "user_cf_filtered_count": 42,
+      "top_item_cf_items": [
+        1573,
+        1552,
+        1610,
+        1370,
+        733
+      ],
+      "top_user_cf_items": [
+        1681,
+        3360,
+        1754,
+        2719,
+        1762
+      ]
+    },
+    {
+      "user_id": 105400,
+      "profile_item_count": 140,
+      "trigger_seed_count": 24,
+      "filter_item_count": 140,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 419,
+      "user_cf_filtered_count": 692,
+      "top_item_cf_items": [
+        246,
+        2064,
+        2289,
+        162,
+        800
+      ],
+      "top_user_cf_items": [
+        2563,
+        798,
+        1635,
+        617,
+        80
+      ]
+    },
+    {
+      "user_id": 906,
+      "profile_item_count": 30,
+      "trigger_seed_count": 24,
+      "filter_item_count": 30,
+      "user_similarity_neighbor_count": 10,
+      "neighbor_profile_hits": 10,
+      "neighbor_profile_misses": 0,
+      "item_cf_candidate_count": 20,
+      "user_cf_candidate_count": 20,
+      "overlap_count": 0,
+      "item_cf_filtered_count": 26,
+      "user_cf_filtered_count": 25,
+      "top_item_cf_items": [
+        858,
+        1214,
+        541,
+        1193,
+        608
+      ],
+      "top_user_cf_items": [
+        8492,
+        1968,
+        1278,
+        8008,
+        51471
+      ]
+    }
+  ]
+}

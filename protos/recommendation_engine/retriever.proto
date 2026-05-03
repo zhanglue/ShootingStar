@@ -10,10 +10,11 @@ service RetrieverService {
 }
 
 message RetrieverRequest {
-  string request_id = 1;
-  int64 user_id = 2;
-  Profile profile = 3;
-  int32 max_candidate_count = 4;
+  string trace_id = 1;
+  string request_id = 2;
+  int64 user_id = 3;
+  Profile profile = 4;
+  int32 max_candidate_count = 5;
 }
 
 message RetrieverResponse {

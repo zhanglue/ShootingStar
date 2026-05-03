@@ -58,6 +58,8 @@ using ::std::chrono::duration_cast;
 using Milliseconds = ::std::chrono::milliseconds;
 
 constexpr size_t kMaxPayloadJsonLength = 4096;
+constexpr string kRequestIdFieldName = "request_id";
+constexpr string kTraceIdFieldName = "trace_id";
 
 LogLevel ParseLogLevel(string_view value) {
   if (value == "debug" || value == "DEBUG" || value == "Debug") {
@@ -251,14 +253,14 @@ string StatusCodeToString(StatusCode status_code) {
   }
 }
 
-string ExtractRequestId(const Message& message) {
+string ExtractId(const Message& message, const string& field_name) {
   const auto* descriptor = message.GetDescriptor();
   if (descriptor == nullptr) {
     return "";
   }
 
   const FieldDescriptor* request_id_field =
-      descriptor->FindFieldByName("request_id");
+      descriptor->FindFieldByName(field_name);
   if (request_id_field == nullptr ||
       request_id_field->cpp_type() != FieldDescriptor::CPPTYPE_STRING ||
       request_id_field->is_repeated()) {
@@ -384,8 +386,11 @@ class ServerLoggingInterceptor final : public Interceptor {
       return;
     }
 
-    request_id_ = ExtractRequestId(*message);
+    trace_id_ = ExtractId(*message, kTraceIdFieldName);
+    has_trace_id_ = !trace_id_.empty();
+    request_id_ = ExtractId(*message, kRequestIdFieldName);
     has_request_id_ = !request_id_.empty();
+
     LogPayloadEvent("request_received", "request_json", *message);
   }
 
@@ -417,6 +422,9 @@ class ServerLoggingInterceptor final : public Interceptor {
     builder.AddString("logger_name", logger_name_);
     builder.AddString("severity", "debug");
     builder.AddString("method", method_);
+    if (has_trace_id_) {
+      builder.AddString("trace_id", trace_id_);
+    }
     if (has_request_id_) {
       builder.AddString("request_id", request_id_);
     }
@@ -456,6 +464,9 @@ class ServerLoggingInterceptor final : public Interceptor {
     builder.AddString("logger_name", logger_name_);
     builder.AddString("severity", status.ok() ? "info" : "error");
     builder.AddString("method", method_);
+    if (has_trace_id_) {
+      builder.AddString("trace_id", trace_id_);
+    }
     if (has_request_id_) {
       builder.AddString("request_id", request_id_);
     }
@@ -481,9 +492,11 @@ class ServerLoggingInterceptor final : public Interceptor {
   string method_;
   bool log_payloads_ = false;
   string rpc_type_;
+  string trace_id_;
   string request_id_;
   SteadyClock::time_point start_time_;
   bool completion_logged_ = false;
+  bool has_trace_id_ = false;
   bool has_request_id_ = false;
   bool request_logged_ = false;
   bool response_logged_ = false;

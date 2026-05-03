@@ -173,12 +173,12 @@ TEST_F(RuntimeUtilitiesTest, ResolvesPathRelativeToExecutableDirectoryParents) {
   const path test_root = GetTestRoot("runtime_utilities_executable_root");
   const path executable_path = test_root / "AAA/BBB/CCC/profile_server";
   const path expected_path =
-      test_root / "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+      test_root / "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
   CreateFile(expected_path);
 
   EXPECT_EQ(
       ResolveWorkspaceRelativePath(
-          "tests/testdata/recommendation_engine/profile/demo_profiles.json",
+          "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl",
           executable_path.string()),
       expected_path.lexically_normal().string());
 }
@@ -198,13 +198,13 @@ TEST_F(RuntimeUtilitiesTest, ResolvesPathRelativeToCurrentDirectoryParents) {
   const path original_cwd = current_path();
   const path nested_cwd = test_root / "DDD/EEE/FFF";
   const path expected_path =
-      test_root / "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+      test_root / "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
   CreateFile(expected_path);
   create_directories(nested_cwd);
 
   current_path(nested_cwd);
   EXPECT_EQ(
-      ResolveWorkspaceRelativePath("tests/testdata/recommendation_engine/profile/demo_profiles.json"),
+      ResolveWorkspaceRelativePath("tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl"),
       weakly_canonical(expected_path).string());
   current_path(original_cwd);
 }

@@ -1,24 +1,28 @@
 #include <getopt.h>
+#include <grpcpp/grpcpp.h>
 
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
-
-#include <grpcpp/grpcpp.h>
+#include <chrono>
 
 #include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/clients/client_runtime.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
+using ::recommendation_engine::GetProfileRequest;
+using ::recommendation_engine::GetProfileResponse;
+using ::shooting_star::utilities::GenerateGuid;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::recommendation_engine::GetProfileRequest;
-using ::recommendation_engine::GetProfileResponse;
 
 namespace recommendation_engine {
 namespace {
@@ -30,13 +34,19 @@ class ProfileClient {
 
   void GetProfile(int user_id) {
     GetProfileRequest request;
-    request.set_request_id("ABCDE-10156");
+    request.set_trace_id(GenerateGuid());
+    request.set_request_id(GenerateGuid());
     request.set_user_id(user_id);
 
     GetProfileResponse response;
     ClientContext context;
 
+    const auto start = steady_clock::now();
     const Status status = stub_->GetProfile(&context, request, &response);
+    const auto elapsed_ms =
+        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
+            .count();
+    cout << "GetProfile RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
 
     if (status.ok()) {
       cout << ::std::endl;
@@ -44,8 +54,8 @@ class ProfileClient {
       cout << response.DebugString() << ::std::endl;
       cout << ::std::endl;
     } else {
-      ::std::cerr << "RPC failed: " << status.error_code() << ", " << status.error_message()
-                  << ::std::endl;
+      ::std::cerr << "RPC failed: " << status.error_code() << ", "
+                  << status.error_message() << ::std::endl;
     }
   }
 
@@ -57,19 +67,20 @@ void PrintUsage() {
   cout << "Usage: profile_client [options]\n"
        << "Options:\n"
        << "  -h, --help              Show this help message\n"
-       << "  -i, --ip <IP>           Set server IP (default: localhost)\n"
+       << "  -i, --ip <IP>           Set server IP (default: 127.0.0.1)\n"
        << "  -p, --port <PORT>       Set server port (default: 50100)\n"
-       << "  -u, --user-id <USER_ID> Add user ID to query (repeatable; default: 10, 120, 2300)\n";
+       << "  -u, --user-id <USER_ID> Add user ID to query (repeatable; "
+          "default: {85566})\n";
 }
 
 }  // namespace
 }  // namespace recommendation_engine
 
 int main(int argc, char** argv) {
-  string ip = "localhost";
+  string ip = "127.0.0.1";
   string port = "50100";
-  ::std::vector<int> user_ids = {10, 120, 2300};
-  bool has_custom_user_ids = false;
+  ::std::vector<int> user_ids = {};
+  int default_user_id = 85566;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
@@ -82,7 +93,8 @@ int main(int argc, char** argv) {
   int opt;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "hi:p:u:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hi:p:u:", long_options,
+                            &option_index)) != -1) {
     switch (opt) {
       case 'h':
         recommendation_engine::PrintUsage();
@@ -95,13 +107,10 @@ int main(int argc, char** argv) {
         break;
       case 'u':
         try {
-          if (!has_custom_user_ids) {
-            user_ids.clear();
-            has_custom_user_ids = true;
-          }
           user_ids.push_back(::std::stoi(optarg));
         } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: user_id is not a valid integer: " << optarg << "\n";
+          ::std::cerr << "Error: user_id is not a valid integer: " << optarg
+                      << "\n";
           return 1;
         } catch (const ::std::out_of_range&) {
           ::std::cerr << "Error: user_id is out of range: " << optarg << "\n";
@@ -115,6 +124,9 @@ int main(int argc, char** argv) {
   }
 
   const string target_str = ip + ":" + port;
+  if (user_ids.empty()) {
+    user_ids.push_back(default_user_id);
+  }
 
   ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;

@@ -1,4 +1,5 @@
 server:
+  host: 127.0.0.1
   port: 50220
   log_level: DEBUG
 
@@ -9,6 +10,10 @@ retriever_user_cf:
 profile_service:
   host: localhost
   port: 50100
+
+similarity_store:
+  type: local
+  data_path: tests/testdata/recommendation_engine/local_recommendation_fixture/user_similarity.jsonl
 
 redis:
   host: localhost

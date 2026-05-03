@@ -1,6 +1,8 @@
 server:
+  host: 127.0.0.1
   port: 50100
   log_level: DEBUG
 
-store_type: local
-data_path: tests/testdata/recommendation_engine/profile/demo_profiles.json
+profile_store:
+  type: local
+  data_path: tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl
