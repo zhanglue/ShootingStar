@@ -62,11 +62,9 @@ void PrintUsage() {
        << "  -i, --ip <IP>           Set server IP (default: 127.0.0.1)\n"
        << "  -p, --port <PORT>       Set server port (default: 50000)\n"
        << "  -u, --user-id <USER_ID> Add user ID to recommend (repeatable; "
-          "default: {1001})\n"
+          "default: {85566})\n"
        << "  -m, --recommendation-results <N> Set recommendation results count "
-          "(default: 20)\n"
-       << "  --max-candidates <N> Legacy alias for "
-          "--recommendation-results\n";
+          "(default: 20)\n";
 }
 
 }  // namespace
@@ -77,7 +75,7 @@ int main(int argc, char** argv) {
   string port = "50000";
   vector<int> user_ids = {};
   int recommendation_results_count = 20;
-  int default_user_id = 1001;
+  int default_user_id = 85566;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
@@ -85,7 +83,6 @@ int main(int argc, char** argv) {
       {"port", required_argument, nullptr, 'p'},
       {"user-id", required_argument, nullptr, 'u'},
       {"recommendation-results", required_argument, nullptr, 'm'},
-      {"max-candidates", required_argument, nullptr, 'm'},
       {0, 0, 0, 0}};
 
   int opt;

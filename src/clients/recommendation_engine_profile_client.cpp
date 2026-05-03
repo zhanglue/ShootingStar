@@ -59,7 +59,7 @@ void PrintUsage() {
        << "  -i, --ip <IP>           Set server IP (default: 127.0.0.1)\n"
        << "  -p, --port <PORT>       Set server port (default: 50100)\n"
        << "  -u, --user-id <USER_ID> Add user ID to query (repeatable; "
-          "default: 10, 120, 2300)\n";
+          "default: {85566})\n";
 }
 
 }  // namespace
@@ -68,8 +68,8 @@ void PrintUsage() {
 int main(int argc, char** argv) {
   string ip = "127.0.0.1";
   string port = "50100";
-  ::std::vector<int> user_ids = {10, 120, 2300};
-  bool has_custom_user_ids = false;
+  ::std::vector<int> user_ids = {};
+  int default_user_id = 85566;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
@@ -96,10 +96,6 @@ int main(int argc, char** argv) {
         break;
       case 'u':
         try {
-          if (!has_custom_user_ids) {
-            user_ids.clear();
-            has_custom_user_ids = true;
-          }
           user_ids.push_back(::std::stoi(optarg));
         } catch (const ::std::invalid_argument&) {
           ::std::cerr << "Error: user_id is not a valid integer: " << optarg
@@ -117,6 +113,9 @@ int main(int argc, char** argv) {
   }
 
   const string target_str = ip + ":" + port;
+  if (user_ids.empty()) {
+    user_ids.push_back(default_user_id);
+  }
 
   ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;

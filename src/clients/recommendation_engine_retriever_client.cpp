@@ -22,7 +22,7 @@ using ::std::string;
 using ::std::unique_ptr;
 
 constexpr char kDefaultProfileDataPath[] =
-    "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
+    "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
 
 namespace recommendation_engine {
 namespace {
@@ -81,7 +81,7 @@ void PrintUsage() {
        << "  -u, --user-id <USER_ID>           Set user ID to retrieve for "
           "(default: 1001)\n"
        << "  -c, --max-candidate-count <COUNT> Set requested max candidate "
-          "count (default: 50)\n"
+          "count (default: 20)\n"
        << "  -f, --profile-data-path <PATH>    Set demo profile jsonl path\n"
        << "                                    (default: "
        << kDefaultProfileDataPath << ")\n";
@@ -94,8 +94,8 @@ int main(int argc, char** argv) {
   string ip = "127.0.0.1";
   string port = "50210";
   string profile_data_path = kDefaultProfileDataPath;
-  int64_t user_id = 1001;
-  int max_candidate_count = 5;
+  int64_t user_id = 85566;
+  int max_candidate_count = 20;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},

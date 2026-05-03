@@ -22,7 +22,7 @@ using ::std::string;
 using ::std::unique_ptr;
 
 constexpr char kDefaultProfileDataPath[] =
-    "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
+    "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
 
 namespace recommendation_engine {
 namespace {
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
   string ip = "127.0.0.1";
   string port = "50200";
   string profile_data_path = kDefaultProfileDataPath;
-  int64_t user_id = 1001;
+  int64_t user_id = 85566;
   int max_candidate_count = 20;
 
   struct option long_options[] = {

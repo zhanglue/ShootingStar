@@ -41,8 +41,15 @@ int main(int argc, char** argv) {
     const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
     ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
     ConfigArguments::Apply(argc, argv);
-    LoggerRegistry::Register(make_shared<Logger>(kServiceName));
+
+    auto gateway_logger = make_shared<Logger>(kServiceName);
+    gateway_logger->SetMinLogLevel(config.GetLogLevel());
+    LoggerRegistry::Register(::std::move(gateway_logger));
     LoggerRegistry::SetDefaultLoggerName(kServiceName);
+
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Info("config_loaded", {{"config_path", config.GetConfigPath()}, });
+    config.LogResolvedConfig(logger);
 
     string server_address = config.GetListenAddress();
     const string profile_service_address = config.GetProfileServiceAddress();
@@ -54,15 +61,11 @@ int main(int argc, char** argv) {
     EnableDefaultHealthCheckService(true);
     InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
-    const Logger& logger = LoggerRegistry::Get();
     builder.experimental().SetInterceptorCreators(
         CreateServerLoggingInterceptorCreators(logger));
-    // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort(server_address, InsecureServerCredentials());
-    // Register "service" as the instance through which we'll communicate with
-    // clients. In this case it corresponds to an *synchronous* service.
     builder.RegisterService(&service);
-    // Finally assemble the server.
+
     unique_ptr<Server> server(builder.BuildAndStart());
     logger.Info(
       "server_started",
@@ -71,9 +74,6 @@ int main(int argc, char** argv) {
         {"profile_service_address", profile_service_address},
         {"retrieval_service_address", retrieval_service_address},
       });
-
-    // Wait for the server to shutdown. Note that some other thread must be
-    // responsible for shutting down the server for this call to ever return.
     server->Wait();
   } catch (const ::std::exception& ex) {
     const Logger& logger = LoggerRegistry::Get();

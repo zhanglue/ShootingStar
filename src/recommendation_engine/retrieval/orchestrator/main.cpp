@@ -41,14 +41,19 @@ int main(int argc, char** argv) {
     const GlobalConfig& config = GlobalConfig::Initialize(kServiceName);
     ConfigYAML::ApplyStartupFile(argc, argv, argv[0]);
     ConfigArguments::Apply(argc, argv);
-    LoggerRegistry::Register(make_shared<Logger>(kServiceName));
+
+    auto orchestrator_logger = make_shared<Logger>(kServiceName);
+    orchestrator_logger->SetMinLogLevel(config.GetLogLevel());
+    LoggerRegistry::Register(::std::move(orchestrator_logger));
     LoggerRegistry::SetDefaultLoggerName(kServiceName);
 
+    const Logger& logger = LoggerRegistry::Get();
+    logger.Info("config_loaded", {{"config_path", config.GetConfigPath()}, });
+    config.LogResolvedConfig(logger);
+
     const string server_address = config.GetListenAddress();
-    const string item_cf_service_address =
-        config.GetRetrieverItemCfAddress();
-    const string user_cf_service_address =
-        config.GetRetrieverUserCfAddress();
+    const string item_cf_service_address = config.GetRetrieverItemCfAddress();
+    const string user_cf_service_address = config.GetRetrieverUserCfAddress();
     RetrievalOrchestrator service(
         CreateChannel(item_cf_service_address, InsecureChannelCredentials()),
         CreateChannel(user_cf_service_address, InsecureChannelCredentials()));
@@ -56,7 +61,6 @@ int main(int argc, char** argv) {
     EnableDefaultHealthCheckService(true);
     InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
-    const Logger& logger = LoggerRegistry::Get();
     builder.experimental().SetInterceptorCreators(
         CreateServerLoggingInterceptorCreators(logger));
     builder.AddListeningPort(server_address, InsecureServerCredentials());
