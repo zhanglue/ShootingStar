@@ -90,7 +90,7 @@ unique_ptr<ProfileStore> CreateUncachedProfileStore(
   const Logger& logger = LoggerRegistry::Get();
   if (profile_store_type == ProfileStore::kLocalStoreType) {
     const string profile_data_path =
-        ResolveWorkspaceRelativePath(config.GetDataPath());
+        ResolveWorkspaceRelativePath(config.GetProfileStoreDataPath());
     logger.Info(
       "profile_store_initialized",
       {
@@ -167,7 +167,7 @@ ProfileServiceImpl::ProfileServiceImpl(
     const ::shooting_star::utilities::GlobalConfig& config)
     : config_(config) {
   const Logger& logger = LoggerRegistry::Get();
-  const string profile_store_type = config_.GetStoreType();
+  const string profile_store_type = config_.GetProfileStoreType();
 
   logger.Info(
     "profile_store_selected",

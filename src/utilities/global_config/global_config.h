@@ -48,8 +48,8 @@ class GlobalConfig final {
   double GetRetrieverUserCfScoreMultiplier() const;
   int GetUserCfTriggerSeedUserCount() const;
 
-  ::std::string GetStoreType() const;
-  ::std::string GetDataPath() const;
+  ::std::string GetProfileStoreType() const;
+  ::std::string GetProfileStoreDataPath() const;
   ::std::string GetSimilarityStoreType() const;
   ::std::string GetSimilarityDataPath() const;
   int GetLocalCacheCapacity() const;

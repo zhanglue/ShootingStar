@@ -46,7 +46,7 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   const GlobalConfig& config = GlobalConfig::Get();
 
   EXPECT_EQ(config.GetServerPort(), 50000);
-  EXPECT_EQ(config.GetStoreType(), "local");
+  EXPECT_EQ(config.GetProfileStoreType(), "local");
   EXPECT_EQ(config.GetLocalCacheCapacity(), 0);
   EXPECT_EQ(config.GetProfileServiceAddress(), "localhost:50100");
   EXPECT_EQ(config.GetListenAddress(), "127.0.0.1:50000");
@@ -95,7 +95,7 @@ TEST(GlobalConfigTest, AppliesYamlOverDefaultsOnlyForConfiguredFields) {
   EXPECT_EQ(config.GetServerPort(), 51111);
   EXPECT_DOUBLE_EQ(config.GetRetrievalRecallCandidateExpandRatio(), 1.25);
   EXPECT_FALSE(config.GetElasticsearchHttpClientVerifySsl());
-  EXPECT_EQ(config.GetStoreType(), "local");
+  EXPECT_EQ(config.GetProfileStoreType(), "local");
   EXPECT_EQ(config.GetElasticsearchUsername(), "elastic");
 }
 

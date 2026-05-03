@@ -69,8 +69,8 @@ enum Field {
   kRetrieverItemCfScoreMultiplier,
   kRetrieverUserCfScoreMultiplier,
   kUserCfTriggerSeedUserCount,
-  kStoreType,
-  kDataPath,
+  kProfileStoreType,
+  kProfileStoreDataPath,
   kSimilarityStoreType,
   kSimilarityDataPath,
   kLocalCacheCapacity,
@@ -151,9 +151,9 @@ constexpr ConfigEntry kConfigEntries[] = {
      "user_cf_score_multiplier", ValueType::kDouble, "1.0"},
     {kUserCfTriggerSeedUserCount, "retriever_user_cf.trigger_seed_user_count",
      "user_cf_trigger_seed_user_count", ValueType::kInt, "10"},
-    {kStoreType, "profile_store.type", "store_type", ValueType::kString,
+    {kProfileStoreType, "profile_store.type", "store_type", ValueType::kString,
      "local"},
-    {kDataPath, "profile_store.data_path", "data_path", ValueType::kString,
+    {kProfileStoreDataPath, "profile_store.data_path", "data_path", ValueType::kString,
      "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl"},
     {kSimilarityStoreType, "similarity_store.type", "similarity_store_type",
      ValueType::kString, "redis"},
@@ -673,9 +673,9 @@ int GlobalConfig::GetUserCfTriggerSeedUserCount() const {
   return GetPositiveInt(kUserCfTriggerSeedUserCount);
 }
 
-string GlobalConfig::GetStoreType() const { return GetString(kStoreType); }
+string GlobalConfig::GetProfileStoreType() const { return GetString(kProfileStoreType); }
 
-string GlobalConfig::GetDataPath() const { return GetString(kDataPath); }
+string GlobalConfig::GetProfileStoreDataPath() const { return GetString(kProfileStoreDataPath); }
 
 string GlobalConfig::GetSimilarityStoreType() const {
   return GetString(kSimilarityStoreType);
