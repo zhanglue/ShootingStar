@@ -475,3 +475,8 @@ packages
 /binaries/
 
 *.swp
+tools/offline_data_processing/temp
+item_index.jsonl
+item_similarity.jsonl
+user_profiles.jsonl
+user_similarity.jsonl
