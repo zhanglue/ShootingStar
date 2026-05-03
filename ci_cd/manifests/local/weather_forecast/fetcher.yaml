@@ -19,6 +19,9 @@ spec:
       - name: fetcher
         image: weather-forecast-fetcher:latest
         imagePullPolicy: Never
+        args:
+        - --host
+        - 0.0.0.0
         resources:
           requests:
             memory: 256Mi

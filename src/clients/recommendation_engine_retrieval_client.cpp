@@ -1,11 +1,10 @@
 #include <getopt.h>
+#include <grpcpp/grpcpp.h>
 
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-
-#include <grpcpp/grpcpp.h>
 
 #include "protos/recommendation_engine/retrieval.grpc.pb.h"
 #include "src/clients/client_runtime.h"
@@ -14,16 +13,16 @@
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
+using ::recommendation_engine::RetrieveRequest;
+using ::recommendation_engine::RetrieveResponse;
+using ::shooting_star::utilities::LoadProfileFromDemoData;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::recommendation_engine::RetrieveRequest;
-using ::recommendation_engine::RetrieveResponse;
-using ::shooting_star::utilities::LoadProfileFromDemoData;
 
 constexpr char kDefaultProfileDataPath[] =
-    "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+    "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
 
 namespace recommendation_engine {
 namespace {
@@ -33,8 +32,7 @@ class RetrievalClient {
   explicit RetrievalClient(shared_ptr<Channel> channel)
       : stub_(RetrievalService::NewStub(channel)) {}
 
-  void Retrieve(int64_t user_id,
-                int max_candidate_count,
+  void Retrieve(int64_t user_id, int max_candidate_count,
                 const string& profile_data_path,
                 const string& executable_path) {
     RetrieveRequest request;
@@ -43,8 +41,8 @@ class RetrievalClient {
     request.set_max_candidate_count(max_candidate_count);
 
     string error_msg;
-    if (!LoadProfileFromDemoData(
-            profile_data_path, executable_path, user_id, request.mutable_profile(), &error_msg)) {
+    if (!LoadProfileFromDemoData(profile_data_path, executable_path, user_id,
+                                 request.mutable_profile(), &error_msg)) {
       ::std::cerr << "Failed to load profile: " << error_msg << ::std::endl;
       return;
     }
@@ -63,8 +61,8 @@ class RetrievalClient {
       cout << response.DebugString() << ::std::endl;
       cout << ::std::endl;
     } else {
-      ::std::cerr << "RPC failed: " << status.error_code() << ", " << status.error_message()
-                  << ::std::endl;
+      ::std::cerr << "RPC failed: " << status.error_code() << ", "
+                  << status.error_message() << ::std::endl;
     }
   }
 
@@ -76,19 +74,24 @@ void PrintUsage() {
   cout << "Usage: retrieval_client [options]\n"
        << "Options:\n"
        << "  -h, --help                        Show this help message\n"
-       << "  -i, --ip <IP>                     Set server IP (default: localhost)\n"
-       << "  -p, --port <PORT>                 Set server port (default: 50200)\n"
-       << "  -u, --user-id <USER_ID>           Set user ID to retrieve for (default: 1001)\n"
-       << "  -c, --max-candidate-count <COUNT> Set requested max candidate count (default: 50)\n"
-       << "  -f, --profile-data-path <PATH>    Set demo profile json path\n"
-       << "                                    (default: " << kDefaultProfileDataPath << ")\n";
+       << "  -i, --ip <IP>                     Set server IP (default: "
+          "127.0.0.1)\n"
+       << "  -p, --port <PORT>                 Set server port (default: "
+          "50200)\n"
+       << "  -u, --user-id <USER_ID>           Set user ID to retrieve for "
+          "(default: 1001)\n"
+       << "  -c, --max-candidate-count <COUNT> Set requested max candidate "
+          "count (default: 50)\n"
+       << "  -f, --profile-data-path <PATH>    Set demo profile jsonl path\n"
+       << "                                    (default: "
+       << kDefaultProfileDataPath << ")\n";
 }
 
 }  // namespace
 }  // namespace recommendation_engine
 
 int main(int argc, char** argv) {
-  string ip = "localhost";
+  string ip = "127.0.0.1";
   string port = "50200";
   string profile_data_path = kDefaultProfileDataPath;
   int64_t user_id = 1001;
@@ -107,7 +110,8 @@ int main(int argc, char** argv) {
   int opt;
   int option_index = 0;
 
-  while ((opt = getopt_long(argc, argv, "hi:p:u:c:f:", long_options, &option_index)) != -1) {
+  while ((opt = getopt_long(argc, argv, "hi:p:u:c:f:", long_options,
+                            &option_index)) != -1) {
     switch (opt) {
       case 'h':
         recommendation_engine::PrintUsage();
@@ -122,7 +126,8 @@ int main(int argc, char** argv) {
         try {
           user_id = ::std::stoll(optarg);
         } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: user_id is not a valid integer: " << optarg << "\n";
+          ::std::cerr << "Error: user_id is not a valid integer: " << optarg
+                      << "\n";
           return 1;
         } catch (const ::std::out_of_range&) {
           ::std::cerr << "Error: user_id is out of range: " << optarg << "\n";
@@ -133,10 +138,12 @@ int main(int argc, char** argv) {
         try {
           max_candidate_count = ::std::stoi(optarg);
         } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: max_candidate_count is not a valid integer: " << optarg << "\n";
+          ::std::cerr << "Error: max_candidate_count is not a valid integer: "
+                      << optarg << "\n";
           return 1;
         } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: max_candidate_count is out of range: " << optarg << "\n";
+          ::std::cerr << "Error: max_candidate_count is out of range: "
+                      << optarg << "\n";
           return 1;
         }
         break;
@@ -155,7 +162,8 @@ int main(int argc, char** argv) {
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
   cout << "Retrieving candidates for user: " << user_id << ::std::endl;
   cout << "Using profile data from: " << profile_data_path << ::std::endl;
-  cout << "Requested max candidate count: " << max_candidate_count << ::std::endl
+  cout << "Requested max candidate count: " << max_candidate_count
+       << ::std::endl
        << ::std::endl;
 
   recommendation_engine::RetrievalClient client(

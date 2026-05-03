@@ -21,6 +21,8 @@ spec:
         imagePullPolicy: Never
         args:
         - --config_path=config.k8s.yaml
+        - --host
+        - 0.0.0.0
         resources:
           requests:
             memory: 256Mi

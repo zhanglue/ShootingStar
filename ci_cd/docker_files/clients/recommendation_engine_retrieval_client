@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 COPY binaries/src/clients/recommendation_engine_retrieval_client /app/retrieval_client
-COPY tests/testdata/recommendation_engine/profile/demo_profiles.json /app/tests/testdata/recommendation_engine/profile/demo_profiles.json
+COPY tests/testdata/recommendation_engine/profile/demo_profiles.jsonl /app/tests/testdata/recommendation_engine/profile/demo_profiles.jsonl
 
 WORKDIR /app
 

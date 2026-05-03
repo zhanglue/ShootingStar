@@ -50,6 +50,8 @@ class GlobalConfig final {
 
   ::std::string GetStoreType() const;
   ::std::string GetDataPath() const;
+  ::std::string GetSimilarityStoreType() const;
+  ::std::string GetSimilarityDataPath() const;
   int GetLocalCacheCapacity() const;
   int GetLocalCacheTtlSeconds() const;
   ::std::string GetElasticsearchBaseUrl() const;

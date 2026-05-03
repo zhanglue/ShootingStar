@@ -1,10 +1,11 @@
-#include <stdexcept>
-#include <string>
-#include <optional>
+#include "src/recommendation_engine/profile/local_file_profile_store.h"
 
 #include <gtest/gtest.h>
 
-#include "src/recommendation_engine/profile/local_file_profile_store.h"
+#include <optional>
+#include <stdexcept>
+#include <string>
+
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
@@ -18,15 +19,21 @@ class LocalFileProfileStoreTest : public ::testing::Test {
  protected:
   void SetUp() override {
     profile_data_path_ = ResolveWorkspaceRelativePath(kProfileDataRelativePath);
+    profile_jsonl_data_path_ =
+        ResolveWorkspaceRelativePath(kProfileJsonlDataRelativePath);
   }
 
   static constexpr const char* kProfileDataRelativePath =
-      "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+      "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
+  static constexpr const char* kProfileJsonlDataRelativePath =
+      "tests/recommendation_engine/profile/"
+      "local_file_profile_store_testdata.jsonl";
 
   string profile_data_path_;
+  string profile_jsonl_data_path_;
 };
 
-TEST_F(LocalFileProfileStoreTest, LoadsProfilesFromJsonFile) {
+TEST_F(LocalFileProfileStoreTest, LoadsDemoProfilesFromJsonlFile) {
   const LocalFileProfileStore store(profile_data_path_);
 
   optional<Profile> profile = store.FindByUserId(1002);
@@ -41,16 +48,27 @@ TEST_F(LocalFileProfileStoreTest, LoadsProfilesFromJsonFile) {
   EXPECT_EQ(profile->stats().last_event_time(), 1703718800);
 }
 
+TEST_F(LocalFileProfileStoreTest, LoadsProfileStoreTestdataFromJsonlFile) {
+  const LocalFileProfileStore store(profile_jsonl_data_path_);
+
+  optional<Profile> profile = store.FindByUserId(2001);
+  ASSERT_TRUE(profile.has_value());
+  EXPECT_EQ(profile->user_id(), 2001);
+  EXPECT_EQ(profile->demographics().username(), "jsonl_user_2001");
+  ASSERT_EQ(profile->behaviors().liked_items_size(), 1);
+  EXPECT_EQ(profile->behaviors().liked_items(0).item_id(), 9001);
+}
+
 TEST_F(LocalFileProfileStoreTest, ReturnsNullptrWhenUserIdDoesNotExist) {
   const LocalFileProfileStore store(profile_data_path_);
 
   EXPECT_FALSE(store.FindByUserId(999999).has_value());
 }
 
-TEST_F(LocalFileProfileStoreTest, ThrowsWhenJsonFileDoesNotExist) {
-  EXPECT_THROW(
-      static_cast<void>(LocalFileProfileStore("/tmp/local_file_profile_store_missing.json")),
-      ::std::runtime_error);
+TEST_F(LocalFileProfileStoreTest, ThrowsWhenJsonlFileDoesNotExist) {
+  EXPECT_THROW(static_cast<void>(LocalFileProfileStore(
+                   "/tmp/local_file_profile_store_missing.jsonl")),
+               ::std::runtime_error);
 }
 
 }  // namespace

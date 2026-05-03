@@ -23,7 +23,7 @@ class LocalProfileLoaderTest : public ::testing::Test {
   }
 
   static constexpr const char* kProfileDataRelativePath =
-      "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+      "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
 
   string profile_data_path_;
 };

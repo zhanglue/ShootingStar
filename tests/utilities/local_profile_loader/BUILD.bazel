@@ -6,7 +6,7 @@ cc_test(
     name = "local_profile_loader_test",
     srcs = ["local_profile_loader_test.cpp"],
     data = [
-        "//tests/testdata:recommendation_engine/profile/demo_profiles.json",
+        "//tests/testdata:recommendation_engine/profile/demo_profiles.jsonl",
     ],
     size = "small",
     deps = [

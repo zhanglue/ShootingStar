@@ -1,9 +1,14 @@
 server:
+  host: 127.0.0.1
   port: 50210
   log_level: DEBUG
 
 retriever_item_cf:
   score_multiplier: 0.8
+
+similarity_store:
+  type: local
+  data_path: tests/testdata/recommendation_engine/local_recommendation_fixture/item_similarity.jsonl
 
 redis:
   host: localhost

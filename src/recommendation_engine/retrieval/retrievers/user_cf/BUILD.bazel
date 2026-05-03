@@ -6,11 +6,13 @@ cc_library(
     name = "retriever_user_cf_lib",
     srcs = [
         "grpc_profile_store.cpp",
+        "local_file_user_similarity_store.cpp",
         "redis_user_similarity_store.cpp",
         "retriever_user_cf.cpp",
     ],
     hdrs = [
         "grpc_profile_store.h",
+        "local_file_user_similarity_store.h",
         "profile_store.h",
         "redis_user_similarity_store.h",
         "retriever_user_cf.h",
@@ -25,8 +27,10 @@ cc_library(
         "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
         "//src/utilities/redis_client:redis_client",
+        "//src/utilities/runtime_utilities:runtime_utilities",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
+        "@protobuf//:protobuf",
     ],
 )
 

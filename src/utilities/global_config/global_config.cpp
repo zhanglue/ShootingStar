@@ -71,6 +71,8 @@ enum Field {
   kUserCfTriggerSeedUserCount,
   kStoreType,
   kDataPath,
+  kSimilarityStoreType,
+  kSimilarityDataPath,
   kLocalCacheCapacity,
   kLocalCacheTtlSeconds,
   kElasticsearchBaseUrl,
@@ -119,7 +121,7 @@ struct ConfigEntry {
 constexpr ConfigEntry kConfigEntries[] = {
     {kConfigPath, "config.path", "config_path", ValueType::kString,
      "config.debug.yaml"},
-    {kServerHost, "server.host", "host", ValueType::kString, "0.0.0.0"},
+    {kServerHost, "server.host", "host", ValueType::kString, "127.0.0.1"},
     {kServerPort, "server.port", "port", ValueType::kUInt16, "50000"},
     {kLogLevel, "server.log_level", "log_level", ValueType::kString, "INFO"},
     {kProfileServiceHost, "profile_service.host", "profile_service_host",
@@ -151,7 +153,11 @@ constexpr ConfigEntry kConfigEntries[] = {
      "user_cf_trigger_seed_user_count", ValueType::kInt, "10"},
     {kStoreType, "store_type", "store_type", ValueType::kString, "local"},
     {kDataPath, "data_path", "data_path", ValueType::kString,
-     "tests/testdata/recommendation_engine/profile/demo_profiles.json"},
+     "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl"},
+    {kSimilarityStoreType, "similarity_store.type", "similarity_store_type",
+     ValueType::kString, "redis"},
+    {kSimilarityDataPath, "similarity_store.data_path", "similarity_data_path",
+     ValueType::kString, ""},
     {kLocalCacheCapacity, "local_cache.capacity", "cache_capacity",
      ValueType::kInt, "0"},
     {kLocalCacheTtlSeconds, "local_cache.ttl_seconds", "cache_ttl_seconds",
@@ -669,6 +675,14 @@ int GlobalConfig::GetUserCfTriggerSeedUserCount() const {
 string GlobalConfig::GetStoreType() const { return GetString(kStoreType); }
 
 string GlobalConfig::GetDataPath() const { return GetString(kDataPath); }
+
+string GlobalConfig::GetSimilarityStoreType() const {
+  return GetString(kSimilarityStoreType);
+}
+
+string GlobalConfig::GetSimilarityDataPath() const {
+  return GetString(kSimilarityDataPath);
+}
 
 int GlobalConfig::GetLocalCacheCapacity() const {
   return GetInt(kLocalCacheCapacity);

@@ -11,11 +11,13 @@
 #include <utility>
 
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/grpc_profile_store.h"
+#include "src/recommendation_engine/retrieval/retrievers/user_cf/local_file_user_similarity_store.h"
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/redis_user_similarity_store.h"
 #include "src/utilities/global_config/global_config.h"
 #include "src/utilities/logger/logger.h"
 #include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/redis_client/redis_client.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
 namespace {
@@ -27,17 +29,22 @@ using ::grpc::InsecureChannelCredentials;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::recommendation_engine::user_cf::GrpcProfileStore;
+using ::recommendation_engine::user_cf::LocalFileUserSimilarityStore;
 using ::recommendation_engine::user_cf::RedisUserSimilarityStore;
+using ::recommendation_engine::user_cf::UserSimilarityStore;
 using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::RedisClient;
+using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 using ::std::format;
+using ::std::invalid_argument;
 using ::std::make_shared;
 using ::std::make_unique;
 using ::std::runtime_error;
 using ::std::shared_ptr;
 using ::std::size_t;
 using ::std::sort;
+using ::std::string;
 using ::std::to_string;
 using ::std::unique_ptr;
 using ::std::unordered_map;
@@ -144,12 +151,32 @@ vector<CandidateScore> SortCandidates(
   return sorted_candidates;
 }
 
+unique_ptr<user_cf::UserSimilarityStore> CreateUserSimilarityStore(
+    const GlobalConfig& config) {
+  const string store_type = config.GetSimilarityStoreType();
+  if (store_type == UserSimilarityStore::kRedisStoreType) {
+    return make_unique<RedisUserSimilarityStore>(
+        RedisClient::Create(), config.GetRedisKeyPrefix());
+  }
+  if (store_type == UserSimilarityStore::kLocalStoreType) {
+    const string data_path = ResolveWorkspaceRelativePath(
+        config.GetSimilarityDataPath());
+    if (data_path.empty()) {
+      throw invalid_argument(
+          "similarity_store.data_path must not be empty for local user_cf store");
+    }
+    return make_unique<LocalFileUserSimilarityStore>(data_path);
+  }
+
+  throw invalid_argument(format("Unsupported user similarity store type: {}",
+                                store_type));
+}
+
 }  // namespace
 
 RetrieverUserCf::RetrieverUserCf(int default_max_candidate_count)
     : RetrieverUserCf(
-          make_unique<RedisUserSimilarityStore>(RedisClient::Create(),
-                                                GlobalConfig::Get().GetRedisKeyPrefix()),
+          CreateUserSimilarityStore(GlobalConfig::Get()),
           make_unique<GrpcProfileStore>(
               ProfileService::NewStub(CreateChannel(
                   GlobalConfig::Get().GetProfileServiceAddress(),

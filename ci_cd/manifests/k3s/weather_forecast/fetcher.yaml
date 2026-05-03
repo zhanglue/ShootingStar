@@ -19,6 +19,9 @@ spec:
       - name: fetcher
         image: 192.168.1.101:55000/weather-forecast-fetcher:latest
         imagePullPolicy: Always
+        args:
+        - --host
+        - 0.0.0.0
         resources:
           requests:
             memory: 256Mi

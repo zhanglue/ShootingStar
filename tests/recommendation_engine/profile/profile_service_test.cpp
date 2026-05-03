@@ -40,7 +40,7 @@ using ::std::string;
 using ::std::filesystem::path;
 
 constexpr const char* kProfileDataRelativePath =
-    "tests/testdata/recommendation_engine/profile/demo_profiles.json";
+    "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
 
 path TestFilePath(const string& name) {
   const char* test_tmpdir = ::std::getenv("TEST_TMPDIR");

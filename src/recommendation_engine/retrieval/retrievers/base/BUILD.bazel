@@ -5,9 +5,11 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "retriever_base_lib",
     srcs = [
+        "local_file_similarity_jsonl_parser.cpp",
         "retriever_base.cpp",
     ],
     hdrs = [
+        "local_file_similarity_jsonl_parser.h",
         "retriever_base.h",
     ],
     deps = [
@@ -15,5 +17,6 @@ cc_library(
         "//protos/recommendation_engine:retriever_cc_grpc",
         "//src/utilities/logger:logger",
         "@grpc//:grpc++",
+        "@protobuf//:protobuf",
     ],
 )
