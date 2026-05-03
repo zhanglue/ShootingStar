@@ -32,7 +32,7 @@ TEST_F(LocalProfileLoaderTest, LoadsProfileForExistingUser) {
   Profile profile;
   string error_msg;
 
-  EXPECT_TRUE(LoadProfileFromDemoData(profile_data_path_, "", 153, &profile, &error_msg));
+  EXPECT_TRUE(LoadProfileFromLocalFile(profile_data_path_, "", 153, &profile, &error_msg));
   EXPECT_TRUE(error_msg.empty());
   EXPECT_EQ(profile.user_id(), 153);
   EXPECT_EQ(profile.demographics().display_name(), "User 153");
@@ -48,14 +48,14 @@ TEST_F(LocalProfileLoaderTest, ReturnsFalseWhenUserDoesNotExist) {
   Profile profile;
   string error_msg;
 
-  EXPECT_FALSE(LoadProfileFromDemoData(profile_data_path_, "", 999999, &profile, &error_msg));
+  EXPECT_FALSE(LoadProfileFromLocalFile(profile_data_path_, "", 999999, &profile, &error_msg));
   EXPECT_NE(error_msg.find("Cannot find demo profile"), string::npos);
 }
 
 TEST_F(LocalProfileLoaderTest, ReturnsFalseWhenProfileOutputIsNull) {
   string error_msg;
 
-  EXPECT_FALSE(LoadProfileFromDemoData(profile_data_path_, "", 153, nullptr, &error_msg));
+  EXPECT_FALSE(LoadProfileFromLocalFile(profile_data_path_, "", 153, nullptr, &error_msg));
   EXPECT_EQ(error_msg, "profile output pointer must not be null.");
 }
 
@@ -63,7 +63,7 @@ TEST_F(LocalProfileLoaderTest, ReturnsFalseWhenUserIdIsOutOfRange) {
   Profile profile;
   string error_msg;
 
-  EXPECT_FALSE(LoadProfileFromDemoData(
+  EXPECT_FALSE(LoadProfileFromLocalFile(
       profile_data_path_, "", static_cast<int64_t>(numeric_limits<int>::max()) + 1, &profile,
       &error_msg));
   EXPECT_EQ(error_msg, "user_id is out of range for LocalFileProfileStore lookup.");
@@ -73,7 +73,7 @@ TEST_F(LocalProfileLoaderTest, ReturnsFalseWhenJsonFileDoesNotExist) {
   Profile profile;
   string error_msg;
 
-  EXPECT_FALSE(LoadProfileFromDemoData(
+  EXPECT_FALSE(LoadProfileFromLocalFile(
       "/tmp/local_profile_loader_missing.json", "", 153, &profile, &error_msg));
   EXPECT_NE(error_msg.find("cannot open file"), string::npos);
 }

@@ -24,6 +24,7 @@ class RetrieverUserCf final : public RetrieverBase {
  private:
   // Shared mutable state for one retrieval request.
   struct SessionData {
+    ::std::string trace_id;
     ::std::vector<RetrieverBase::TriggerSeed> trigger_seeds;
     ::std::vector<uint64_t> trigger_user_ids;
     ::std::unordered_set<uint64_t> item_ids_to_filter_out;

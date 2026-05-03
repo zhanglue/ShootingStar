@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <chrono>
 
 #include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/clients/client_runtime.h"
@@ -15,6 +16,9 @@ using ::grpc::ClientContext;
 using ::grpc::Status;
 using ::recommendation_engine::GetProfileRequest;
 using ::recommendation_engine::GetProfileResponse;
+using ::shooting_star::utilities::GenerateGuid;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
@@ -30,13 +34,19 @@ class ProfileClient {
 
   void GetProfile(int user_id) {
     GetProfileRequest request;
-    request.set_request_id(::shooting_star::utilities::GenerateGuid());
+    request.set_trace_id(GenerateGuid());
+    request.set_request_id(GenerateGuid());
     request.set_user_id(user_id);
 
     GetProfileResponse response;
     ClientContext context;
 
+    const auto start = steady_clock::now();
     const Status status = stub_->GetProfile(&context, request, &response);
+    const auto elapsed_ms =
+        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
+            .count();
+    cout << "GetProfile RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
 
     if (status.ok()) {
       cout << ::std::endl;

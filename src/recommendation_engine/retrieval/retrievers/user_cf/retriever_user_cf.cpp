@@ -201,15 +201,17 @@ RetrieverUserCf::RetrieverUserCf(
 Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
                                    RetrieverResponse* response) const {
   // Initialize request-scoped context and log the retrieval start.
+  const auto session = make_shared<SessionData>();
+  session->trace_id = request.trace_id();
+
   const auto& logger = LoggerRegistry::Get();
   logger.Debug(
       "user_cf_retrieve_started",
       {
+          {"trace_id", request.trace_id()},
           {"user_id", to_string(request.user_id())},
           {"max_candidate_count", to_string(request.max_candidate_count())},
       });
-
-  const auto session = make_shared<SessionData>();
 
   // Step 1: Load similar users as trigger seeds.
   const Status trigger_seed_status =
@@ -233,6 +235,7 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
   logger.Debug(
       "user_cf_profile_aggregation_done",
       {
+          {"trace_id", request.trace_id()},
           {"user_id", to_string(request.user_id())},
           {"missing_profile_count", to_string(session->missing_profile_count)},
           {"total_neighbor_items_seen",

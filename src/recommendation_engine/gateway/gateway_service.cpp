@@ -2,6 +2,8 @@
 
 #include <format>
 
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
+
 namespace recommendation_engine {
 
 using ::grpc::ClientContext;
@@ -43,7 +45,8 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
   }
 
   GetProfileRequest profile_request;
-  profile_request.set_request_id(request.request_id());
+  profile_request.set_trace_id(request.request_id());
+  profile_request.set_request_id(::shooting_star::utilities::GenerateGuid());
   profile_request.set_user_id(request.user_id());
 
   GetProfileResponse profile_response;
@@ -90,7 +93,8 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
   }
 
   RetrieveRequest retrieval_request;
-  retrieval_request.set_request_id(request.request_id());
+  retrieval_request.set_trace_id(request.request_id());
+  retrieval_request.set_request_id(::shooting_star::utilities::GenerateGuid());
   retrieval_request.set_user_id(request.user_id());
   retrieval_request.mutable_profile()->CopyFrom(profile);
   retrieval_request.set_max_candidate_count(request.max_results());

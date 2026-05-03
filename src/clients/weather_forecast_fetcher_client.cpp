@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <memory>
+#include <chrono>
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
 #include "src/clients/client_runtime.h"
@@ -10,6 +11,8 @@
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
@@ -32,7 +35,12 @@ class FetcherClient {
     GetWeatherResponse response;
     ClientContext context;
 
+    const auto start = steady_clock::now();
     const Status status = stub_->GetWeather(&context, request, &response);
+    const auto elapsed_ms =
+        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
+            .count();
+    cout << "GetWeather RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
 
     if (status.ok()) {
       cout << "Weather in " << city << ": " << response.data().DebugString()

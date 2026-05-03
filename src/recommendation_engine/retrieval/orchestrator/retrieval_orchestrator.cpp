@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/utilities/global_config/global_config.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
 
@@ -108,7 +109,8 @@ Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
 Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& request,
                                                    RetrieveResponse* response) const {
   RetrieverRequest retriever_request;
-  retriever_request.set_request_id(request.request_id());
+  retriever_request.set_trace_id(request.trace_id());
+  retriever_request.set_request_id(::shooting_star::utilities::GenerateGuid());
   retriever_request.set_user_id(request.user_id());
   retriever_request.mutable_profile()->CopyFrom(request.profile());
   retriever_request.set_max_candidate_count(

@@ -17,6 +17,8 @@ using ::shooting_star::utilities::RedisErrorCode;
 using ::shooting_star::utilities::RedisScoredMemberListResult;
 using ::shooting_star::utilities::RedisStatus;
 using ::std::chrono::milliseconds;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::size_t;
 using ::std::string;
@@ -334,7 +336,11 @@ bool RunSmokeCheck(const Config& config) {
 
   RedisClient client(BuildRedisClientConfig(config));
 
+  const auto ping_start = steady_clock::now();
   const RedisStatus ping = client.Ping();
+  const auto ping_elapsed_ms =
+      duration_cast<milliseconds>(steady_clock::now() - ping_start).count();
+  cout << "Redis PING elapsed: " << ping_elapsed_ms << " ms\n";
   if (!ping.ok) {
     PrintRedisError("Redis PING", ping);
     return false;
@@ -344,8 +350,13 @@ bool RunSmokeCheck(const Config& config) {
   int non_empty_keys = 0;
   for (const string& item_id : config.item_ids) {
     const string key = BuildItemSimilarityKey(config.key_prefix, item_id);
+    const auto query_start = steady_clock::now();
     RedisScoredMemberListResult result =
         client.ZRevRangeWithScores(key, 0, config.top_k - 1);
+    const auto query_elapsed_ms =
+        duration_cast<milliseconds>(steady_clock::now() - query_start).count();
+    cout << "Redis ZREVRANGE elapsed for key " << key << ": "
+         << query_elapsed_ms << " ms\n";
     if (!result.status.ok) {
       PrintRedisError("Redis ZREVRANGE " + key, result.status);
       return false;

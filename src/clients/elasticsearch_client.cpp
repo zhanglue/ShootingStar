@@ -26,6 +26,8 @@ using ::shooting_star::utilities::GetEnvFlagOrDefault;
 using ::shooting_star::utilities::GetEnvOrDefault;
 using ::shooting_star::utilities::PBDataHandler;
 using ::std::chrono::milliseconds;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::string;
 
@@ -253,7 +255,11 @@ bool RunSmokeCheck(const Config& config) {
 
   ElasticsearchClient client = ElasticsearchClient::Create(::std::move(es_config));
 
+  const auto health_start = steady_clock::now();
   const ElasticsearchResult health = client.Health();
+  const auto health_elapsed_ms =
+      duration_cast<milliseconds>(steady_clock::now() - health_start).count();
+  cout << "Elasticsearch Health elapsed: " << health_elapsed_ms << " ms\n";
   if (!health.ok) {
     ::std::cerr << "Elasticsearch health check failed: " << health.error_message
                 << "\n"
@@ -262,8 +268,12 @@ bool RunSmokeCheck(const Config& config) {
   }
   cout << "Cluster health response: " << health.body << "\n";
 
+  const auto get_start = steady_clock::now();
   const ElasticsearchResult get_result =
       client.Get(config.profile_index, config.user_id);
+  const auto get_elapsed_ms =
+      duration_cast<milliseconds>(steady_clock::now() - get_start).count();
+  cout << "Elasticsearch Get elapsed: " << get_elapsed_ms << " ms\n";
   if (!get_result.ok) {
     ::std::cerr << "Profile document fetch failed: " << get_result.error_message
                 << "\n"

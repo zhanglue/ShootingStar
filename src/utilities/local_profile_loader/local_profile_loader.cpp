@@ -15,11 +15,11 @@ using ::recommendation_engine::Profile;
 using ::std::optional;
 using ::std::string;
 
-bool LoadProfileFromDemoData(const string& profile_data_path,
-                             const string& executable_path,
-                             int64_t user_id,
-                             Profile* profile,
-                             string* error_msg) {
+bool LoadProfileFromLocalFile(const string& profile_data_path,
+                              const string& executable_path,
+                              int64_t user_id,
+                              Profile* profile,
+                              string* error_msg) {
   if (profile == nullptr) {
     if (error_msg != nullptr) {
       *error_msg = "profile output pointer must not be null.";

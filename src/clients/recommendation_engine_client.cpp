@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <chrono>
 
 #include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
 #include "src/clients/client_runtime.h"
@@ -16,6 +17,9 @@ using ::grpc::ClientContext;
 using ::grpc::Status;
 using ::recommendation_engine::RecommendRequest;
 using ::recommendation_engine::RecommendResponse;
+using ::shooting_star::utilities::GenerateGuid;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
@@ -32,14 +36,20 @@ class RecommendationEngineClient {
 
   void Recommend(int user_id, int max_results) {
     RecommendRequest request;
-    request.set_request_id(::shooting_star::utilities::GenerateGuid());
+    request.set_trace_id(GenerateGuid());
+    request.set_request_id(GenerateGuid());
     request.set_user_id(user_id);
     request.set_max_results(max_results);
 
     RecommendResponse response;
     ClientContext context;
 
+    const auto start = steady_clock::now();
     const Status status = stub_->Recommend(&context, request, &response);
+    const auto elapsed_ms =
+        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
+            .count();
+    cout << "Recommend RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
 
     if (status.ok()) {
       cout << ::std::endl;

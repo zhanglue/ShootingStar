@@ -2,6 +2,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include <cstdint>
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -17,7 +18,10 @@ using ::grpc::ClientContext;
 using ::grpc::Status;
 using ::recommendation_engine::RetrieverRequest;
 using ::recommendation_engine::RetrieverResponse;
-using ::shooting_star::utilities::LoadProfileFromDemoData;
+using ::shooting_star::utilities::GenerateGuid;
+using ::shooting_star::utilities::LoadProfileFromLocalFile;
+using ::std::chrono::duration_cast;
+using ::std::chrono::steady_clock;
 using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
@@ -39,13 +43,14 @@ class RetrieverClient {
                 const string& profile_data_path,
                 const string& executable_path) {
     RetrieverRequest request;
-    request.set_request_id(::shooting_star::utilities::GenerateGuid());
+    request.set_trace_id(GenerateGuid());
+    request.set_request_id(GenerateGuid());
     request.set_user_id(user_id);
     request.set_max_candidate_count(max_candidate_count);
 
     string error_msg;
-    if (!LoadProfileFromDemoData(profile_data_path, executable_path, user_id,
-                                 request.mutable_profile(), &error_msg)) {
+    if (!LoadProfileFromLocalFile(profile_data_path, executable_path, user_id,
+                                  request.mutable_profile(), &error_msg)) {
       ::std::cerr << "Failed to load profile: " << error_msg << ::std::endl;
       return;
     }
@@ -56,7 +61,12 @@ class RetrieverClient {
     RetrieverResponse response;
     ClientContext context;
 
+    const auto start = steady_clock::now();
     const Status status = stub_->Retrieve(&context, request, &response);
+    const auto elapsed_ms =
+        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
+            .count();
+    cout << "Retrieve RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
 
     if (status.ok()) {
       cout << ::std::endl;
