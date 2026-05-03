@@ -40,7 +40,7 @@ using ::std::string;
 using ::std::filesystem::path;
 
 constexpr const char* kProfileDataRelativePath =
-    "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
+    "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
 
 path TestFilePath(const string& name) {
   const char* test_tmpdir = ::std::getenv("TEST_TMPDIR");
@@ -79,8 +79,9 @@ const GlobalConfig& ApplyProfileConfig(const string& yaml) {
 
 const GlobalConfig& CreateBaseConfig() {
   return ApplyProfileConfig(
-      "store_type: local\n"
-      "data_path: " +
+      "profile_store:\n"
+      "  type: local\n"
+      "  data_path: " +
       QuoteYamlString(ResolveWorkspaceRelativePath(kProfileDataRelativePath)) +
       "\n");
 }
@@ -93,8 +94,9 @@ void InstallProfileTestLogger() {
 
 TEST(ProfileServiceImplTest, LogsLocalCacheConfigWhenEnabled) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: local\n"
-      "data_path: " +
+      "profile_store:\n"
+      "  type: local\n"
+      "  data_path: " +
       QuoteYamlString(ResolveWorkspaceRelativePath(kProfileDataRelativePath)) +
       "\n"
       "local_cache:\n"
@@ -137,7 +139,7 @@ TEST(ProfileServiceImplTest, BatchGetUserCfProfilesReturnsFocusedProfiles) {
 
   BatchGetUserCfProfilesRequest request;
   request.set_request_id("request-user-cf");
-  request.add_user_ids(1001);
+  request.add_user_ids(153);
   request.add_user_ids(999999);
   request.add_user_ids(-1);
   BatchGetUserCfProfilesResponse response;
@@ -150,12 +152,12 @@ TEST(ProfileServiceImplTest, BatchGetUserCfProfilesReturnsFocusedProfiles) {
   ASSERT_EQ(response.results_size(), 3);
 
   EXPECT_EQ(response.results(0).status(), ProfileServiceStatus::PROFILE_SUCCESS);
-  EXPECT_EQ(response.results(0).user_id(), 1001);
+  EXPECT_EQ(response.results(0).user_id(), 153);
   ASSERT_TRUE(response.results(0).has_profile());
-  EXPECT_EQ(response.results(0).profile().user_id(), 1001);
-  EXPECT_EQ(response.results(0).profile().recent_liked_items_size(), 1);
-  EXPECT_EQ(response.results(0).profile().liked_items_size(), 1);
-  EXPECT_EQ(response.results(0).profile().interested_items_size(), 1);
+  EXPECT_EQ(response.results(0).profile().user_id(), 153);
+  EXPECT_EQ(response.results(0).profile().recent_liked_items_size(), 17);
+  EXPECT_EQ(response.results(0).profile().liked_items_size(), 17);
+  EXPECT_EQ(response.results(0).profile().interested_items_size(), 11);
 
   EXPECT_EQ(response.results(1).status(),
             ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
@@ -168,7 +170,8 @@ TEST(ProfileServiceImplTest, BatchGetUserCfProfilesReturnsFocusedProfiles) {
 
 TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
+      "profile_store:\n"
+      "  type: elasticsearch\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -241,7 +244,8 @@ TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
 
 TEST(ProfileServiceImplTest, UsesDefaultElasticsearchTimeoutBudget) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
+      "profile_store:\n"
+      "  type: elasticsearch\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n");
@@ -284,7 +288,8 @@ TEST(ProfileServiceImplTest, UsesDefaultElasticsearchTimeoutBudget) {
 TEST(ProfileServiceImplTest,
      RejectsElasticsearchHttpClientAcquireTimeoutAboveRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
+      "profile_store:\n"
+      "  type: elasticsearch\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -300,7 +305,8 @@ TEST(ProfileServiceImplTest,
 TEST(ProfileServiceImplTest,
      RejectsElasticsearchHttpClientRequestTimeoutAboveRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
+      "profile_store:\n"
+      "  type: elasticsearch\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -315,7 +321,8 @@ TEST(ProfileServiceImplTest,
 TEST(ProfileServiceImplTest,
      RejectsElasticsearchHttpClientConnectTimeoutAboveHttpRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
+      "profile_store:\n"
+      "  type: elasticsearch\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"
@@ -331,7 +338,8 @@ TEST(ProfileServiceImplTest,
 TEST(ProfileServiceImplTest,
      RejectsElasticsearchAcquirePlusHttpRequestTimeoutAboveRequestTimeout) {
   const GlobalConfig& config = ApplyProfileConfig(
-      "store_type: elasticsearch\n"
+      "profile_store:\n"
+      "  type: elasticsearch\n"
       "elasticsearch:\n"
       "  base_url: http://localhost:9200\n"
       "  index: profiles\n"

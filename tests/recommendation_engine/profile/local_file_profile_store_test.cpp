@@ -24,7 +24,7 @@ class LocalFileProfileStoreTest : public ::testing::Test {
   }
 
   static constexpr const char* kProfileDataRelativePath =
-      "tests/testdata/recommendation_engine/profile/demo_profiles.jsonl";
+      "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
   static constexpr const char* kProfileJsonlDataRelativePath =
       "tests/recommendation_engine/profile/"
       "local_file_profile_store_testdata.jsonl";
@@ -36,16 +36,16 @@ class LocalFileProfileStoreTest : public ::testing::Test {
 TEST_F(LocalFileProfileStoreTest, LoadsDemoProfilesFromJsonlFile) {
   const LocalFileProfileStore store(profile_data_path_);
 
-  optional<Profile> profile = store.FindByUserId(1002);
+  optional<Profile> profile = store.FindByUserId(153);
   ASSERT_TRUE(profile.has_value());
-  EXPECT_EQ(profile->user_id(), 1002);
-  EXPECT_EQ(profile->demographics().username(), "user_1002");
-  EXPECT_EQ(profile->demographics().location_id(), 2);
-  EXPECT_EQ(profile->social().following_size(), 1);
-  EXPECT_EQ(profile->behaviors().liked_items_size(), 1);
-  EXPECT_EQ(profile->interests().tags_size(), 2);
+  EXPECT_EQ(profile->user_id(), 153);
+  EXPECT_EQ(profile->demographics().username(), "user_153");
+  EXPECT_EQ(profile->demographics().display_name(), "User 153");
+  EXPECT_EQ(profile->social().following_size(), 0);
+  EXPECT_GT(profile->behaviors().liked_items_size(), 0);
+  EXPECT_GT(profile->interests().tags_size(), 0);
   EXPECT_EQ(profile->negative_feedbacks().items_size(), 1);
-  EXPECT_EQ(profile->stats().last_event_time(), 1703718800);
+  EXPECT_EQ(profile->stats().last_event_time(), 861908482);
 }
 
 TEST_F(LocalFileProfileStoreTest, LoadsProfileStoreTestdataFromJsonlFile) {

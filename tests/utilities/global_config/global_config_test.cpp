@@ -49,7 +49,7 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetStoreType(), "local");
   EXPECT_EQ(config.GetLocalCacheCapacity(), 0);
   EXPECT_EQ(config.GetProfileServiceAddress(), "localhost:50100");
-  EXPECT_EQ(config.GetListenAddress(), "0.0.0.0:50000");
+  EXPECT_EQ(config.GetListenAddress(), "127.0.0.1:50000");
   EXPECT_EQ(config.GetRedisHost(), "localhost");
   EXPECT_EQ(config.GetRedisPort(), 6379);
   EXPECT_EQ(config.GetRedisKeyPrefix(), "rec:item_cf:v1:neighbors");

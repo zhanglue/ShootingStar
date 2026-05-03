@@ -3,5 +3,6 @@ server:
   port: 50100
   log_level: DEBUG
 
-store_type: local
-data_path: tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl
+profile_store:
+  type: local
+  data_path: tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl

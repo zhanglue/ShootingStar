@@ -3,7 +3,8 @@ server:
   port: 50100
   log_level: INFO
 
-store_type: elasticsearch
+profile_store:
+  type: elasticsearch
 
 elasticsearch:
   base_url: https://item-index-es-http.recommendation-engine-es.svc:9200
