@@ -196,31 +196,7 @@ TEST(GlobalConfigTest, LogsOnlyRequestedConfigSection) {
   EXPECT_EQ(logs.find("\"server.host\":"), string::npos);
 }
 
-TEST(GlobalConfigTest, LogsElasticsearchSectionAndRedactsPassword) {
-  GlobalConfigTestAccess::Reset();
-
-  char arg0[] = "profile";
-  char arg1[] = "--es_password=super_secret";
-  char* argv[] = {arg0, arg1};
-  ConfigArguments::Apply(2, argv);
-
-  const GlobalConfig& config = GlobalConfig::Get();
-  const Logger logger("global_config_test");
-  ::testing::internal::CaptureStdout();
-  config.LogResolvedElasticsearchConfig(logger);
-  const string logs = ::testing::internal::GetCapturedStdout();
-
-  EXPECT_NE(logs.find("\"event\":\"resolved_config_section\""), string::npos);
-  EXPECT_NE(logs.find("\"config_section\":\"elasticsearch\""), string::npos);
-  EXPECT_NE(logs.find("\"elasticsearch.base_url\":"), string::npos);
-  EXPECT_NE(logs.find("\"elasticsearch.password\":\"<redacted>\""),
-            string::npos);
-  EXPECT_EQ(logs.find("super_secret"), string::npos);
-  EXPECT_EQ(logs.find("\"local_cache.capacity\":"), string::npos);
-  EXPECT_EQ(logs.find("\"server.host\":"), string::npos);
-}
-
-TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
+TEST(GlobalConfigTest, AppliesRedisConfigSection) {
   GlobalConfigTestAccess::Reset();
   const path config_path = TestFilePath("redis_config.yaml");
   WriteFile(config_path,
@@ -270,17 +246,6 @@ TEST(GlobalConfigTest, AppliesAndLogsRedisConfigSection) {
   EXPECT_DOUBLE_EQ(config.GetRetrieverItemCfScoreMultiplier(), 0.8);
   EXPECT_DOUBLE_EQ(config.GetRetrieverUserCfScoreMultiplier(), 8.0);
 
-  const Logger logger("global_config_test");
-  ::testing::internal::CaptureStdout();
-  config.LogResolvedRedisConfig(logger);
-  const string logs = ::testing::internal::GetCapturedStdout();
-
-  EXPECT_NE(logs.find("\"event\":\"resolved_config_section\""), string::npos);
-  EXPECT_NE(logs.find("\"config_section\":\"redis\""), string::npos);
-  EXPECT_NE(logs.find("\"redis.host\":\"redis-write.svc\""), string::npos);
-  EXPECT_NE(logs.find("\"redis.password\":\"<redacted>\""), string::npos);
-  EXPECT_EQ(logs.find("redis_secret"), string::npos);
-  EXPECT_EQ(logs.find("\"elasticsearch.base_url\":"), string::npos);
 }
 
 }  // namespace

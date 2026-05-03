@@ -29,9 +29,6 @@ using ::std::vector;
 namespace {
 
 constexpr string_view kRedactedValue = "<redacted>";
-constexpr string_view kElasticsearchConfigKeyPrefix = "elasticsearch";
-constexpr string_view kRedisConfigKeyPrefix = "redis";
-
 bool BelongsToConfigSection(string_view key, string_view config_key_prefix) {
   if (config_key_prefix.empty()) {
     return true;
@@ -895,14 +892,6 @@ void GlobalConfig::LogResolvedConfigSection(
   logger.Info(
     "resolved_config_section",
     fields);
-}
-
-void GlobalConfig::LogResolvedElasticsearchConfig(const Logger& logger) const {
-  LogResolvedConfigSection(logger, kElasticsearchConfigKeyPrefix);
-}
-
-void GlobalConfig::LogResolvedRedisConfig(const Logger& logger) const {
-  LogResolvedConfigSection(logger, kRedisConfigKeyPrefix);
 }
 
 void ConfigYAML::ApplyStartupFile(int argc, char** argv,

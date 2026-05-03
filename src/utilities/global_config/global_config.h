@@ -103,8 +103,6 @@ class GlobalConfig final {
   void LogResolvedConfig(const Logger& logger) const;
   void LogResolvedConfigSection(const Logger& logger,
                                 ::std::string_view config_key_prefix) const;
-  void LogResolvedElasticsearchConfig(const Logger& logger) const;
-  void LogResolvedRedisConfig(const Logger& logger) const;
 
  private:
   GlobalConfig();
