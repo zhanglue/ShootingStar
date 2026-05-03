@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 
 COPY binaries/src/recommendation_engine/profile/profile_bin /app/profile
 COPY src/recommendation_engine/profile/config.*.yaml /app/
-COPY tests/testdata/recommendation_engine/profile/demo_profiles.jsonl /app/tests/testdata/recommendation_engine/profile/demo_profiles.jsonl
+COPY tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl /app/tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl
 
 WORKDIR /app
 
