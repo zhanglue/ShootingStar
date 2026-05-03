@@ -19,6 +19,7 @@ using ::std::cout;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
+using ::std::vector;
 
 namespace recommendation_engine {
 namespace {
@@ -61,10 +62,10 @@ void PrintUsage() {
        << "  -i, --ip <IP>           Set server IP (default: 127.0.0.1)\n"
        << "  -p, --port <PORT>       Set server port (default: 50000)\n"
        << "  -u, --user-id <USER_ID> Add user ID to recommend (repeatable; "
-          "default includes 1001)\n"
+          "default: {1001})\n"
        << "  -m, --recommendation-results <N> Set recommendation results count "
           "(default: 20)\n"
-       << "      --max-candidates <N> Legacy alias for "
+       << "  --max-candidates <N> Legacy alias for "
           "--recommendation-results\n";
 }
 
@@ -74,8 +75,9 @@ void PrintUsage() {
 int main(int argc, char** argv) {
   string ip = "127.0.0.1";
   string port = "50000";
-  ::std::vector<int> user_ids = {1001};
+  vector<int> user_ids = {};
   int recommendation_results_count = 20;
+  int default_user_id = 1001;
 
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
@@ -134,6 +136,9 @@ int main(int argc, char** argv) {
   }
 
   const string target_str = ip + ":" + port;
+  if (user_ids.empty()) {
+    user_ids.push_back(default_user_id);
+  }
 
   ::shooting_star::clients::PrintRunStartedAtUtc();
   cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
