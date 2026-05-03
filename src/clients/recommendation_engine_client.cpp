@@ -29,11 +29,11 @@ class RecommendationEngineClient {
   explicit RecommendationEngineClient(shared_ptr<Channel> channel)
       : stub_(Gateway::NewStub(channel)) {}
 
-  void Recommend(int user_id, int recommendation_results_count) {
+  void Recommend(int user_id, int max_results) {
     RecommendRequest request;
     request.set_request_id("ABCDE-10155");
     request.set_user_id(user_id);
-    request.set_recommendation_results_count(recommendation_results_count);
+    request.set_max_results(max_results);
 
     RecommendResponse response;
     ClientContext context;
@@ -63,7 +63,7 @@ void PrintUsage() {
        << "  -p, --port <PORT>       Set server port (default: 50000)\n"
        << "  -u, --user-id <USER_ID> Add user ID to recommend (repeatable; "
           "default: {85566})\n"
-       << "  -m, --recommendation-results <N> Set recommendation results count "
+       << "  -m, --max-results <N>   Set max results per request "
           "(default: 20)\n";
 }
 
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
   string ip = "127.0.0.1";
   string port = "50000";
   vector<int> user_ids = {};
-  int recommendation_results_count = 20;
+  int max_results = 20;
   int default_user_id = 85566;
 
   struct option long_options[] = {
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
       {"ip", required_argument, nullptr, 'i'},
       {"port", required_argument, nullptr, 'p'},
       {"user-id", required_argument, nullptr, 'u'},
-      {"recommendation-results", required_argument, nullptr, 'm'},
+      {"max-results", required_argument, nullptr, 'm'},
       {0, 0, 0, 0}};
 
   int opt;
@@ -114,15 +114,14 @@ int main(int argc, char** argv) {
         break;
       case 'm':
         try {
-          recommendation_results_count = ::std::stoi(optarg);
+          max_results = ::std::stoi(optarg);
         } catch (const ::std::invalid_argument&) {
-          ::std::cerr
-              << "Error: recommendation_results_count is not a valid integer: "
-              << optarg << "\n";
+          ::std::cerr << "Error: max_results is not a valid integer: " << optarg
+                      << "\n";
           return 1;
         } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: recommendation_results_count is out of range: "
-                      << optarg << "\n";
+          ::std::cerr << "Error: max_results is out of range: " << optarg
+                      << "\n";
           return 1;
         }
         break;
@@ -144,15 +143,14 @@ int main(int argc, char** argv) {
     cout << " " << user_id;
   }
   cout << ::std::endl << ::std::endl;
-  cout << "Requested recommendation results count: "
-       << recommendation_results_count << ::std::endl
+  cout << "Requested max results: " << max_results << ::std::endl
        << ::std::endl;
 
   recommendation_engine::RecommendationEngineClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
   for (int user_id : user_ids) {
     cout << "Recommend for user: " << user_id << ::std::endl;
-    client.Recommend(user_id, recommendation_results_count);
+    client.Recommend(user_id, max_results);
   }
 
   return 0;

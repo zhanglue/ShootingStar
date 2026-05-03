@@ -10,12 +10,14 @@
 
 namespace recommendation_engine {
 
+using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::shooting_star::utilities::GlobalConfig;
 using ::std::format;
+using ::std::shared_ptr;
 using ::std::string;
 using ::std::unordered_set;
 using ::std::vector;
@@ -25,23 +27,24 @@ bool IsRetrieverResponseStatusAccepted(RetrieverServiceStatus status) {
          status == RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS;
 }
 
-int ComputeRetrieverMaxCandidateCount(int recommendation_results_count,
-                                      double expand_ratio) {
-  if (recommendation_results_count <= 0) {
-    return recommendation_results_count;
+int ComputeRetrieverMaxCandidateCount(int max_results, double expand_ratio) {
+  if (max_results <= 0) {
+    return max_results;
   }
 
   const int expanded_count = static_cast<int>(
-      ::std::ceil(static_cast<double>(recommendation_results_count) *
+      ::std::ceil(static_cast<double>(max_results) *
                   expand_ratio));
-  return ::std::max(recommendation_results_count, expanded_count);
+  return ::std::max(max_results, expanded_count);
 }
 
-RetrievalOrchestrator::RetrievalOrchestrator(::std::shared_ptr<::grpc::Channel> item_cf_channel,
-                                             ::std::shared_ptr<::grpc::Channel> user_cf_channel)
+RetrievalOrchestrator::RetrievalOrchestrator(
+  shared_ptr<Channel> item_cf_channel, shared_ptr<Channel> user_cf_channel)
     : retriever_stubs_() {
-  retriever_stubs_.emplace("item_cf", RetrieverService::NewStub(::std::move(item_cf_channel)));
-  retriever_stubs_.emplace("user_cf", RetrieverService::NewStub(::std::move(user_cf_channel)));
+  retriever_stubs_.emplace(
+    "item_cf", RetrieverService::NewStub(::std::move(item_cf_channel)));
+  retriever_stubs_.emplace(
+    "user_cf", RetrieverService::NewStub(::std::move(user_cf_channel)));
 }
 
 Status RetrievalOrchestrator::Retrieve(ServerContext* context,
@@ -60,8 +63,9 @@ Status RetrievalOrchestrator::Retrieve(ServerContext* context,
 
   if (!request->has_profile()) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST);
-    return Status(StatusCode::INVALID_ARGUMENT,
-                  format("Profile is required for user {}.", request->user_id()));
+    return Status(
+      StatusCode::INVALID_ARGUMENT,
+      format("Profile is required for user {}.", request->user_id()));
   }
 
   return DispatchToRetrievers(*request, response);
@@ -73,24 +77,29 @@ Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
     const RetrieverRequest& retriever_request,
     RetrieverResponse* retriever_response) const {
   if (retriever_stub == nullptr) {
-    return Status(StatusCode::INTERNAL,
-                  format("{} retriever client is not initialized.", retriever_name));
+    return Status(
+      StatusCode::INTERNAL,
+      format("{} retriever client is not initialized.", retriever_name));
   }
 
   ClientContext retriever_context;
   const Status retriever_status =
-      retriever_stub->Retrieve(&retriever_context, retriever_request, retriever_response);
+      retriever_stub->Retrieve(&retriever_context,
+                               retriever_request,
+                               retriever_response);
 
   if (!retriever_status.ok()) {
-    return Status(StatusCode::INTERNAL,
-                  format("Failed to retrieve candidates from {}: {}", retriever_name,
-                         retriever_status.error_message()));
+    return Status(
+      StatusCode::INTERNAL,
+      format("Failed to retrieve candidates from {}: {}", retriever_name,
+        retriever_status.error_message()));
   }
 
   if (!IsRetrieverResponseStatusAccepted(retriever_response->status())) {
-    return Status(StatusCode::INTERNAL,
-                  format("{} retriever returned non-success status {}.", retriever_name,
-                         static_cast<int>(retriever_response->status())));
+    return Status(
+      StatusCode::INTERNAL,
+      format("{} retriever returned non-success status {}.", retriever_name,
+        static_cast<int>(retriever_response->status())));
   }
 
   return Status::OK;
