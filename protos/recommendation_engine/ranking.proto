@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package recommendation_engine;
+
+import "protos/recommendation_engine/profile.proto";
+import "protos/recommendation_engine/retrieval.proto";
+
+service RankingService {
+  rpc Rank (RankRequest) returns (RankResponse);
+}
+
+message RankRequest {
+  string trace_id = 1;
+  string request_id = 2;
+  int64 user_id = 3;
+  Profile profile = 4;
+  repeated CandidateItem candidates = 5;
+  int32 max_results = 6;
+  RankingOptions options = 7;
+}
+
+message RankingOptions {
+  string ranker = 1;
+  bool include_score_factors = 2;
+  bool include_item_features = 3;
+}
+
+message RankResponse {
+  RankingServiceStatus status = 1;
+  RankRequest request = 2;
+  int32 input_candidate_count = 3;
+  int32 ranked_candidate_count = 4;
+  repeated RankedCandidateItem ranked_candidates = 5;
+}
+
+message RankedCandidateItem {
+  CandidateItem candidate = 1;
+  double rank_score = 2;
+  int32 rank_position = 3;
+  string ranker = 4;
+  repeated RankingScoreFactor score_factors = 5;
+  RankingItemFeatures item_features = 6;
+  repeated RetrievalSignal retrieval_signals = 7;
+}
+
+message RetrievalSignal {
+  string retriever = 1;
+  double retrieve_score = 2;
+  repeated RetrievalReason reasons = 3;
+}
+
+message RankingScoreFactor {
+  RankingScoreFactorType factor_type = 1;
+  string name = 2;
+  double raw_value = 3;
+  double weight = 4;
+  double contribution = 5;
+  string description = 6;
+}
+
+message RankingItemFeatures {
+  uint64 item_id = 1;
+  string title = 2;
+  int32 year = 3;
+  repeated string genres = 4;
+  repeated RankingWeightedTag top_tags = 5;
+  RankingRatingFeatures rating = 6;
+}
+
+message RankingWeightedTag {
+  string tag = 1;
+  double weight = 2;
+}
+
+message RankingRatingFeatures {
+  double avg = 1;
+  int32 count = 2;
+}
+
+enum RankingServiceStatus {
+  RANKING_SUCCESS = 0;
+  RANKING_INVALID_REQUEST = 1;
+  RANKING_USER_NOT_FOUND = 2;
+  RANKING_SYSTEM_ERROR = 3;
+  RANKING_EMPTY_CANDIDATES = 4;
+}
+
+enum RankingScoreFactorType {
+  RANKING_SCORE_FACTOR_TYPE_UNSPECIFIED = 0;
+  RANKING_SCORE_FACTOR_TYPE_RETRIEVAL = 1;
+  RANKING_SCORE_FACTOR_TYPE_INTEREST = 2;
+  RANKING_SCORE_FACTOR_TYPE_NEGATIVE_FEEDBACK = 3;
+  RANKING_SCORE_FACTOR_TYPE_QUALITY = 4;
+  RANKING_SCORE_FACTOR_TYPE_DIVERSITY = 5;
+  RANKING_SCORE_FACTOR_TYPE_FRESHNESS = 6;
+  RANKING_SCORE_FACTOR_TYPE_EXPLORATION = 7;
+}

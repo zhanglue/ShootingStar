@@ -61,6 +61,27 @@ cc_grpc_library(
 )
 
 proto_library(
+    name = "ranking_proto",
+    srcs = ["ranking.proto"],
+    deps = [
+        ":profile_proto",
+        ":retrieval_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "ranking_cc",
+    deps = [":ranking_proto"],
+)
+
+cc_grpc_library(
+    name = "ranking_cc_grpc",
+    srcs = ["ranking_proto"],
+    grpc_only = True,
+    deps = [":ranking_cc"],
+)
+
+proto_library(
     name = "retriever_proto",
     srcs = ["retriever.proto"],
     deps = [
