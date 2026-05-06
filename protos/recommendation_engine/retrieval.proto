@@ -42,6 +42,13 @@ message CandidateItem {
   string retriever = 4;
   double retrieve_score = 5;
   repeated RetrievalReason reasons = 6;
+  repeated RetrievalSignal retrieval_signals = 7;
+}
+
+message RetrievalSignal {
+  string retriever = 1;
+  double retrieve_score = 2;
+  repeated RetrievalReason reasons = 3;
 }
 
 enum RetrievalServiceStatus {

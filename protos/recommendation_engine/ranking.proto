@@ -43,12 +43,6 @@ message RankedCandidateItem {
   repeated RetrievalSignal retrieval_signals = 7;
 }
 
-message RetrievalSignal {
-  string retriever = 1;
-  double retrieve_score = 2;
-  repeated RetrievalReason reasons = 3;
-}
-
 message RankingScoreFactor {
   RankingScoreFactorType factor_type = 1;
   string name = 2;

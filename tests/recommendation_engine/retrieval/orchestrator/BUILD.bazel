@@ -1,0 +1,16 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "retrieval_orchestrator_test",
+    srcs = ["retrieval_orchestrator_test.cpp"],
+    size = "small",
+    deps = [
+        "//protos/recommendation_engine:retriever_cc_grpc",
+        "//protos/recommendation_engine:retrieval_cc_grpc",
+        "//src/recommendation_engine/retrieval/orchestrator:retrieval_orchestrator_lib",
+        "@googletest//:gtest_main",
+        "@grpc//:grpc++",
+    ],
+)
