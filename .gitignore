@@ -480,3 +480,6 @@ item_index.jsonl
 item_similarity.jsonl
 user_profiles.jsonl
 user_similarity.jsonl
+!tests/testdata/recommendation_engine/local_recommendation_fixture/item_index.jsonl
+!tests/testdata/recommendation_engine/local_recommendation_fixture/item_similarity.jsonl
+!tests/testdata/recommendation_engine/local_recommendation_fixture/user_similarity.jsonl

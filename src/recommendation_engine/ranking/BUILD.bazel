@@ -1,0 +1,36 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "item_index_store",
+    srcs = ["item_index_store.cpp"],
+    hdrs = ["item_index_store.h"],
+    deps = [
+        "//src/utilities/json_parser:json_parser",
+        "@protobuf//:protobuf",
+    ],
+)
+
+cc_library(
+    name = "local_file_item_index_store",
+    srcs = ["local_file_item_index_store.cpp"],
+    hdrs = ["local_file_item_index_store.h"],
+    deps = [
+        ":item_index_store",
+        "//src/utilities/json_parser:json_parser",
+        "@protobuf//:protobuf",
+    ],
+)
+
+cc_library(
+    name = "elasticsearch_item_index_store",
+    srcs = ["elasticsearch_item_index_store.cpp"],
+    hdrs = ["elasticsearch_item_index_store.h"],
+    deps = [
+        ":item_index_store",
+        "//src/utilities/elasticsearch_client:elasticsearch_client",
+        "//src/utilities/json_parser:json_parser",
+        "@protobuf//:protobuf",
+    ],
+)
