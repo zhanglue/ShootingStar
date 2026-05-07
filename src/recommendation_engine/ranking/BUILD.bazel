@@ -24,6 +24,17 @@ cc_library(
 )
 
 cc_library(
+    name = "caching_item_index_store",
+    srcs = ["caching_item_index_store.cpp"],
+    hdrs = ["caching_item_index_store.h"],
+    deps = [
+        ":item_index_store",
+        "//src/utilities/logger:logger",
+        "//src/utilities/lru_cache:lru_cache",
+    ],
+)
+
+cc_library(
     name = "elasticsearch_item_index_store",
     srcs = ["elasticsearch_item_index_store.cpp"],
     hdrs = ["elasticsearch_item_index_store.h"],
@@ -32,5 +43,47 @@ cc_library(
         "//src/utilities/elasticsearch_client:elasticsearch_client",
         "//src/utilities/json_parser:json_parser",
         "@protobuf//:protobuf",
+    ],
+)
+
+cc_library(
+    name = "ranker",
+    hdrs = ["ranker.h"],
+    deps = [
+        "//protos/recommendation_engine:ranking_cc",
+        "@grpc//:grpc++",
+    ],
+)
+
+cc_library(
+    name = "heuristic_ranker",
+    srcs = ["heuristic_ranker.cpp"],
+    hdrs = ["heuristic_ranker.h"],
+    deps = [
+        ":item_index_store",
+        ":ranker",
+        "//protos/recommendation_engine:ranking_cc",
+        "@grpc//:grpc++",
+    ],
+)
+
+cc_library(
+    name = "ranking_service_lib",
+    srcs = ["ranking_service.cpp"],
+    hdrs = ["ranking_service.h"],
+    deps = [
+        ":caching_item_index_store",
+        ":elasticsearch_item_index_store",
+        ":heuristic_ranker",
+        ":item_index_store",
+        ":local_file_item_index_store",
+        ":ranker",
+        "//protos/recommendation_engine:ranking_cc",
+        "//protos/recommendation_engine:ranking_cc_grpc",
+        "//src/utilities/elasticsearch_client:elasticsearch_client",
+        "//src/utilities/global_config:global_config",
+        "//src/utilities/logger:logger",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@grpc//:grpc++",
     ],
 )

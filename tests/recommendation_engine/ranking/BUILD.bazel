@@ -27,6 +27,16 @@ cc_test(
 )
 
 cc_test(
+    name = "caching_item_index_store_test",
+    srcs = ["caching_item_index_store_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/recommendation_engine/ranking:caching_item_index_store",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "elasticsearch_item_index_store_test",
     srcs = ["elasticsearch_item_index_store_test.cpp"],
     size = "small",
@@ -35,5 +45,30 @@ cc_test(
         "//src/utilities/elasticsearch_client:elasticsearch_client",
         "//src/utilities/http_client:http_client",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "heuristic_ranker_test",
+    srcs = ["heuristic_ranker_test.cpp"],
+    size = "small",
+    deps = [
+        "//src/recommendation_engine/ranking:heuristic_ranker",
+        "@googletest//:gtest_main",
+        "@grpc//:grpc++",
+    ],
+)
+
+cc_test(
+    name = "ranking_service_test",
+    srcs = ["ranking_service_test.cpp"],
+    data = [
+        "//tests/testdata:recommendation_engine/local_recommendation_fixture/item_index.jsonl",
+    ],
+    size = "small",
+    deps = [
+        "//src/recommendation_engine/ranking:ranking_service_lib",
+        "@googletest//:gtest_main",
+        "@grpc//:grpc++",
     ],
 )
