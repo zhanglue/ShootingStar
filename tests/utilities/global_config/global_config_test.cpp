@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "src/utilities/logger/logger.h"
 
@@ -47,6 +48,13 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
 
   EXPECT_EQ(config.GetServerPort(), 50000);
   EXPECT_EQ(config.GetProfileStoreType(), "local");
+  EXPECT_EQ(config.GetItemIndexStoreType(), "local");
+  EXPECT_EQ(config.GetItemIndexStoreDataPath(),
+            "tests/testdata/recommendation_engine/"
+            "local_recommendation_fixture/item_index.jsonl");
+  EXPECT_EQ(config.GetRankingRankers(),
+            (::std::vector<string>{"heuristic_v1"}));
+  EXPECT_EQ(config.GetRankingDefaultRanker(), "heuristic_v1");
   EXPECT_EQ(config.GetLocalCacheCapacity(), 0);
   EXPECT_EQ(config.GetProfileServiceAddress(), "localhost:50100");
   EXPECT_EQ(config.GetListenAddress(), "127.0.0.1:50000");
@@ -97,6 +105,28 @@ TEST(GlobalConfigTest, AppliesYamlOverDefaultsOnlyForConfiguredFields) {
   EXPECT_FALSE(config.GetElasticsearchHttpClientVerifySsl());
   EXPECT_EQ(config.GetProfileStoreType(), "local");
   EXPECT_EQ(config.GetElasticsearchUsername(), "elastic");
+}
+
+TEST(GlobalConfigTest, AppliesRankingRankerArrayFromYaml) {
+  GlobalConfigTestAccess::Reset();
+  const path config_path = TestFilePath("ranking_config.yaml");
+  WriteFile(config_path,
+            "ranking:\n"
+            "  rankers:\n"
+            "    - heuristic_v1\n"
+            "  default_ranker: heuristic_v1\n"
+            "item_index_store:\n"
+            "  type: local\n"
+            "  data_path: tests/testdata/recommendation_engine/"
+            "local_recommendation_fixture/item_index.jsonl\n");
+
+  ConfigYAML::ApplyFile(config_path.string());
+  const GlobalConfig& config = GlobalConfig::Get();
+
+  EXPECT_EQ(config.GetRankingRankers(),
+            (::std::vector<string>{"heuristic_v1"}));
+  EXPECT_EQ(config.GetRankingDefaultRanker(), "heuristic_v1");
+  EXPECT_EQ(config.GetItemIndexStoreType(), "local");
 }
 
 TEST(GlobalConfigTest, AppliesOnlyExplicitCommandLineOverrides) {
