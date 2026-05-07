@@ -57,6 +57,7 @@ TEST(GlobalConfigTest, InitializesDefaultsOnFirstGet) {
   EXPECT_EQ(config.GetRankingDefaultRanker(), "heuristic_v1");
   EXPECT_EQ(config.GetLocalCacheCapacity(), 0);
   EXPECT_EQ(config.GetProfileServiceAddress(), "localhost:50100");
+  EXPECT_EQ(config.GetRankingServiceAddress(), "localhost:50300");
   EXPECT_EQ(config.GetListenAddress(), "127.0.0.1:50000");
   EXPECT_EQ(config.GetRedisHost(), "localhost");
   EXPECT_EQ(config.GetRedisPort(), 6379);
@@ -163,12 +164,14 @@ TEST(GlobalConfigTest, SupportsGlobalLegacyArguments) {
   char arg1[] = "--profile_service_host=profile.svc";
   char arg2[] = "--retrieval_service_port";
   char arg3[] = "60000";
-  char* argv[] = {arg0, arg1, arg2, arg3};
-  ConfigArguments::Apply(4, argv);
+  char arg4[] = "--ranking_service_host=ranking.svc";
+  char* argv[] = {arg0, arg1, arg2, arg3, arg4};
+  ConfigArguments::Apply(5, argv);
 
   const GlobalConfig& config = GlobalConfig::Get();
   EXPECT_EQ(config.GetProfileServiceAddress(), "profile.svc:50100");
   EXPECT_EQ(config.GetRetrievalServiceAddress(), "localhost:60000");
+  EXPECT_EQ(config.GetRankingServiceAddress(), "ranking.svc:50300");
 }
 
 TEST(GlobalConfigTest, StartupFileUsesConfigPathArgument) {

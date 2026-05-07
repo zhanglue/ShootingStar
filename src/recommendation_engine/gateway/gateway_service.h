@@ -6,6 +6,7 @@
 
 #include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
+#include "protos/recommendation_engine/ranking.grpc.pb.h"
 #include "protos/recommendation_engine/retrieval.grpc.pb.h"
 
 namespace recommendation_engine {
@@ -13,7 +14,8 @@ namespace recommendation_engine {
 class GatewayServiceImpl final : public Gateway::Service {
  public:
   GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profile_channel,
-                     ::std::shared_ptr<::grpc::Channel> retrieval_channel);
+                     ::std::shared_ptr<::grpc::Channel> retrieval_channel,
+                     ::std::shared_ptr<::grpc::Channel> ranking_channel);
 
   ::grpc::Status Recommend(::grpc::ServerContext* context,
                            const RecommendRequest* request,
@@ -24,11 +26,17 @@ class GatewayServiceImpl final : public Gateway::Service {
                               RecommendationStatus* recommendation_status) const;
   ::grpc::Status FetchCandidates(const RecommendRequest& request,
                                  const Profile& profile,
-                                 RecommendResponse* response,
+                                 RetrieveResponse* retrieval_response,
+                                 RecommendationStatus* recommendation_status) const;
+  ::grpc::Status FetchRankedCandidates(const RecommendRequest& request,
+                                       const Profile& profile,
+                                       const RetrieveResponse& retrieval_response,
+                                       RecommendResponse* response,
                                  RecommendationStatus* recommendation_status) const;
 
   ::std::unique_ptr<ProfileService::Stub> profile_stub_;
   ::std::unique_ptr<RetrievalService::Stub> retrieval_stub_;
+  ::std::unique_ptr<RankingService::Stub> ranking_stub_;
 };
 
 }  // namespace recommendation_engine

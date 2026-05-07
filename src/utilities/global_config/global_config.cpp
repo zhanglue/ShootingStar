@@ -57,6 +57,8 @@ enum Field {
   kProfileServicePort,
   kRetrievalServiceHost,
   kRetrievalServicePort,
+  kRankingServiceHost,
+  kRankingServicePort,
   kRetrievalRecallCandidateExpandRatio,
   kRetrieverItemCfHost,
   kRetrieverItemCfPort,
@@ -133,6 +135,10 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kString, "localhost"},
     {kRetrievalServicePort, "retrieval_service.port", "retrieval_service_port",
      ValueType::kUInt16, "50200"},
+    {kRankingServiceHost, "ranking_service.host", "ranking_service_host",
+     ValueType::kString, "localhost"},
+    {kRankingServicePort, "ranking_service.port", "ranking_service_port",
+     ValueType::kUInt16, "50300"},
     {kRetrievalRecallCandidateExpandRatio,
      "retrieval.recall_candidate_expand_ratio",
      "recall_candidate_expand_ratio", ValueType::kDouble, "1.0"},
@@ -729,6 +735,18 @@ uint16_t GlobalConfig::GetRetrievalServicePort() const {
 
 string GlobalConfig::GetRetrievalServiceAddress() const {
   return GetAddress(kRetrievalServiceHost, kRetrievalServicePort);
+}
+
+string GlobalConfig::GetRankingServiceHost() const {
+  return GetString(kRankingServiceHost);
+}
+
+uint16_t GlobalConfig::GetRankingServicePort() const {
+  return GetUInt16(kRankingServicePort);
+}
+
+string GlobalConfig::GetRankingServiceAddress() const {
+  return GetAddress(kRankingServiceHost, kRankingServicePort);
 }
 
 string GlobalConfig::GetRetrieverItemCfHost() const {

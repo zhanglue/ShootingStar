@@ -37,6 +37,9 @@ class GlobalConfig final {
   ::std::string GetRetrievalServiceHost() const;
   uint16_t GetRetrievalServicePort() const;
   ::std::string GetRetrievalServiceAddress() const;
+  ::std::string GetRankingServiceHost() const;
+  uint16_t GetRankingServicePort() const;
+  ::std::string GetRankingServiceAddress() const;
   ::std::string GetRetrieverItemCfHost() const;
   uint16_t GetRetrieverItemCfPort() const;
   ::std::string GetRetrieverItemCfAddress() const;

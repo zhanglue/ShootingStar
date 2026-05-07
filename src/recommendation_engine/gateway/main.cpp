@@ -54,9 +54,11 @@ int main(int argc, char** argv) {
     string server_address = config.GetListenAddress();
     const string profile_service_address = config.GetProfileServiceAddress();
     const string retrieval_service_address = config.GetRetrievalServiceAddress();
+    const string ranking_service_address = config.GetRankingServiceAddress();
     GatewayServiceImpl service(
         CreateChannel(profile_service_address, InsecureChannelCredentials()),
-        CreateChannel(retrieval_service_address, InsecureChannelCredentials()));
+        CreateChannel(retrieval_service_address, InsecureChannelCredentials()),
+        CreateChannel(ranking_service_address, InsecureChannelCredentials()));
 
     EnableDefaultHealthCheckService(true);
     InitProtoReflectionServerBuilderPlugin();
@@ -73,6 +75,7 @@ int main(int argc, char** argv) {
         {"listen_address", server_address},
         {"profile_service_address", profile_service_address},
         {"retrieval_service_address", retrieval_service_address},
+        {"ranking_service_address", ranking_service_address},
       });
     server->Wait();
   } catch (const ::std::exception& ex) {
