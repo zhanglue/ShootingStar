@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: recommendation-engine-ranking-client
+  namespace: recommendation-engine
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: recommendation-engine-ranking-client
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: recommendation-engine-ranking-client
+        image: recommendation-engine-ranking-client:latest
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+          limits:
+            memory: 512Mi
+            cpu: "1"
+        args:
+        - --ip=ranking.recommendation-engine.svc.cluster.local
+        - --port=50300

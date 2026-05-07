@@ -396,6 +396,11 @@ void RetrieverItemCf::FillResponseCandidates(
                scored_candidate.trigger_entity_id));
     reason->mutable_trigger()->set_entity_type(EntityType::ENTITY_TYPE_ITEM);
     reason->mutable_trigger()->set_entity_id(scored_candidate.trigger_entity_id);
+
+    RetrievalSignal* signal = candidate->add_retrieval_signals();
+    signal->set_retriever(kRetrieverName);
+    signal->set_retrieve_score(candidate->retrieve_score());
+    signal->add_reasons()->CopyFrom(*reason);
   }
 }
 

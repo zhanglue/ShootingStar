@@ -10,3 +10,7 @@ profile_service:
 retrieval_service:
   host: retrieval-orchestrator.recommendation-engine.svc.cluster.local
   port: 50200
+
+ranking_service:
+  host: ranking.recommendation-engine.svc.cluster.local
+  port: 50300

@@ -1,0 +1,11 @@
+FROM ubuntu:24.04
+
+COPY binaries/src/recommendation_engine/ranking/ranking_bin /app/ranking
+COPY src/recommendation_engine/ranking/config.*.yaml /app/
+COPY tests/testdata/recommendation_engine/local_recommendation_fixture/item_index.jsonl /app/tests/testdata/recommendation_engine/local_recommendation_fixture/item_index.jsonl
+
+WORKDIR /app
+
+EXPOSE 50300
+
+ENTRYPOINT ["/app/ranking"]

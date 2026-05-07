@@ -10,3 +10,7 @@ profile_service:
 retrieval_service:
   host: localhost
   port: 50200
+
+ranking_service:
+  host: localhost
+  port: 50300

@@ -2,7 +2,8 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <grpcpp/grpcpp.h>
 
@@ -29,10 +30,11 @@ class RetrievalOrchestrator final : public RetrievalService::Service {
   ::grpc::Status DispatchToRetrievers(const RetrieveRequest& request,
                                       RetrieveResponse* response) const;
 
-  using RetrieverStubMap =
-      ::std::unordered_map<::std::string, ::std::unique_ptr<RetrieverService::Stub>>;
+  using NamedRetrieverStub =
+      ::std::pair<::std::string, ::std::unique_ptr<RetrieverService::Stub>>;
+  using RetrieverStubList = ::std::vector<NamedRetrieverStub>;
 
-  RetrieverStubMap retriever_stubs_;
+  RetrieverStubList retriever_stubs_;
 };
 
 }  // namespace recommendation_engine

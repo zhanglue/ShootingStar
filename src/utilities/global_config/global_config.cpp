@@ -57,6 +57,8 @@ enum Field {
   kProfileServicePort,
   kRetrievalServiceHost,
   kRetrievalServicePort,
+  kRankingServiceHost,
+  kRankingServicePort,
   kRetrievalRecallCandidateExpandRatio,
   kRetrieverItemCfHost,
   kRetrieverItemCfPort,
@@ -68,6 +70,10 @@ enum Field {
   kUserCfTriggerSeedUserCount,
   kProfileStoreType,
   kProfileStoreDataPath,
+  kItemIndexStoreType,
+  kItemIndexStoreDataPath,
+  kRankingRankers,
+  kRankingDefaultRanker,
   kSimilarityStoreType,
   kSimilarityDataPath,
   kLocalCacheCapacity,
@@ -129,6 +135,10 @@ constexpr ConfigEntry kConfigEntries[] = {
      ValueType::kString, "localhost"},
     {kRetrievalServicePort, "retrieval_service.port", "retrieval_service_port",
      ValueType::kUInt16, "50200"},
+    {kRankingServiceHost, "ranking_service.host", "ranking_service_host",
+     ValueType::kString, "localhost"},
+    {kRankingServicePort, "ranking_service.port", "ranking_service_port",
+     ValueType::kUInt16, "50300"},
     {kRetrievalRecallCandidateExpandRatio,
      "retrieval.recall_candidate_expand_ratio",
      "recall_candidate_expand_ratio", ValueType::kDouble, "1.0"},
@@ -152,6 +162,15 @@ constexpr ConfigEntry kConfigEntries[] = {
      "local"},
     {kProfileStoreDataPath, "profile_store.data_path", "data_path", ValueType::kString,
      "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl"},
+    {kItemIndexStoreType, "item_index_store.type", "item_index_store_type",
+     ValueType::kString, "local"},
+    {kItemIndexStoreDataPath, "item_index_store.data_path",
+     "item_index_data_path", ValueType::kString,
+     "tests/testdata/recommendation_engine/local_recommendation_fixture/item_index.jsonl"},
+    {kRankingRankers, "ranking.rankers", "ranking_rankers",
+     ValueType::kString, "heuristic_v1"},
+    {kRankingDefaultRanker, "ranking.default_ranker",
+     "ranking_default_ranker", ValueType::kString, "heuristic_v1"},
     {kSimilarityStoreType, "similarity_store.type", "similarity_store_type",
      ValueType::kString, "redis"},
     {kSimilarityDataPath, "similarity_store.data_path", "similarity_data_path",
@@ -400,6 +419,75 @@ bool StartsWith(string_view value, string_view prefix) {
          value.substr(0, prefix.size()) == prefix;
 }
 
+string Trim(string_view value) {
+  size_t begin = 0;
+  while (begin < value.size() &&
+         ::std::isspace(static_cast<unsigned char>(value[begin]))) {
+    ++begin;
+  }
+
+  size_t end = value.size();
+  while (end > begin &&
+         ::std::isspace(static_cast<unsigned char>(value[end - 1]))) {
+    --end;
+  }
+  return string(value.substr(begin, end - begin));
+}
+
+vector<string> SplitCommaSeparatedValues(string_view value) {
+  vector<string> values;
+  size_t begin = 0;
+  while (begin <= value.size()) {
+    const size_t comma_pos = value.find(',', begin);
+    const size_t end =
+        comma_pos == string_view::npos ? value.size() : comma_pos;
+    const string element = Trim(value.substr(begin, end - begin));
+    if (!element.empty()) {
+      values.push_back(element);
+    }
+    if (comma_pos == string_view::npos) {
+      break;
+    }
+    begin = comma_pos + 1;
+  }
+  return values;
+}
+
+string JoinCommaSeparatedValues(const vector<string>& values) {
+  string joined;
+  for (const string& value : values) {
+    if (value.empty()) {
+      continue;
+    }
+    if (!joined.empty()) {
+      joined += ",";
+    }
+    joined += value;
+  }
+  return joined;
+}
+
+optional<int> ParseRankingRankerArrayIndex(string_view key) {
+  constexpr string_view kPrefix = "ranking.rankers.";
+  if (!StartsWith(key, kPrefix)) {
+    return nullopt;
+  }
+
+  const string_view index_text = key.substr(kPrefix.size());
+  if (index_text.empty()) {
+    return nullopt;
+  }
+
+  int parsed = 0;
+  const char* begin = index_text.data();
+  const char* end = begin + index_text.size();
+  const ::std::from_chars_result result = ::std::from_chars(begin, end, parsed);
+  if (result.ec != ::std::errc() || result.ptr != end || parsed < 0) {
+    return nullopt;
+  }
+  return parsed;
+}
+
 void ReadArgumentValue(int argc, char** argv, int* index, string_view name,
                        optional<string_view> inline_value,
                        const ConfigEntry& entry, string* value) {
@@ -489,6 +577,10 @@ string ResolveStartupConfigPath(const StartupConfigPath& startup_config_path,
 
 }  // namespace
 
+////////////////////////////////////////////////////////////////////////////////
+// LIFECYCLE
+////////////////////////////////////////////////////////////////////////////////
+
 GlobalConfig::GlobalConfig() { ResetToDefaults(); }
 
 const GlobalConfig& GlobalConfig::Initialize(const string& service_name) {
@@ -531,6 +623,10 @@ void GlobalConfig::Set(int field, string value) {
   const ConfigEntry& entry = EntryForField(field);
   values_[field] = CanonicalizeValue(entry, value);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// VALUE ACCESSORS
+////////////////////////////////////////////////////////////////////////////////
 
 string GlobalConfig::GetString(int field) const {
   const auto iter = values_.find(field);
@@ -590,6 +686,17 @@ string GlobalConfig::GetAddress(int host_field, int port_field) const {
   return GetString(host_field) + ":" + ::std::to_string(GetUInt16(port_field));
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// BASE CONFIGS
+////////////////////////////////////////////////////////////////////////////////
+
+string_view GlobalConfig::GetServiceName() const {
+  if (service_name_.empty()) {
+    throw invalid_argument("GlobalConfig service_name is not initialized");
+  }
+  return service_name_;
+}
+
 string GlobalConfig::GetConfigPath() const { return GetString(kConfigPath); }
 
 string GlobalConfig::GetServerHost() const { return GetString(kServerHost); }
@@ -601,6 +708,10 @@ string GlobalConfig::GetListenAddress() const {
 }
 
 string GlobalConfig::GetLogLevel() const { return GetString(kLogLevel); }
+
+////////////////////////////////////////////////////////////////////////////////
+// DOWNSTREAM SERVICE CONFIGS
+////////////////////////////////////////////////////////////////////////////////
 
 string GlobalConfig::GetProfileServiceHost() const {
   return GetString(kProfileServiceHost);
@@ -626,8 +737,16 @@ string GlobalConfig::GetRetrievalServiceAddress() const {
   return GetAddress(kRetrievalServiceHost, kRetrievalServicePort);
 }
 
-double GlobalConfig::GetRetrievalRecallCandidateExpandRatio() const {
-  return GetPositiveDouble(kRetrievalRecallCandidateExpandRatio);
+string GlobalConfig::GetRankingServiceHost() const {
+  return GetString(kRankingServiceHost);
+}
+
+uint16_t GlobalConfig::GetRankingServicePort() const {
+  return GetUInt16(kRankingServicePort);
+}
+
+string GlobalConfig::GetRankingServiceAddress() const {
+  return GetAddress(kRankingServiceHost, kRankingServicePort);
 }
 
 string GlobalConfig::GetRetrieverItemCfHost() const {
@@ -654,6 +773,14 @@ string GlobalConfig::GetRetrieverUserCfAddress() const {
   return GetAddress(kRetrieverUserCfHost, kRetrieverUserCfPort);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// RETRIEVAL CONFIGS
+////////////////////////////////////////////////////////////////////////////////
+
+double GlobalConfig::GetRetrievalRecallCandidateExpandRatio() const {
+  return GetPositiveDouble(kRetrievalRecallCandidateExpandRatio);
+}
+
 int GlobalConfig::GetRetrieverMaxTriggerSeedCount() const {
   return GetPositiveInt(kRetrieverMaxTriggerSeedCount);
 }
@@ -670,9 +797,33 @@ int GlobalConfig::GetUserCfTriggerSeedUserCount() const {
   return GetPositiveInt(kUserCfTriggerSeedUserCount);
 }
 
-string GlobalConfig::GetProfileStoreType() const { return GetString(kProfileStoreType); }
+////////////////////////////////////////////////////////////////////////////////
+// STORE CONFIGS
+////////////////////////////////////////////////////////////////////////////////
 
-string GlobalConfig::GetProfileStoreDataPath() const { return GetString(kProfileStoreDataPath); }
+string GlobalConfig::GetProfileStoreType() const {
+  return GetString(kProfileStoreType);
+}
+
+string GlobalConfig::GetProfileStoreDataPath() const {
+  return GetString(kProfileStoreDataPath);
+}
+
+string GlobalConfig::GetItemIndexStoreType() const {
+  return GetString(kItemIndexStoreType);
+}
+
+string GlobalConfig::GetItemIndexStoreDataPath() const {
+  return GetString(kItemIndexStoreDataPath);
+}
+
+vector<string> GlobalConfig::GetRankingRankers() const {
+  return SplitCommaSeparatedValues(GetString(kRankingRankers));
+}
+
+string GlobalConfig::GetRankingDefaultRanker() const {
+  return GetString(kRankingDefaultRanker);
+}
 
 string GlobalConfig::GetSimilarityStoreType() const {
   return GetString(kSimilarityStoreType);
@@ -682,6 +833,10 @@ string GlobalConfig::GetSimilarityDataPath() const {
   return GetString(kSimilarityDataPath);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// LOCAL CACHE CONFIGS
+////////////////////////////////////////////////////////////////////////////////
+
 int GlobalConfig::GetLocalCacheCapacity() const {
   return GetInt(kLocalCacheCapacity);
 }
@@ -689,6 +844,18 @@ int GlobalConfig::GetLocalCacheCapacity() const {
 int GlobalConfig::GetLocalCacheTtlSeconds() const {
   return GetInt(kLocalCacheTtlSeconds);
 }
+
+string_view GlobalConfig::GetLocalCacheCapacityKey() const {
+  return Key(kLocalCacheCapacity);
+}
+
+string_view GlobalConfig::GetLocalCacheTtlSecondsKey() const {
+  return Key(kLocalCacheTtlSeconds);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// ELASTICSEARCH CONFIGS
+////////////////////////////////////////////////////////////////////////////////
 
 string GlobalConfig::GetElasticsearchBaseUrl() const {
   return GetString(kElasticsearchBaseUrl);
@@ -766,6 +933,29 @@ string GlobalConfig::GetElasticsearchHttpClientCaCertPath() const {
   return GetString(kElasticsearchHttpClientCaCertPath);
 }
 
+string_view GlobalConfig::GetElasticsearchRequestTimeoutMsKey() const {
+  return Key(kElasticsearchRequestTimeoutMs);
+}
+
+string_view GlobalConfig::GetElasticsearchHttpClientAcquireTimeoutMsKey()
+    const {
+  return Key(kElasticsearchHttpClientAcquireTimeoutMs);
+}
+
+string_view GlobalConfig::GetElasticsearchHttpClientRequestTimeoutMsKey()
+    const {
+  return Key(kElasticsearchHttpClientRequestTimeoutMs);
+}
+
+string_view GlobalConfig::GetElasticsearchHttpClientConnectTimeoutMsKey()
+    const {
+  return Key(kElasticsearchHttpClientConnectTimeoutMs);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// REDIS CONFIGS
+////////////////////////////////////////////////////////////////////////////////
+
 string GlobalConfig::GetRedisHost() const { return GetString(kRedisHost); }
 
 uint16_t GlobalConfig::GetRedisPort() const { return GetUInt16(kRedisPort); }
@@ -816,32 +1006,9 @@ int GlobalConfig::GetRedisCommandBatchSize() const {
   return GetPositiveInt(kRedisCommandBatchSize);
 }
 
-string_view GlobalConfig::GetLocalCacheCapacityKey() const {
-  return Key(kLocalCacheCapacity);
-}
-
-string_view GlobalConfig::GetLocalCacheTtlSecondsKey() const {
-  return Key(kLocalCacheTtlSeconds);
-}
-
-string_view GlobalConfig::GetElasticsearchRequestTimeoutMsKey() const {
-  return Key(kElasticsearchRequestTimeoutMs);
-}
-
-string_view GlobalConfig::GetElasticsearchHttpClientAcquireTimeoutMsKey()
-    const {
-  return Key(kElasticsearchHttpClientAcquireTimeoutMs);
-}
-
-string_view GlobalConfig::GetElasticsearchHttpClientRequestTimeoutMsKey()
-    const {
-  return Key(kElasticsearchHttpClientRequestTimeoutMs);
-}
-
-string_view GlobalConfig::GetElasticsearchHttpClientConnectTimeoutMsKey()
-    const {
-  return Key(kElasticsearchHttpClientConnectTimeoutMs);
-}
+////////////////////////////////////////////////////////////////////////////////
+// RESOLVED CONFIG LOGGING
+////////////////////////////////////////////////////////////////////////////////
 
 ::std::vector<::std::pair<string, string>> GlobalConfig::GetResolvedValues()
     const {
@@ -850,13 +1017,6 @@ string_view GlobalConfig::GetElasticsearchHttpClientConnectTimeoutMsKey()
     values.emplace_back(entry.key, GetString(entry.field));
   }
   return values;
-}
-
-string_view GlobalConfig::GetServiceName() const {
-  if (service_name_.empty()) {
-    throw invalid_argument("GlobalConfig service_name is not initialized");
-  }
-  return service_name_;
 }
 
 bool GlobalConfig::IsSensitiveConfigKey(string_view key) {
@@ -872,8 +1032,8 @@ void GlobalConfig::LogResolvedConfig(const Logger& logger) const {
         {key, IsSensitiveConfigKey(key) ? kRedactedValue : string_view(value)});
   }
   logger.Info(
-    "resolved_config",
-    fields);
+      "resolved_config",
+      fields);
 }
 
 void GlobalConfig::LogResolvedConfigSection(
@@ -890,9 +1050,13 @@ void GlobalConfig::LogResolvedConfigSection(
         {key, IsSensitiveConfigKey(key) ? kRedactedValue : string_view(value)});
   }
   logger.Info(
-    "resolved_config_section",
-    fields);
+      "resolved_config_section",
+      fields);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// YAML CONFIG LOADING
+////////////////////////////////////////////////////////////////////////////////
 
 void ConfigYAML::ApplyStartupFile(int argc, char** argv,
                                   string_view executable_path) {
@@ -920,12 +1084,36 @@ void ConfigYAML::ApplyFile(const string& file_path) {
                            "': " + ex.what());
   }
 
+  vector<::std::pair<int, string>> ranking_rankers;
   for (const auto& [key, value] : loaded_values) {
+    const optional<int> ranking_ranker_index =
+        ParseRankingRankerArrayIndex(key);
+    if (ranking_ranker_index.has_value()) {
+      ranking_rankers.emplace_back(*ranking_ranker_index, value);
+      continue;
+    }
+
     const optional<ConfigEntry> entry = FindEntryByYamlKey(key);
     if (!entry.has_value()) {
       throw invalid_argument("Unknown YAML config key: " + key);
     }
     GlobalConfig::MutableGet().Set(entry->field, value);
+  }
+
+  if (!ranking_rankers.empty()) {
+    ::std::sort(ranking_rankers.begin(), ranking_rankers.end());
+
+    vector<string> ranker_names;
+    ranker_names.reserve(ranking_rankers.size());
+    for (const auto& [index, ranker_name] : ranking_rankers) {
+      (void)index;
+      const string trimmed_ranker_name = Trim(ranker_name);
+      if (!trimmed_ranker_name.empty()) {
+        ranker_names.push_back(trimmed_ranker_name);
+      }
+    }
+    GlobalConfig::MutableGet().Set(kRankingRankers,
+                                   JoinCommaSeparatedValues(ranker_names));
   }
 }
 
@@ -941,6 +1129,10 @@ void ConfigYAML::ApplyFileIfExists(const string& file_path) {
   }
   ApplyFile(file_path);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// COMMAND LINE CONFIG LOADING
+////////////////////////////////////////////////////////////////////////////////
 
 void ConfigArguments::Apply(int argc, char** argv) {
   for (int i = 1; i < argc; ++i) {

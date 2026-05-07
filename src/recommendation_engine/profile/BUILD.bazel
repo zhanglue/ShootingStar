@@ -24,6 +24,7 @@ cc_library(
         "//src/utilities/global_config:global_config",
         "//src/utilities/logger:logger",
         "//src/utilities/lru_cache:lru_cache",
+        "//src/utilities/local_profile_loader:local_profile_loader",
         "//src/utilities/pb_data_handler:pb_data_handler",
         "//src/utilities/runtime_utilities:runtime_utilities",
         "@abseil-cpp//absl/strings:str_format",

@@ -23,37 +23,54 @@ class GlobalConfig final {
   GlobalConfig(const GlobalConfig&) = delete;
   GlobalConfig& operator=(const GlobalConfig&) = delete;
 
+  ::std::string_view GetServiceName() const;
   ::std::string GetConfigPath() const;
   ::std::string GetServerHost() const;
   uint16_t GetServerPort() const;
   ::std::string GetListenAddress() const;
   ::std::string GetLogLevel() const;
 
-  // configs for the services as downstream dependencies
+  // service as downstream dependencies configs
   ::std::string GetProfileServiceHost() const;
   uint16_t GetProfileServicePort() const;
   ::std::string GetProfileServiceAddress() const;
   ::std::string GetRetrievalServiceHost() const;
   uint16_t GetRetrievalServicePort() const;
   ::std::string GetRetrievalServiceAddress() const;
-  double GetRetrievalRecallCandidateExpandRatio() const;
+  ::std::string GetRankingServiceHost() const;
+  uint16_t GetRankingServicePort() const;
+  ::std::string GetRankingServiceAddress() const;
   ::std::string GetRetrieverItemCfHost() const;
   uint16_t GetRetrieverItemCfPort() const;
   ::std::string GetRetrieverItemCfAddress() const;
   ::std::string GetRetrieverUserCfHost() const;
   uint16_t GetRetrieverUserCfPort() const;
   ::std::string GetRetrieverUserCfAddress() const;
+
+  // retrieval configs
+  double GetRetrievalRecallCandidateExpandRatio() const;
   int GetRetrieverMaxTriggerSeedCount() const;
   double GetRetrieverItemCfScoreMultiplier() const;
   double GetRetrieverUserCfScoreMultiplier() const;
   int GetUserCfTriggerSeedUserCount() const;
 
+  // store configs
   ::std::string GetProfileStoreType() const;
   ::std::string GetProfileStoreDataPath() const;
+  ::std::string GetItemIndexStoreType() const;
+  ::std::string GetItemIndexStoreDataPath() const;
+  ::std::vector<::std::string> GetRankingRankers() const;
+  ::std::string GetRankingDefaultRanker() const;
   ::std::string GetSimilarityStoreType() const;
   ::std::string GetSimilarityDataPath() const;
+
+  // local cache configs
   int GetLocalCacheCapacity() const;
   int GetLocalCacheTtlSeconds() const;
+  ::std::string_view GetLocalCacheCapacityKey() const;
+  ::std::string_view GetLocalCacheTtlSecondsKey() const;
+
+  // elasticsearch configs
   ::std::string GetElasticsearchBaseUrl() const;
   ::std::string GetElasticsearchIndex() const;
   ::std::string GetElasticsearchUsername() const;
@@ -73,7 +90,13 @@ class GlobalConfig final {
   bool GetElasticsearchHttpClientFollowRedirects() const;
   bool GetElasticsearchHttpClientVerifySsl() const;
   ::std::string GetElasticsearchHttpClientCaCertPath() const;
+  ::std::string_view GetElasticsearchRequestTimeoutMsKey() const;
+  ::std::string_view GetElasticsearchHttpClientAcquireTimeoutMsKey() const;
+  ::std::string_view GetElasticsearchHttpClientRequestTimeoutMsKey() const;
+  ::std::string_view GetElasticsearchHttpClientConnectTimeoutMsKey() const;
 
+
+  // redis configs
   ::std::string GetRedisHost() const;
   uint16_t GetRedisPort() const;
   int GetRedisDb() const;
@@ -89,16 +112,7 @@ class GlobalConfig final {
   int GetRedisRetryDelayMs() const;
   int GetRedisCommandBatchSize() const;
 
-  ::std::string_view GetLocalCacheCapacityKey() const;
-  ::std::string_view GetLocalCacheTtlSecondsKey() const;
-  ::std::string_view GetElasticsearchRequestTimeoutMsKey() const;
-  ::std::string_view GetElasticsearchHttpClientAcquireTimeoutMsKey() const;
-  ::std::string_view GetElasticsearchHttpClientRequestTimeoutMsKey() const;
-  ::std::string_view GetElasticsearchHttpClientConnectTimeoutMsKey() const;
-
-  ::std::vector<::std::pair<::std::string, ::std::string>> GetResolvedValues()
-      const;
-  ::std::string_view GetServiceName() const;
+  ::std::vector<::std::pair<::std::string, ::std::string>> GetResolvedValues() const;
   static bool IsSensitiveConfigKey(::std::string_view key);
   void LogResolvedConfig(const Logger& logger) const;
   void LogResolvedConfigSection(const Logger& logger,

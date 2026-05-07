@@ -1,0 +1,13 @@
+server:
+  host: 127.0.0.1
+  port: 50300
+  log_level: DEBUG
+
+item_index_store:
+  type: local
+  data_path: tests/testdata/recommendation_engine/local_recommendation_fixture/item_index.jsonl
+
+ranking:
+  rankers:
+  - heuristic_v1
+  default_ranker: heuristic_v1

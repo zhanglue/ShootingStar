@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "json_parser",
+    srcs = ["json_parser.cpp"],
+    hdrs = ["json_parser.h"],
+    deps = ["@protobuf//:protobuf"],
+)

@@ -23,7 +23,5 @@ spec:
             memory: 512Mi
             cpu: "1"
         args:
-        - --ip
-        - gateway.recommendation-engine.svc.cluster.local
-        - --port
-        - "50000"
+        - --ip=gateway.recommendation-engine.svc.cluster.local
+        - --port=50000

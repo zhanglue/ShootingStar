@@ -12,9 +12,11 @@ using ::grpc::StatusCode;
 using ::std::format;
 
 GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profile_channel,
-                                       ::std::shared_ptr<::grpc::Channel> retrieval_channel)
+                                       ::std::shared_ptr<::grpc::Channel> retrieval_channel,
+                                       ::std::shared_ptr<::grpc::Channel> ranking_channel)
     : profile_stub_(ProfileService::NewStub(::std::move(profile_channel))),
-      retrieval_stub_(RetrievalService::NewStub(::std::move(retrieval_channel))) {}
+      retrieval_stub_(RetrievalService::NewStub(::std::move(retrieval_channel))),
+      ranking_stub_(RankingService::NewStub(::std::move(ranking_channel))) {}
 
 ::grpc::Status GatewayServiceImpl::Recommend(
     ::grpc::ServerContext* context,
@@ -32,7 +34,16 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
     return status;
   }
 
-  status = FetchCandidates(*request, response->profile(), response, &recommendation_status);
+  RetrieveResponse retrieval_response;
+  status = FetchCandidates(*request, response->profile(), &retrieval_response,
+                           &recommendation_status);
+  if (!status.ok()) {
+    response->set_status(recommendation_status);
+    return status;
+  }
+
+  status = FetchRankedCandidates(*request, response->profile(), retrieval_response, response,
+                                 &recommendation_status);
   response->set_status(recommendation_status);
   return status;
 }
@@ -85,7 +96,7 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
 
 ::grpc::Status GatewayServiceImpl::FetchCandidates(const RecommendRequest& request,
                                                    const Profile& profile,
-                                                   RecommendResponse* response,
+                                                   RetrieveResponse* retrieval_response,
                                                    RecommendationStatus* recommendation_status) const {
   if (retrieval_stub_ == nullptr) {
     *recommendation_status = RecommendationStatus::SYSTEM_ERROR;
@@ -99,10 +110,9 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
   retrieval_request.mutable_profile()->CopyFrom(profile);
   retrieval_request.set_max_candidate_count(request.max_results());
 
-  RetrieveResponse retrieval_response;
   ClientContext retrieval_context;
   const Status retrieval_status =
-      retrieval_stub_->Retrieve(&retrieval_context, retrieval_request, &retrieval_response);
+      retrieval_stub_->Retrieve(&retrieval_context, retrieval_request, retrieval_response);
 
   if (!retrieval_status.ok()) {
     *recommendation_status = retrieval_status.error_code() == StatusCode::INVALID_ARGUMENT
@@ -115,21 +125,71 @@ GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profil
                          request.user_id(), retrieval_status.error_message()));
   }
 
-  if (retrieval_response.status() != RetrievalServiceStatus::RETRIEVAL_SUCCESS) {
+  if (retrieval_response->status() != RetrievalServiceStatus::RETRIEVAL_SUCCESS) {
     *recommendation_status =
-        retrieval_response.status() == RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST
+        retrieval_response->status() == RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST
             ? RecommendationStatus::INVALID_REQUEST
             : RecommendationStatus::SYSTEM_ERROR;
     return Status(*recommendation_status == RecommendationStatus::INVALID_REQUEST
                       ? StatusCode::INVALID_ARGUMENT
                       : StatusCode::INTERNAL,
                   format("Retrieval service returned non-success status {} for user {}.",
-                         static_cast<int>(retrieval_response.status()), request.user_id()));
+                         static_cast<int>(retrieval_response->status()), request.user_id()));
   }
 
-  response->set_candidate_count(retrieval_response.candidate_count());
+  *recommendation_status = RecommendationStatus::SUCCESS;
+  return Status::OK;
+}
+
+::grpc::Status GatewayServiceImpl::FetchRankedCandidates(
+    const RecommendRequest& request, const Profile& profile,
+    const RetrieveResponse& retrieval_response, RecommendResponse* response,
+    RecommendationStatus* recommendation_status) const {
+  if (ranking_stub_ == nullptr) {
+    *recommendation_status = RecommendationStatus::SYSTEM_ERROR;
+    return Status(StatusCode::INTERNAL, "Ranking service client is not initialized.");
+  }
+
+  RankRequest rank_request;
+  rank_request.set_trace_id(request.request_id());
+  rank_request.set_request_id(::shooting_star::utilities::GenerateGuid());
+  rank_request.set_user_id(request.user_id());
+  rank_request.mutable_profile()->CopyFrom(profile);
+  rank_request.set_max_results(request.max_results());
   for (const CandidateItem& candidate : retrieval_response.candidates()) {
-    response->add_candidates()->CopyFrom(candidate);
+    rank_request.add_candidates()->CopyFrom(candidate);
+  }
+
+  RankResponse rank_response;
+  ClientContext rank_context;
+  const Status rank_status = ranking_stub_->Rank(&rank_context, rank_request, &rank_response);
+
+  if (!rank_status.ok()) {
+    *recommendation_status = rank_status.error_code() == StatusCode::INVALID_ARGUMENT
+                                 ? RecommendationStatus::INVALID_REQUEST
+                                 : RecommendationStatus::SYSTEM_ERROR;
+    return Status(*recommendation_status == RecommendationStatus::INVALID_REQUEST
+                      ? StatusCode::INVALID_ARGUMENT
+                      : StatusCode::INTERNAL,
+                  format("Failed to rank candidates for user {}: {}", request.user_id(),
+                         rank_status.error_message()));
+  }
+
+  if (rank_response.status() != RankingServiceStatus::RANKING_SUCCESS) {
+    *recommendation_status =
+        rank_response.status() == RankingServiceStatus::RANKING_INVALID_REQUEST
+            ? RecommendationStatus::INVALID_REQUEST
+            : RecommendationStatus::SYSTEM_ERROR;
+    return Status(*recommendation_status == RecommendationStatus::INVALID_REQUEST
+                      ? StatusCode::INVALID_ARGUMENT
+                      : StatusCode::INTERNAL,
+                  format("Ranking service returned non-success status {} for user {}.",
+                         static_cast<int>(rank_response.status()), request.user_id()));
+  }
+
+  response->set_candidate_count(rank_response.ranked_candidate_count());
+  for (const RankedCandidateItem& ranked_candidate : rank_response.ranked_candidates()) {
+    response->add_candidates()->CopyFrom(ranked_candidate.candidate());
   }
 
   *recommendation_status = RecommendationStatus::SUCCESS;

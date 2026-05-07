@@ -2,25 +2,20 @@
 
 #include <optional>
 #include <string>
-#include <unordered_map>
 
 #include "src/recommendation_engine/profile/profile_store.h"
+#include "src/utilities/local_profile_loader/local_profile_loader.h"
 
 namespace recommendation_engine {
-
-using UserIdProfileMap = ::std::unordered_map<int, Profile>;
 
 class LocalFileProfileStore final : public ProfileStore {
  public:
   explicit LocalFileProfileStore(const ::std::string& file_path);
 
-  ::std::optional<Profile> FindByUserId(int user_id) const override;
+ ::std::optional<Profile> FindByUserId(int user_id) const override;
 
  private:
-  bool LoadFromJsonlFile(const ::std::string& file_path,
-                         ::std::string* error_msg = nullptr);
-
-  UserIdProfileMap profiles_;
+  ::shooting_star::utilities::UserIdProfileMap profiles_;
 };
 
 }  // namespace recommendation_engine
