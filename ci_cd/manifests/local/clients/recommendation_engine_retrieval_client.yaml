@@ -23,7 +23,5 @@ spec:
             memory: 512Mi
             cpu: "1"
         args:
-        - --ip
-        - retrieval-orchestrator.recommendation-engine.svc.cluster.local
-        - --port
-        - "50200"
+        - --ip=retrieval-orchestrator.recommendation-engine.svc.cluster.local
+        - --port="50200"

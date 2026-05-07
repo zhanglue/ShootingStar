@@ -23,7 +23,5 @@ spec:
             memory: 512Mi
             cpu: "1"
         args:
-        - --ip
-        - retriever-item-cf.recommendation-engine.svc.cluster.local
-        - --port
-        - "50210"
+        - --ip=retriever-item-cf.recommendation-engine.svc.cluster.local
+        - --port="50210"

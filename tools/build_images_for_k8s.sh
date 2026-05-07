@@ -9,6 +9,7 @@ DOCKER_FILE_TO_IMAGE_NAME=(
     'clients/redis_client                           | redis-client'
     'recommendation_engine/gateway                  | recommendation-engine-gateway'
     'recommendation_engine/profile                  | recommendation-engine-profile'
+    'recommendation_engine/ranking                  | recommendation-engine-ranking'
     'recommendation_engine/retrieval_orchestrator   | recommendation-engine-retrieval-orchestrator'
     'recommendation_engine/retriever_item_cf        | recommendation-engine-retriever-item-cf'
     'recommendation_engine/retriever_user_cf        | recommendation-engine-retriever-user-cf'

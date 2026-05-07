@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: recommendation-engine
-  name: profile
+  name: ranking
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: profile
+      app: ranking
   template:
     metadata:
       labels:
-        app: profile
+        app: ranking
     spec:
       nodeSelector:
         "kubernetes.io/os": linux
       containers:
-      - name: profile
-        image: recommendation-engine-profile:latest
+      - name: ranking
+        image: recommendation-engine-ranking:latest
         imagePullPolicy: Never
         args:
         - --config_path=config.k8s.yaml
@@ -39,7 +39,7 @@ spec:
               name: item-index-es-elastic-user
               key: elastic
         ports:
-        - containerPort: 50100
+        - containerPort: 50300
           name: grpc
         volumeMounts:
         - name: elasticsearch-ca
@@ -56,10 +56,10 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: recommendation-engine
-  name: profile
+  name: ranking
 spec:
   type: LoadBalancer
   ports:
-  - port: 50100
+  - port: 50300
   selector:
-    app: profile
+    app: ranking
