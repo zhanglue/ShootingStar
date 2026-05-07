@@ -24,4 +24,4 @@ spec:
             cpu: "1"
         args:
         - --ip=ranking.recommendation-engine.svc.cluster.local
-        - --port="50300"
+        - --port=50300

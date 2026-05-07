@@ -24,4 +24,4 @@ spec:
             cpu: "1"
         args: 
         - --ip=fetcher.weather-forecast.svc.cluster.local
-        - --port="40000"
+        - --port=40000

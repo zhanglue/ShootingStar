@@ -24,4 +24,4 @@ spec:
             cpu: "1"
         args:
         - --ip=retrieval-orchestrator.recommendation-engine.svc.cluster.local
-        - --port="50200"
+        - --port=50200
