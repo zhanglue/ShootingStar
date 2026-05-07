@@ -8,7 +8,6 @@ cc_library(
     hdrs = ["local_profile_loader.h"],
     deps = [
         "//protos/recommendation_engine:profile_cc",
-        "//src/recommendation_engine/profile:profile_lib",
-        "//src/utilities/runtime_utilities:runtime_utilities",
+        "//src/utilities/pb_data_handler:pb_data_handler",
     ],
 )

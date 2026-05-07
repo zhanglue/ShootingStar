@@ -10,8 +10,8 @@
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
 #include "src/clients/client_runtime.h"
-#include "src/utilities/runtime_utilities/runtime_utilities.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
+#include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -20,6 +20,7 @@ using ::recommendation_engine::RetrieverRequest;
 using ::recommendation_engine::RetrieverResponse;
 using ::shooting_star::utilities::GenerateGuid;
 using ::shooting_star::utilities::LoadProfileFromLocalFile;
+using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 using ::std::chrono::duration_cast;
 using ::std::chrono::steady_clock;
 using ::std::cout;
@@ -49,8 +50,11 @@ class RetrieverClient {
     request.set_max_candidate_count(max_candidate_count);
 
     string error_msg;
-    if (!LoadProfileFromLocalFile(profile_data_path, executable_path, user_id,
-                                  request.mutable_profile(), &error_msg)) {
+    const string resolved_profile_data_path =
+        ResolveWorkspaceRelativePath(profile_data_path, executable_path);
+    if (!LoadProfileFromLocalFile(resolved_profile_data_path, user_id,
+                                          request.mutable_profile(),
+                                          &error_msg)) {
       ::std::cerr << "Failed to load profile: " << error_msg << ::std::endl;
       return;
     }

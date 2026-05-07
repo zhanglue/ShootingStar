@@ -17,6 +17,7 @@ DOCKER_FILE_TO_IMAGE_NAME=(
     'clients/recommendation_engine_profile_client   | recommendation-engine-profile-client'
     'clients/recommendation_engine_retrieval_client | recommendation-engine-retrieval-client'
     'clients/recommendation_engine_retriever_client | recommendation-engine-retriever-client'
+    'clients/recommendation_engine_ranking_client   | recommendation-engine-ranking-client'
     'weather_forecast/fetcher                       | weather-forecast-fetcher'
     'clients/weather_forecast_fetcher_client        | weather-forecast-fetcher-client'
 )

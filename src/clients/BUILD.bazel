@@ -94,3 +94,18 @@ cc_binary(
         "@protobuf//:protobuf",
     ],
 )
+
+cc_binary(
+    name = "recommendation_engine_ranking_client",
+    srcs = ["recommendation_engine_ranking_client.cpp"],
+    deps = [
+        ":client_runtime",
+        "//protos/recommendation_engine:ranking_cc",
+        "//protos/recommendation_engine:ranking_cc_grpc",
+        "//src/utilities/json_parser:json_parser",
+        "//src/utilities/local_profile_loader:local_profile_loader",
+        "//src/utilities/runtime_utilities:runtime_utilities",
+        "@grpc//:grpc++",
+        "@protobuf//:protobuf",
+    ],
+)
