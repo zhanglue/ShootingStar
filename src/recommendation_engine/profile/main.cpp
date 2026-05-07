@@ -14,9 +14,7 @@
 
 namespace {
 
-using ::grpc::CreateChannel;
 using ::grpc::EnableDefaultHealthCheckService;
-using ::grpc::InsecureChannelCredentials;
 using ::grpc::InsecureServerCredentials;
 using ::grpc::Server;
 using ::grpc::ServerBuilder;
