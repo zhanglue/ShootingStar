@@ -3,30 +3,50 @@
 #include <grpcpp/grpcpp.h>
 
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <string>
-
-#include "protos/weather_forecast/fetcher.grpc.pb.h"
+#include <utility>
 
 namespace weather_flow {
 
-using ::grpc::Server;
-using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::std::cout;
 using ::std::endl;
+using ::std::invalid_argument;
+using ::std::make_unique;
 using ::std::string;
-using ::weather_flow::Fetcher;
+using ::std::unique_ptr;
 using ::weather_flow::GetWeatherRequest;
 using ::weather_flow::GetWeatherResponse;
 
-// Hardcoded weather data for cities.
-FetcherServiceImpl::FetcherServiceImpl() {
-  weather_data_map_["San Francisco"] = WeatherData::SUNNY;
-  weather_data_map_["New York"] = WeatherData::CLOUDY;
-  weather_data_map_["Seattle"] = WeatherData::RAINY;
-  weather_data_map_["Denver"] = WeatherData::SNOWY;
+namespace {
+
+FetcherServiceImpl::WeatherDataMap CreateDefaultWeatherDataMap() {
+  FetcherServiceImpl::WeatherDataMap weather_data_map;
+  weather_data_map["San Francisco"] = WeatherData::SUNNY;
+  weather_data_map["New York"] = WeatherData::CLOUDY;
+  weather_data_map["Seattle"] = WeatherData::RAINY;
+  weather_data_map["Denver"] = WeatherData::SNOWY;
+  return weather_data_map;
+}
+
+}  // namespace
+
+FetcherServiceImpl::FetcherServiceImpl(WeatherDataMap weather_data_map)
+    : weather_data_map_(::std::move(weather_data_map)) {
+  if (weather_data_map_.empty()) {
+    throw invalid_argument("FetcherServiceImpl weather_data_map must not be empty.");
+  }
+}
+
+unique_ptr<FetcherServiceImpl> FetcherServiceImpl::Create() {
+  WeatherDataMap weather_data_map = CreateDefaultWeatherDataMap();
+  unique_ptr<FetcherServiceImpl> server =
+      make_unique<FetcherServiceImpl>(::std::move(weather_data_map));
+  return server;
 }
 
 Status FetcherServiceImpl::GetWeather(ServerContext* context,

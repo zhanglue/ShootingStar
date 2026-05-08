@@ -1,6 +1,8 @@
 #ifndef FETCHER_SERVICE_H
 #define FETCHER_SERVICE_H
 
+#include <memory>
+#include <string>
 #include <unordered_map>
 
 #include <grpcpp/grpcpp.h>
@@ -11,13 +13,19 @@ namespace weather_flow {
 
 class FetcherServiceImpl final : public Fetcher::Service {
  public:
-  FetcherServiceImpl();
+  using WeatherDataMap =
+      std::unordered_map<std::string, WeatherData::WeatherCondition>;
+
+  explicit FetcherServiceImpl(WeatherDataMap weather_data_map);
+
+  static std::unique_ptr<FetcherServiceImpl> Create();
+
   grpc::Status GetWeather(grpc::ServerContext* context,
                           const GetWeatherRequest* request,
                           GetWeatherResponse* response) override;
 
  private:
-  std::unordered_map<std::string, WeatherData::WeatherCondition> weather_data_map_;
+  WeatherDataMap weather_data_map_;
 };
 
 }  // namespace weather_flow

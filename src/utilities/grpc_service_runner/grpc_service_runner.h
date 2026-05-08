@@ -20,6 +20,18 @@ namespace shooting_star {
 namespace utilities {
 
 template <typename ServiceT>
+::std::unique_ptr<ServiceT> CreateGrpcServer(const GlobalConfig& config) {
+  if constexpr (requires { ServiceT::Create(config); }) {
+    return ServiceT::Create(config);
+  } else if constexpr (requires { ServiceT::Create(); }) {
+    return ServiceT::Create();
+  } else {
+    static_assert(sizeof(ServiceT) == 0,
+                  "ServiceT must provide Create(config) or Create().");
+  }
+}
+
+template <typename ServiceT>
 int RunGrpcService(const char* service_name, int argc, char** argv) {
   static_assert(::std::is_base_of_v<::grpc::Service, ServiceT>,
                 "ServiceT must be a grpc::Service implementation.");
@@ -39,7 +51,7 @@ int RunGrpcService(const char* service_name, int argc, char** argv) {
     config.LogResolvedConfig(logger);
 
     const ::std::string server_address = config.GetListenAddress();
-    ::std::unique_ptr<ServiceT> server = ServiceT::Create(config);
+    ::std::unique_ptr<ServiceT> server = CreateGrpcServer<ServiceT>(config);
     if (server == nullptr) {
       throw ::std::runtime_error("Service factory returned null.");
     }
