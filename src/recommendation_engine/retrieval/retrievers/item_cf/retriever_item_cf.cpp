@@ -171,18 +171,47 @@ unique_ptr<ItemSimilarityStore> CreateItemSimilarityStore(
 
 }  // namespace
 
-RetrieverItemCf::RetrieverItemCf(int default_max_candidate_count)
-    : RetrieverItemCf(CreateItemSimilarityStore(GlobalConfig::Get()),
-                      default_max_candidate_count) {}
-
 RetrieverItemCf::RetrieverItemCf(
     unique_ptr<ItemSimilarityStore> item_similarity_store,
-    int default_max_candidate_count)
-    : RetrieverBase(default_max_candidate_count),
-      item_similarity_store_(::std::move(item_similarity_store)) {
+    Options options)
+    : RetrieverBase(options.default_max_candidate_count),
+      item_similarity_store_(::std::move(item_similarity_store)),
+      max_trigger_seed_count_(options.max_trigger_seed_count),
+      redis_command_batch_size_(options.redis_command_batch_size),
+      score_multiplier_(options.score_multiplier) {
   if (item_similarity_store_ == nullptr) {
     throw runtime_error("RetrieverItemCf item_similarity_store must not be null");
   }
+  if (options.default_max_candidate_count <= 0) {
+    throw invalid_argument(
+        "RetrieverItemCf default_max_candidate_count must be positive");
+  }
+  if (max_trigger_seed_count_ <= 0) {
+    throw invalid_argument(
+        "RetrieverItemCf max_trigger_seed_count must be positive");
+  }
+  if (redis_command_batch_size_ <= 0) {
+    throw invalid_argument(
+        "RetrieverItemCf redis_command_batch_size must be positive");
+  }
+  if (score_multiplier_ <= 0.0) {
+    throw invalid_argument("RetrieverItemCf score_multiplier must be positive");
+  }
+}
+
+unique_ptr<RetrieverItemCf> RetrieverItemCf::Create(
+    const GlobalConfig& config) {
+  Options options;
+  options.max_trigger_seed_count = config.GetRetrieverMaxTriggerSeedCount();
+  options.redis_command_batch_size = config.GetRedisCommandBatchSize();
+  options.score_multiplier = config.GetRetrieverItemCfScoreMultiplier();
+
+  unique_ptr<ItemSimilarityStore> item_similarity_store =
+      CreateItemSimilarityStore(config);
+  unique_ptr<RetrieverItemCf> server =
+      make_unique<RetrieverItemCf>(::std::move(item_similarity_store),
+                                   options);
+  return server;
 }
 
 Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
@@ -235,13 +264,11 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
 void RetrieverItemCf::BuildTriggerSeeds(
     const RetrieverRequest& request,
     const shared_ptr<SessionData>& session) const {
-  const GlobalConfig& config = GlobalConfig::Get();
   const auto& logger = LoggerRegistry::Get();
   vector<TriggerSeed> collected_trigger_seeds =
       CollectTriggerSeeds(request.profile());
   session->trigger_seeds = SelectTopTriggerSeeds(
-      ::std::move(collected_trigger_seeds),
-      config.GetRetrieverMaxTriggerSeedCount());
+      ::std::move(collected_trigger_seeds), max_trigger_seed_count_);
 
   logger.Debug(
       "item_cf_trigger_seeds_ready",
@@ -249,7 +276,7 @@ void RetrieverItemCf::BuildTriggerSeeds(
           {"user_id", to_string(request.user_id())},
           {"trigger_seed_count", to_string(session->trigger_seeds.size())},
           {"max_trigger_seed_count",
-           to_string(config.GetRetrieverMaxTriggerSeedCount())},
+           to_string(max_trigger_seed_count_)},
       });
 }
 
@@ -263,15 +290,13 @@ Status RetrieverItemCf::AggregateSimilarityCandidates(
     const RetrieverRequest& request,
     const shared_ptr<SessionData>& session,
     RetrieverResponse* response) const {
-  const GlobalConfig& config = GlobalConfig::Get();
   const auto& logger = LoggerRegistry::Get();
-  const int redis_command_batch_size = config.GetRedisCommandBatchSize();
 
   logger.Debug(
       "item_cf_filter_set_ready",
       {
           {"user_id", to_string(request.user_id())},
-          {"redis_command_batch_size", to_string(redis_command_batch_size)},
+          {"redis_command_batch_size", to_string(redis_command_batch_size_)},
           {"item_ids_to_filter_out_count",
            to_string(session->item_ids_to_filter_out.size())},
       });
@@ -284,12 +309,12 @@ Status RetrieverItemCf::AggregateSimilarityCandidates(
 
     // Fetch neighbors in batches to bound Redis pipeline size.
     for (size_t batch_start = 0; batch_start < session->trigger_seeds.size();
-         batch_start += static_cast<size_t>(redis_command_batch_size)) {
+         batch_start += static_cast<size_t>(redis_command_batch_size_)) {
       const size_t batch_end =
-          ::std::min(batch_start + static_cast<size_t>(redis_command_batch_size),
+          ::std::min(batch_start + static_cast<size_t>(redis_command_batch_size_),
                      session->trigger_seeds.size());
       const size_t batch_index =
-          batch_start / static_cast<size_t>(redis_command_batch_size);
+          batch_start / static_cast<size_t>(redis_command_batch_size_);
       vector<uint64_t> trigger_item_ids;
       trigger_item_ids.reserve(batch_end - batch_start);
       for (size_t i = batch_start; i < batch_end; ++i) {
@@ -375,8 +400,6 @@ void RetrieverItemCf::FillResponseCandidates(
   // Convert aggregated map to an ordered top-K response.
   const vector<CandidateScore> sorted_candidates =
       SortCandidates(session->candidates);
-  const double score_multiplier =
-      GlobalConfig::Get().GetRetrieverItemCfScoreMultiplier();
   for (const CandidateScore& scored_candidate : sorted_candidates) {
     if (response->candidates_size() >= request.max_candidate_count()) {
       break;
@@ -386,11 +409,11 @@ void RetrieverItemCf::FillResponseCandidates(
     candidate->set_item_id(scored_candidate.item_id);
     candidate->set_item_type(ItemType::ITEM_TYPE_UNSPECIFIED);
     candidate->set_retriever(kRetrieverName);
-    candidate->set_retrieve_score(scored_candidate.score * score_multiplier);
+    candidate->set_retrieve_score(scored_candidate.score * score_multiplier_);
 
     RetrievalReason* reason = candidate->add_reasons();
     reason->set_reason_type(ReasonType::REASON_TYPE_ITEM_CF);
-    reason->set_reason_score(scored_candidate.reason_score * score_multiplier);
+    reason->set_reason_score(scored_candidate.reason_score * score_multiplier_);
     reason->set_description(
         format("Retrieved from item_cf using trigger item {}.",
                scored_candidate.trigger_entity_id));

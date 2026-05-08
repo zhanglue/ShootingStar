@@ -22,11 +22,12 @@ RankRequest BuildValidRequest() {
 }
 
 TEST(RankingServiceTest, BuildsConfiguredDefaultHeuristicRanker) {
-  RankingServiceImpl service(::shooting_star::utilities::GlobalConfig::Get());
+  auto server =
+      RankingServiceImpl::Create(::shooting_star::utilities::GlobalConfig::Get());
   RankRequest request = BuildValidRequest();
   RankResponse response;
 
-  const ::grpc::Status status = service.Rank(nullptr, &request, &response);
+  const ::grpc::Status status = server->Rank(nullptr, &request, &response);
 
   ASSERT_TRUE(status.ok()) << status.error_message();
   EXPECT_EQ(response.status(), RankingServiceStatus::RANKING_SUCCESS);
@@ -38,13 +39,14 @@ TEST(RankingServiceTest, BuildsConfiguredDefaultHeuristicRanker) {
 }
 
 TEST(RankingServiceTest, AcceptsRequestedConfiguredRanker) {
-  RankingServiceImpl service(::shooting_star::utilities::GlobalConfig::Get());
+  auto server =
+      RankingServiceImpl::Create(::shooting_star::utilities::GlobalConfig::Get());
 
   RankRequest request = BuildValidRequest();
   request.mutable_options()->set_ranker("heuristic_v1");
   RankResponse response;
 
-  const ::grpc::Status status = service.Rank(nullptr, &request, &response);
+  const ::grpc::Status status = server->Rank(nullptr, &request, &response);
 
   ASSERT_TRUE(status.ok()) << status.error_message();
   ASSERT_EQ(response.ranked_candidates_size(), 1);
@@ -52,13 +54,14 @@ TEST(RankingServiceTest, AcceptsRequestedConfiguredRanker) {
 }
 
 TEST(RankingServiceTest, RejectsUnknownRequestRanker) {
-  RankingServiceImpl service(::shooting_star::utilities::GlobalConfig::Get());
+  auto server =
+      RankingServiceImpl::Create(::shooting_star::utilities::GlobalConfig::Get());
 
   RankRequest request = BuildValidRequest();
   request.mutable_options()->set_ranker("missing_ranker");
   RankResponse response;
 
-  const ::grpc::Status status = service.Rank(nullptr, &request, &response);
+  const ::grpc::Status status = server->Rank(nullptr, &request, &response);
 
   EXPECT_FALSE(status.ok());
   EXPECT_EQ(status.error_code(), ::grpc::StatusCode::INVALID_ARGUMENT);
@@ -67,13 +70,14 @@ TEST(RankingServiceTest, RejectsUnknownRequestRanker) {
 }
 
 TEST(RankingServiceTest, RejectsInvalidRequestBeforeRanking) {
-  RankingServiceImpl service(::shooting_star::utilities::GlobalConfig::Get());
+  auto server =
+      RankingServiceImpl::Create(::shooting_star::utilities::GlobalConfig::Get());
 
   RankRequest request = BuildValidRequest();
   request.set_user_id(0);
   RankResponse response;
 
-  const ::grpc::Status status = service.Rank(nullptr, &request, &response);
+  const ::grpc::Status status = server->Rank(nullptr, &request, &response);
 
   EXPECT_FALSE(status.ok());
   EXPECT_EQ(status.error_code(), ::grpc::StatusCode::INVALID_ARGUMENT);

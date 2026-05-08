@@ -17,7 +17,12 @@ namespace recommendation_engine {
 
 class RankingServiceImpl final : public RankingService::Service {
  public:
-  explicit RankingServiceImpl(
+  RankingServiceImpl(
+      ::std::shared_ptr<const ItemIndexStore> item_index_store,
+      ::std::vector<::std::unique_ptr<Ranker>> rankers,
+      ::std::string default_ranker_name);
+
+  static ::std::unique_ptr<RankingServiceImpl> Create(
       const ::shooting_star::utilities::GlobalConfig& config);
 
   ::grpc::Status Rank(::grpc::ServerContext* context,
@@ -39,7 +44,6 @@ class RankingServiceImpl final : public RankingService::Service {
   const Ranker* FindRanker(::std::string_view ranker_name) const;
   ::std::string ResolveRankerName(const RankRequest& request) const;
 
-  const ::shooting_star::utilities::GlobalConfig& config_;
   ::std::shared_ptr<const ItemIndexStore> item_index_store_;
   ::std::unordered_map<::std::string, ::std::unique_ptr<Ranker>> rankers_;
   ::std::string default_ranker_name_;

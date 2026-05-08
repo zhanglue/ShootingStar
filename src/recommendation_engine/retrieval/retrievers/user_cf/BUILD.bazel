@@ -42,6 +42,7 @@ cc_binary(
     deps = [
         ":retriever_user_cf_lib",
         "//src/utilities/global_config:global_config",
+        "//src/utilities/grpc_service_runner:grpc_service_runner",
         "//src/utilities/logger:logger",
     ],
 )

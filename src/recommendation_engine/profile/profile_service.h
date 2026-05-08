@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <grpcpp/grpcpp.h>
 
 #include "protos/recommendation_engine/profile.grpc.pb.h"
@@ -10,9 +12,10 @@ namespace recommendation_engine {
 
 class ProfileServiceImpl final : public ProfileService::Service {
  public:
-  explicit ProfileServiceImpl(
-      const ::shooting_star::utilities::GlobalConfig& config =
-          ::shooting_star::utilities::GlobalConfig::Get());
+  explicit ProfileServiceImpl(::std::unique_ptr<ProfileStore> profile_store);
+
+  static ::std::unique_ptr<ProfileServiceImpl> Create(
+      const ::shooting_star::utilities::GlobalConfig& config);
 
   ::grpc::Status GetProfile(::grpc::ServerContext* context,
                             const GetProfileRequest* request,
@@ -23,7 +26,6 @@ class ProfileServiceImpl final : public ProfileService::Service {
       BatchGetUserCfProfilesResponse* response) override;
 
  private:
-  const ::shooting_star::utilities::GlobalConfig& config_;
   ::std::unique_ptr<ProfileStore> profile_store_;
 };
 

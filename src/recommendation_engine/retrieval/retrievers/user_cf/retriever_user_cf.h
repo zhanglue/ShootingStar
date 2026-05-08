@@ -11,15 +11,24 @@
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/profile_store.h"
 #include "src/recommendation_engine/retrieval/retrievers/base/retriever_base.h"
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/user_similarity_store.h"
+#include "src/utilities/global_config/global_config.h"
 
 namespace recommendation_engine {
 
 class RetrieverUserCf final : public RetrieverBase {
  public:
-  explicit RetrieverUserCf(int default_max_candidate_count = 10);
+  struct Options {
+    int default_max_candidate_count = 10;
+    int trigger_seed_user_count = 10;
+    double score_multiplier = 1.0;
+  };
+
   RetrieverUserCf(::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
                   ::std::unique_ptr<user_cf::ProfileStore> profile_store,
-                  int default_max_candidate_count = 10);
+                  Options options);
+
+  static ::std::unique_ptr<RetrieverUserCf> Create(
+      const ::shooting_star::utilities::GlobalConfig& config);
 
  private:
   // Shared mutable state for one retrieval request.
@@ -68,6 +77,8 @@ class RetrieverUserCf final : public RetrieverBase {
 
   ::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store_;
   ::std::unique_ptr<user_cf::ProfileStore> profile_store_;
+  int trigger_seed_user_count_ = 10;
+  double score_multiplier_ = 1.0;
 };
 
 }  // namespace recommendation_engine

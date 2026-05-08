@@ -8,14 +8,18 @@
 #include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
 #include "protos/recommendation_engine/ranking.grpc.pb.h"
 #include "protos/recommendation_engine/retrieval.grpc.pb.h"
+#include "src/utilities/global_config/global_config.h"
 
 namespace recommendation_engine {
 
 class GatewayServiceImpl final : public Gateway::Service {
  public:
-  GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profile_channel,
-                     ::std::shared_ptr<::grpc::Channel> retrieval_channel,
-                     ::std::shared_ptr<::grpc::Channel> ranking_channel);
+  GatewayServiceImpl(::std::unique_ptr<ProfileService::Stub> profile_stub,
+                     ::std::unique_ptr<RetrievalService::Stub> retrieval_stub,
+                     ::std::unique_ptr<RankingService::Stub> ranking_stub);
+
+  static ::std::unique_ptr<GatewayServiceImpl> Create(
+      const ::shooting_star::utilities::GlobalConfig& config);
 
   ::grpc::Status Recommend(::grpc::ServerContext* context,
                            const RecommendRequest* request,

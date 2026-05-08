@@ -130,7 +130,8 @@ TEST(RetrieverUserCfTest, RetrievesAndRanksSimilarUserProfileItems) {
   };
 
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store));
+                            ::std::move(fake_profile_store),
+                            RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 
@@ -165,7 +166,8 @@ TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenSimilarityStoreFails) {
   fake_similarity_store->should_throw = true;
   auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store));
+                            ::std::move(fake_profile_store),
+                            RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 
@@ -184,7 +186,8 @@ TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenProfileStoreFails) {
   auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
   fake_profile_store->should_throw = true;
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store));
+                            ::std::move(fake_profile_store),
+                            RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 
@@ -199,7 +202,8 @@ TEST(RetrieverUserCfTest, ReturnsEmptyTriggerSeedsWhenNoSimilarUsers) {
   auto fake_similarity_store = ::std::make_unique<FakeUserSimilarityStore>();
   auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store));
+                            ::std::move(fake_profile_store),
+                            RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 
@@ -222,7 +226,8 @@ TEST(RetrieverUserCfTest, SkipsMissingSimilarUserProfiles) {
       {20, BuildNeighborProfile(20, {{101, 1.0F}}, {})},
   };
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store));
+                            ::std::move(fake_profile_store),
+                            RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 

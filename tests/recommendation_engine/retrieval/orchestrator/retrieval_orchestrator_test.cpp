@@ -43,13 +43,13 @@ class FakeRetrieverService final : public RetrieverService::Service {
 
 class FakeRetrieverServer {
  public:
-  explicit FakeRetrieverServer(FakeRetrieverService* service) {
+  explicit FakeRetrieverServer(FakeRetrieverService* server) {
     int selected_port = 0;
     ServerBuilder builder;
     builder.AddListeningPort("127.0.0.1:0",
                              InsecureServerCredentials(),
                              &selected_port);
-    builder.RegisterService(service);
+    builder.RegisterService(server);
     server_ = builder.BuildAndStart();
     address_ = "127.0.0.1:" + ::std::to_string(selected_port);
   }
@@ -149,8 +149,14 @@ TEST(RetrievalOrchestratorTest,
 
   FakeRetrieverServer item_cf_server(&item_cf_service);
   FakeRetrieverServer user_cf_server(&user_cf_service);
-  RetrievalOrchestrator orchestrator(item_cf_server.CreateClientChannel(),
-                                     user_cf_server.CreateClientChannel());
+  RetrievalOrchestrator::RetrieverStubList retriever_stubs;
+  retriever_stubs.emplace_back(
+      "item_cf",
+      RetrieverService::NewStub(item_cf_server.CreateClientChannel()));
+  retriever_stubs.emplace_back(
+      "user_cf",
+      RetrieverService::NewStub(user_cf_server.CreateClientChannel()));
+  RetrievalOrchestrator orchestrator(::std::move(retriever_stubs), 1.0);
 
   RetrieveRequest request = BuildRequest(2);
   RetrieveResponse response;

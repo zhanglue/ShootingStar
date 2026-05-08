@@ -152,16 +152,30 @@ unique_ptr<ItemIndexStore> CreateUncachedItemIndexStore(
 
 }  // namespace
 
-RankingServiceImpl::RankingServiceImpl(const GlobalConfig& config)
-    : config_(config) {
-  item_index_store_ = CreateItemIndexStore(config_);
-
-  vector<unique_ptr<Ranker>> rankers =
-      CreateRankers(config_, item_index_store_);
+RankingServiceImpl::RankingServiceImpl(
+    shared_ptr<const ItemIndexStore> item_index_store,
+    vector<unique_ptr<Ranker>> rankers,
+    string default_ranker_name)
+    : item_index_store_(::std::move(item_index_store)) {
+  if (item_index_store_ == nullptr) {
+    throw ::std::invalid_argument(
+        "RankingServiceImpl item_index_store must not be null.");
+  }
   RegisterRankers(::std::move(rankers));
+  RegisterDefaultRanker(::std::move(default_ranker_name));
+}
 
-  const string default_ranker_name = config_.GetRankingDefaultRanker();
-  RegisterDefaultRanker(default_ranker_name);
+unique_ptr<RankingServiceImpl> RankingServiceImpl::Create(
+    const GlobalConfig& config) {
+  shared_ptr<const ItemIndexStore> item_index_store =
+      CreateItemIndexStore(config);
+  vector<unique_ptr<Ranker>> rankers = CreateRankers(config, item_index_store);
+  const string default_ranker_name = config.GetRankingDefaultRanker();
+
+  unique_ptr<RankingServiceImpl> server = make_unique<RankingServiceImpl>(
+      ::std::move(item_index_store), ::std::move(rankers),
+      default_ranker_name);
+  return server;
 }
 
 shared_ptr<const ItemIndexStore> RankingServiceImpl::CreateItemIndexStore(

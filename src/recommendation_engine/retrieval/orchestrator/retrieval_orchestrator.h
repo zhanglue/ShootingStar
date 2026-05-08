@@ -9,13 +9,21 @@
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
 #include "protos/recommendation_engine/retrieval.grpc.pb.h"
+#include "src/utilities/global_config/global_config.h"
 
 namespace recommendation_engine {
 
 class RetrievalOrchestrator final : public RetrievalService::Service {
  public:
-  RetrievalOrchestrator(::std::shared_ptr<::grpc::Channel> item_cf_channel,
-                        ::std::shared_ptr<::grpc::Channel> user_cf_channel);
+  using NamedRetrieverStub =
+      ::std::pair<::std::string, ::std::unique_ptr<RetrieverService::Stub>>;
+  using RetrieverStubList = ::std::vector<NamedRetrieverStub>;
+
+  RetrievalOrchestrator(RetrieverStubList retriever_stubs,
+                        double recall_candidate_expand_ratio);
+
+  static ::std::unique_ptr<RetrievalOrchestrator> Create(
+      const ::shooting_star::utilities::GlobalConfig& config);
 
   ::grpc::Status Retrieve(::grpc::ServerContext* context,
                           const RetrieveRequest* request,
@@ -30,11 +38,8 @@ class RetrievalOrchestrator final : public RetrievalService::Service {
   ::grpc::Status DispatchToRetrievers(const RetrieveRequest& request,
                                       RetrieveResponse* response) const;
 
-  using NamedRetrieverStub =
-      ::std::pair<::std::string, ::std::unique_ptr<RetrieverService::Stub>>;
-  using RetrieverStubList = ::std::vector<NamedRetrieverStub>;
-
   RetrieverStubList retriever_stubs_;
+  double recall_candidate_expand_ratio_ = 1.0;
 };
 
 }  // namespace recommendation_engine

@@ -164,10 +164,17 @@ void FillUserCfProfile(const Profile& source, UserCfProfile* target) {
 }  // namespace
 
 ProfileServiceImpl::ProfileServiceImpl(
-    const ::shooting_star::utilities::GlobalConfig& config)
-    : config_(config) {
+    unique_ptr<ProfileStore> profile_store)
+    : profile_store_(::std::move(profile_store)) {
+  if (profile_store_ == nullptr) {
+    throw invalid_argument("ProfileServiceImpl profile_store must not be null.");
+  }
+}
+
+unique_ptr<ProfileServiceImpl> ProfileServiceImpl::Create(
+    const ::shooting_star::utilities::GlobalConfig& config) {
   const Logger& logger = LoggerRegistry::Get();
-  const string profile_store_type = config_.GetProfileStoreType();
+  const string profile_store_type = config.GetProfileStoreType();
 
   logger.Info(
     "profile_store_selected",
@@ -175,7 +182,11 @@ ProfileServiceImpl::ProfileServiceImpl(
       {"profile_store_type", profile_store_type},
     });
 
-  profile_store_ = CreateProfileStore(config_, profile_store_type);
+  unique_ptr<ProfileStore> profile_store =
+      CreateProfileStore(config, profile_store_type);
+  unique_ptr<ProfileServiceImpl> server =
+      make_unique<ProfileServiceImpl>(::std::move(profile_store));
+  return server;
 }
 
 Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,

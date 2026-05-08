@@ -8,14 +8,24 @@
 
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/item_similarity_store.h"
 #include "src/recommendation_engine/retrieval/retrievers/base/retriever_base.h"
+#include "src/utilities/global_config/global_config.h"
 
 namespace recommendation_engine {
 
 class RetrieverItemCf final : public RetrieverBase {
  public:
-  explicit RetrieverItemCf(int default_max_candidate_count = 10);
+  struct Options {
+    int default_max_candidate_count = 10;
+    int max_trigger_seed_count = 24;
+    int redis_command_batch_size = 8;
+    double score_multiplier = 1.0;
+  };
+
   RetrieverItemCf(::std::unique_ptr<ItemSimilarityStore> item_similarity_store,
-                  int default_max_candidate_count = 10);
+                  Options options);
+
+  static ::std::unique_ptr<RetrieverItemCf> Create(
+      const ::shooting_star::utilities::GlobalConfig& config);
 
  private:
   // Shared mutable state for one retrieval request.
@@ -62,6 +72,9 @@ class RetrieverItemCf final : public RetrieverBase {
       const Profile& profile);
 
   ::std::unique_ptr<ItemSimilarityStore> item_similarity_store_;
+  int max_trigger_seed_count_ = 24;
+  int redis_command_batch_size_ = 8;
+  double score_multiplier_ = 1.0;
 };
 
 }  // namespace recommendation_engine

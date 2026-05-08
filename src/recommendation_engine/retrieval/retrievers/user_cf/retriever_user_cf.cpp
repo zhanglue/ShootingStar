@@ -174,28 +174,55 @@ unique_ptr<user_cf::UserSimilarityStore> CreateUserSimilarityStore(
 
 }  // namespace
 
-RetrieverUserCf::RetrieverUserCf(int default_max_candidate_count)
-    : RetrieverUserCf(
-          CreateUserSimilarityStore(GlobalConfig::Get()),
-          make_unique<GrpcProfileStore>(
-              ProfileService::NewStub(CreateChannel(
-                  GlobalConfig::Get().GetProfileServiceAddress(),
-                  InsecureChannelCredentials()))),
-          default_max_candidate_count) {}
-
 RetrieverUserCf::RetrieverUserCf(
     unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
     unique_ptr<user_cf::ProfileStore> profile_store,
-    int default_max_candidate_count)
-    : RetrieverBase(default_max_candidate_count),
+    Options options)
+    : RetrieverBase(options.default_max_candidate_count),
       user_similarity_store_(::std::move(user_similarity_store)),
-      profile_store_(::std::move(profile_store)) {
+      profile_store_(::std::move(profile_store)),
+      trigger_seed_user_count_(options.trigger_seed_user_count),
+      score_multiplier_(options.score_multiplier) {
   if (user_similarity_store_ == nullptr) {
     throw runtime_error("RetrieverUserCf user_similarity_store must not be null");
   }
   if (profile_store_ == nullptr) {
     throw runtime_error("RetrieverUserCf profile_store must not be null");
   }
+  if (options.default_max_candidate_count <= 0) {
+    throw invalid_argument(
+        "RetrieverUserCf default_max_candidate_count must be positive");
+  }
+  if (trigger_seed_user_count_ <= 0) {
+    throw invalid_argument(
+        "RetrieverUserCf trigger_seed_user_count must be positive");
+  }
+  if (score_multiplier_ <= 0.0) {
+    throw invalid_argument("RetrieverUserCf score_multiplier must be positive");
+  }
+}
+
+unique_ptr<RetrieverUserCf> RetrieverUserCf::Create(
+    const GlobalConfig& config) {
+  Options options;
+  options.trigger_seed_user_count = config.GetUserCfTriggerSeedUserCount();
+  options.score_multiplier = config.GetRetrieverUserCfScoreMultiplier();
+
+  unique_ptr<user_cf::UserSimilarityStore> user_similarity_store =
+      CreateUserSimilarityStore(config);
+  shared_ptr<::grpc::Channel> profile_channel =
+      CreateChannel(config.GetProfileServiceAddress(),
+                    InsecureChannelCredentials());
+  unique_ptr<ProfileService::Stub> profile_stub =
+      ProfileService::NewStub(::std::move(profile_channel));
+  unique_ptr<user_cf::ProfileStore> profile_store =
+      make_unique<GrpcProfileStore>(::std::move(profile_stub));
+
+  unique_ptr<RetrieverUserCf> server = make_unique<RetrieverUserCf>(
+      ::std::move(user_similarity_store),
+      ::std::move(profile_store),
+      options);
+  return server;
 }
 
 Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
@@ -263,16 +290,14 @@ Status RetrieverUserCf::LoadTriggerSeeds(
     const RetrieverRequest& request,
     const shared_ptr<SessionData>& session,
     RetrieverResponse* response) const {
-  const GlobalConfig& config = GlobalConfig::Get();
   const auto& logger = LoggerRegistry::Get();
 
   try {
     // Query top-N similar users and convert them into trigger seeds.
     const uint64_t request_user_id = static_cast<uint64_t>(request.user_id());
-    const int max_trigger_user_count = config.GetUserCfTriggerSeedUserCount();
     const vector<user_cf::UserNeighbor> user_neighbors =
         user_similarity_store_->FindNeighborsByUserId(request_user_id,
-                                                      max_trigger_user_count);
+                                                      trigger_seed_user_count_);
     session->trigger_seeds = CollectTriggerSeeds(request_user_id, user_neighbors);
   } catch (const ::std::exception& ex) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
@@ -291,7 +316,7 @@ Status RetrieverUserCf::LoadTriggerSeeds(
           {"user_id", to_string(request.user_id())},
           {"trigger_seed_count", to_string(session->trigger_seeds.size())},
           {"trigger_seed_user_count",
-           to_string(config.GetUserCfTriggerSeedUserCount())},
+           to_string(trigger_seed_user_count_)},
       });
 
   if (session->trigger_seeds.empty()) {
@@ -382,8 +407,6 @@ void RetrieverUserCf::FillResponseCandidates(
   // Convert aggregated map to an ordered top-K response.
   const vector<CandidateScore> sorted_candidates =
       SortCandidates(session->candidates);
-  const double score_multiplier =
-      GlobalConfig::Get().GetRetrieverUserCfScoreMultiplier();
   for (const CandidateScore& scored_candidate : sorted_candidates) {
     if (response->candidates_size() >= request.max_candidate_count()) {
       break;
@@ -393,11 +416,11 @@ void RetrieverUserCf::FillResponseCandidates(
     candidate->set_item_id(scored_candidate.item_id);
     candidate->set_item_type(ItemType::ITEM_TYPE_UNSPECIFIED);
     candidate->set_retriever(kRetrieverName);
-    candidate->set_retrieve_score(scored_candidate.score * score_multiplier);
+    candidate->set_retrieve_score(scored_candidate.score * score_multiplier_);
 
     RetrievalReason* reason = candidate->add_reasons();
     reason->set_reason_type(ReasonType::REASON_TYPE_USER_CF);
-    reason->set_reason_score(scored_candidate.reason_score * score_multiplier);
+    reason->set_reason_score(scored_candidate.reason_score * score_multiplier_);
     reason->set_description(
         format("Retrieved from user_cf using similar user {}.",
                scored_candidate.trigger_entity_id));

@@ -1,22 +1,83 @@
 #include "src/recommendation_engine/gateway/gateway_service.h"
 
 #include <format>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
+#include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
 namespace recommendation_engine {
 
+using ::grpc::CreateChannel;
 using ::grpc::ClientContext;
+using ::grpc::InsecureChannelCredentials;
 using ::grpc::Status;
 using ::grpc::StatusCode;
+using ::shooting_star::utilities::GlobalConfig;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::std::format;
+using ::std::invalid_argument;
+using ::std::make_unique;
+using ::std::shared_ptr;
+using ::std::string;
+using ::std::unique_ptr;
 
-GatewayServiceImpl::GatewayServiceImpl(::std::shared_ptr<::grpc::Channel> profile_channel,
-                                       ::std::shared_ptr<::grpc::Channel> retrieval_channel,
-                                       ::std::shared_ptr<::grpc::Channel> ranking_channel)
-    : profile_stub_(ProfileService::NewStub(::std::move(profile_channel))),
-      retrieval_stub_(RetrievalService::NewStub(::std::move(retrieval_channel))),
-      ranking_stub_(RankingService::NewStub(::std::move(ranking_channel))) {}
+GatewayServiceImpl::GatewayServiceImpl(
+    unique_ptr<ProfileService::Stub> profile_stub,
+    unique_ptr<RetrievalService::Stub> retrieval_stub,
+    unique_ptr<RankingService::Stub> ranking_stub)
+    : profile_stub_(::std::move(profile_stub)),
+      retrieval_stub_(::std::move(retrieval_stub)),
+      ranking_stub_(::std::move(ranking_stub)) {
+  if (profile_stub_ == nullptr) {
+    throw invalid_argument("GatewayServiceImpl profile_stub must not be null.");
+  }
+  if (retrieval_stub_ == nullptr) {
+    throw invalid_argument(
+        "GatewayServiceImpl retrieval_stub must not be null.");
+  }
+  if (ranking_stub_ == nullptr) {
+    throw invalid_argument("GatewayServiceImpl ranking_stub must not be null.");
+  }
+}
+
+unique_ptr<GatewayServiceImpl> GatewayServiceImpl::Create(
+    const GlobalConfig& config) {
+  const string profile_service_address = config.GetProfileServiceAddress();
+  const string retrieval_service_address = config.GetRetrievalServiceAddress();
+  const string ranking_service_address = config.GetRankingServiceAddress();
+
+  LoggerRegistry::Get().Info(
+      "gateway_downstream_clients_configured",
+      {
+          {"profile_service_address", profile_service_address},
+          {"retrieval_service_address", retrieval_service_address},
+          {"ranking_service_address", ranking_service_address},
+      });
+
+  shared_ptr<::grpc::Channel> profile_channel =
+      CreateChannel(profile_service_address, InsecureChannelCredentials());
+  shared_ptr<::grpc::Channel> retrieval_channel =
+      CreateChannel(retrieval_service_address, InsecureChannelCredentials());
+  shared_ptr<::grpc::Channel> ranking_channel =
+      CreateChannel(ranking_service_address, InsecureChannelCredentials());
+
+  unique_ptr<ProfileService::Stub> profile_stub =
+      ProfileService::NewStub(::std::move(profile_channel));
+  unique_ptr<RetrievalService::Stub> retrieval_stub =
+      RetrievalService::NewStub(::std::move(retrieval_channel));
+  unique_ptr<RankingService::Stub> ranking_stub =
+      RankingService::NewStub(::std::move(ranking_channel));
+
+  unique_ptr<GatewayServiceImpl> server = make_unique<GatewayServiceImpl>(
+      ::std::move(profile_stub),
+      ::std::move(retrieval_stub),
+      ::std::move(ranking_stub));
+  return server;
+}
 
 ::grpc::Status GatewayServiceImpl::Recommend(
     ::grpc::ServerContext* context,

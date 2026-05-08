@@ -16,6 +16,7 @@ cc_library(
         "//protos/recommendation_engine:retrieval_cc",
         "//protos/recommendation_engine:retrieval_cc_grpc",
         "//src/utilities/global_config:global_config",
+        "//src/utilities/logger:logger",
         "//src/utilities/runtime_utilities:runtime_utilities",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",
@@ -30,6 +31,7 @@ cc_binary(
     deps = [
         ":retrieval_orchestrator_lib",
         "//src/utilities/global_config:global_config",
+        "//src/utilities/grpc_service_runner:grpc_service_runner",
         "//src/utilities/logger:logger",
     ],
 )
