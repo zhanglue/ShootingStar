@@ -3,11 +3,13 @@
 
 namespace {
 
+using Service = ::recommendation_engine::RetrieverItemCf;
+using ::shooting_star::utilities::RunGrpcService;
+
 constexpr const char* kServiceName = "retriever_item_cf";
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  return ::shooting_star::utilities::RunGrpcService<
-      ::recommendation_engine::RetrieverItemCf>(kServiceName, argc, argv);
+  return RunGrpcService<Service>(kServiceName, argc, argv);
 }

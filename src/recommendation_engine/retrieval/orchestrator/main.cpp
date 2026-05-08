@@ -3,11 +3,13 @@
 
 namespace {
 
+using Service = ::recommendation_engine::RetrievalOrchestrator;
+using ::shooting_star::utilities::RunGrpcService;
+
 constexpr const char* kServiceName = "retrieval_orchestrator";
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  return ::shooting_star::utilities::RunGrpcService<
-      ::recommendation_engine::RetrievalOrchestrator>(kServiceName, argc, argv);
+  return RunGrpcService<Service>(kServiceName, argc, argv);
 }

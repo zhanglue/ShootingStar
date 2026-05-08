@@ -3,11 +3,13 @@
 
 namespace {
 
+using Service = ::recommendation_engine::RankingServiceImpl;
+using ::shooting_star::utilities::RunGrpcService;
+
 constexpr const char* kServiceName = "ranking";
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  return ::shooting_star::utilities::RunGrpcService<
-      ::recommendation_engine::RankingServiceImpl>(kServiceName, argc, argv);
+  return RunGrpcService<Service>(kServiceName, argc, argv);
 }
