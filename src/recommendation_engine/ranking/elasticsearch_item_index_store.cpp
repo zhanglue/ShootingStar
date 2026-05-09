@@ -10,7 +10,7 @@
 
 #include "src/utilities/json_parser/json_parser.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::google::protobuf::Struct;
@@ -83,4 +83,4 @@ optional<ItemIndexEntry> ElasticsearchItemIndexStore::ParseItemFromGetResponse(
                                                   "Elasticsearch _source");
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

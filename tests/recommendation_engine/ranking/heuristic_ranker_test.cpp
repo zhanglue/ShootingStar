@@ -9,7 +9,7 @@
 
 #include <gtest/gtest.h>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::std::make_shared;
@@ -148,4 +148,4 @@ TEST(HeuristicRankerTest, ReturnsEmptyCandidateStatusWhenAllCandidatesInvalid) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

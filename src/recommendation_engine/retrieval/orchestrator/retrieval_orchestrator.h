@@ -11,7 +11,7 @@
 #include "protos/recommendation_engine/retrieval.grpc.pb.h"
 #include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RetrievalOrchestrator final : public RetrievalService::Service {
  public:
@@ -42,4 +42,4 @@ class RetrievalOrchestrator final : public RetrievalService::Service {
   double recall_candidate_expand_ratio_ = 1.0;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

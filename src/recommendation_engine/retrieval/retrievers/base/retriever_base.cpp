@@ -5,7 +5,7 @@
 
 #include "src/utilities/logger/logger_registry.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::grpc::ServerContext;
@@ -117,4 +117,4 @@ Status RetrieverBase::IsRequestValid(const RetrieverRequest& request,
   return Status::OK;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

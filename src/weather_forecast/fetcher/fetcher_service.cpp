@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-namespace weather_flow {
+namespace shooting_star::weather_flow {
 
 using ::grpc::ServerContext;
 using ::grpc::Status;
@@ -19,8 +19,8 @@ using ::std::invalid_argument;
 using ::std::make_unique;
 using ::std::string;
 using ::std::unique_ptr;
-using ::weather_flow::GetWeatherRequest;
-using ::weather_flow::GetWeatherResponse;
+using ::shooting_star::weather_flow::GetWeatherRequest;
+using ::shooting_star::weather_flow::GetWeatherResponse;
 
 namespace {
 
@@ -67,4 +67,4 @@ Status FetcherServiceImpl::GetWeather(ServerContext* context,
   return Status::OK;
 }
 
-}  // namespace weather_flow
+}  // namespace shooting_star::weather_flow

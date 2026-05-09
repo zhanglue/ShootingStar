@@ -6,7 +6,7 @@
 #include "src/recommendation_engine/profile/profile_store.h"
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class ElasticsearchProfileStore final : public ProfileStore {
  public:
@@ -24,4 +24,4 @@ class ElasticsearchProfileStore final : public ProfileStore {
   ::std::string index_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

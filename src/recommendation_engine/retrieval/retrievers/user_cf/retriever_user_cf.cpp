@@ -18,7 +18,7 @@
 #include "src/utilities/redis_client/redis_client.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 constexpr char kRetrieverName[] = "user_cf";
@@ -492,4 +492,4 @@ vector<TriggerSeed> RetrieverUserCf::CollectTriggerSeeds(
   return trigger_seeds;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

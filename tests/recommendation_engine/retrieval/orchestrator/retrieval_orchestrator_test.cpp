@@ -8,7 +8,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::grpc::Channel;
@@ -205,4 +205,4 @@ TEST(RetrievalOrchestratorTest,
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

@@ -10,7 +10,7 @@
 #include <google/protobuf/struct.pb.h>
 #include <google/protobuf/util/json_util.h>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::google::protobuf::Map;
@@ -136,4 +136,4 @@ LocalFileSimilarityRow ParseLocalFileSimilarityJsonlLine(
   };
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

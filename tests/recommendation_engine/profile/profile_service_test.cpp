@@ -25,7 +25,7 @@ class GlobalConfigTestAccess {
 }  // namespace utilities
 }  // namespace shooting_star
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::ConfigYAML;
@@ -359,4 +359,4 @@ TEST(ProfileServiceImplTest,
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

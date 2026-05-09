@@ -3,7 +3,7 @@
 
 namespace {
 
-using Service = ::recommendation_engine::GatewayServiceImpl;
+using Service = ::shooting_star::recommendation_engine::GatewayServiceImpl;
 using ::shooting_star::utilities::RunGrpcService;
 
 constexpr const char* kServiceName = "gateway";

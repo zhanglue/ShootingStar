@@ -15,7 +15,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::grpc::Status;
 using ::grpc::StatusCode;
@@ -488,4 +488,4 @@ unique_ptr<RankTask> HeuristicRanker::CreateTask(
   return make_unique<HeuristicRankTask>(request, response, item_index_store_);
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

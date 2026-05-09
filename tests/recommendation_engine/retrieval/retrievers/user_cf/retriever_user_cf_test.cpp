@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::grpc::Status;
@@ -298,4 +298,4 @@ TEST(RetrieverUserCfTest, SkipsMissingSimilarUserProfiles) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

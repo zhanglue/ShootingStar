@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::std::optional;
@@ -97,4 +97,4 @@ TEST(ItemIndexStoreTest, ParsesItemIndexEntryFromJsonString) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

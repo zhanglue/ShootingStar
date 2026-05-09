@@ -19,7 +19,7 @@
 #include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::grpc::ServerContext;
 using ::grpc::Status;
@@ -422,4 +422,4 @@ string RankingServiceImpl::ResolveRankerName(const RankRequest& request) const {
   return default_ranker_name_;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

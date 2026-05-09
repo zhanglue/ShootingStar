@@ -8,7 +8,7 @@
 #include <string_view>
 #include <utility>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::RedisClient;
@@ -76,4 +76,4 @@ vector<UserNeighbor> RedisUserSimilarityStore::FindNeighborsByUserId(
   return neighbors;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

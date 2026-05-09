@@ -3,7 +3,7 @@
 
 namespace {
 
-using Service = ::recommendation_engine::RetrieverUserCf;
+using Service = ::shooting_star::recommendation_engine::RetrieverUserCf;
 using ::shooting_star::utilities::RunGrpcService;
 
 constexpr const char* kServiceName = "retriever_user_cf";

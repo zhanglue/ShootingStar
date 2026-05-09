@@ -10,7 +10,7 @@
 #include "src/utilities/logger/logger.h"
 #include "src/utilities/logger/logger_registry.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
@@ -56,4 +56,4 @@ optional<Profile> CachingProfileStore::FindByUserId(int user_id) const {
   return profile;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

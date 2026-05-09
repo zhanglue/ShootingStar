@@ -10,7 +10,7 @@
 #include "protos/recommendation_engine/retrieval.grpc.pb.h"
 #include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class GatewayServiceImpl final : public Gateway::Service {
  public:
@@ -43,4 +43,4 @@ class GatewayServiceImpl final : public Gateway::Service {
   ::std::unique_ptr<RankingService::Stub> ranking_stub_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

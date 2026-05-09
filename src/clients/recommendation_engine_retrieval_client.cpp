@@ -18,9 +18,9 @@ namespace {
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
-using ::recommendation_engine::RetrieveRequest;
-using ::recommendation_engine::RetrieveResponse;
-using ::recommendation_engine::RetrievalService;
+using ::shooting_star::recommendation_engine::RetrieveRequest;
+using ::shooting_star::recommendation_engine::RetrieveResponse;
+using ::shooting_star::recommendation_engine::RetrievalService;
 using ::shooting_star::clients::BuildTarget;
 using ::shooting_star::clients::CreateInsecureChannel;
 using ::shooting_star::clients::ElapsedMillisSince;

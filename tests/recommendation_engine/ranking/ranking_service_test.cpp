@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 RankRequest BuildValidRequest() {
@@ -86,4 +86,4 @@ TEST(RankingServiceTest, RejectsInvalidRequestBeforeRanking) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

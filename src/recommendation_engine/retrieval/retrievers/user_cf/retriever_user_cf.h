@@ -13,7 +13,7 @@
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/user_similarity_store.h"
 #include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RetrieverUserCf final : public RetrieverBase {
  public:
@@ -81,4 +81,4 @@ class RetrieverUserCf final : public RetrieverBase {
   double score_multiplier_ = 1.0;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

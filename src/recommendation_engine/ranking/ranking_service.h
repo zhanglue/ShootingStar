@@ -13,7 +13,7 @@
 #include "src/recommendation_engine/ranking/ranker.h"
 #include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RankingServiceImpl final : public RankingService::Service {
  public:
@@ -49,4 +49,4 @@ class RankingServiceImpl final : public RankingService::Service {
   ::std::string default_ranker_name_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

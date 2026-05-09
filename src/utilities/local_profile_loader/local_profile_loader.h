@@ -9,7 +9,7 @@
 namespace shooting_star {
 namespace utilities {
 
-using UserIdProfileMap = ::std::unordered_map<int, ::recommendation_engine::Profile>;
+using UserIdProfileMap = ::std::unordered_map<int, ::shooting_star::recommendation_engine::Profile>;
 
 bool LoadProfilesFromJsonlFile(const ::std::string& file_path,
                                UserIdProfileMap* loaded_profiles,
@@ -17,7 +17,7 @@ bool LoadProfilesFromJsonlFile(const ::std::string& file_path,
 
 bool LoadProfileFromLocalFile(const ::std::string& file_path,
                               int64_t user_id,
-                              ::recommendation_engine::Profile* profile,
+                              ::shooting_star::recommendation_engine::Profile* profile,
                               ::std::string* error_msg = nullptr);
 
 }  // namespace utilities

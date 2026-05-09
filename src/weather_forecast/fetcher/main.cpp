@@ -3,7 +3,7 @@
 
 namespace {
 
-using Service = ::weather_flow::FetcherServiceImpl;
+using Service = ::shooting_star::weather_flow::FetcherServiceImpl;
 using ::shooting_star::utilities::RunGrpcService;
 
 constexpr const char* kServiceName = "fetcher";

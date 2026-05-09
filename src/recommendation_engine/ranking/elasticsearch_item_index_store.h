@@ -7,7 +7,7 @@
 #include "src/recommendation_engine/ranking/item_index_store.h"
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class ElasticsearchItemIndexStore final : public ItemIndexStore {
  public:
@@ -25,4 +25,4 @@ class ElasticsearchItemIndexStore final : public ItemIndexStore {
   ::std::string index_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

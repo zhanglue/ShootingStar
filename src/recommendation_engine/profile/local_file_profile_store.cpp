@@ -8,7 +8,7 @@
 #include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::shooting_star::utilities::Logger;
 using ::shooting_star::utilities::LoggerRegistry;
@@ -44,4 +44,4 @@ optional<Profile> LocalFileProfileStore::FindByUserId(int user_id) const {
   return it->second;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

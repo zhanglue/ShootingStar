@@ -14,7 +14,7 @@
 #include "src/recommendation_engine/ranking/item_index_store.h"
 #include "src/recommendation_engine/ranking/ranker.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class HeuristicRankTask final : public RankTask {
  public:
@@ -78,4 +78,4 @@ class HeuristicRanker final : public Ranker {
   ::std::shared_ptr<const ItemIndexStore> item_index_store_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

@@ -8,7 +8,7 @@
 #include "src/recommendation_engine/ranking/item_index_store.h"
 #include "src/utilities/lru_cache/lru_cache.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class CachingItemIndexStore final : public ItemIndexStore {
  public:
@@ -28,4 +28,4 @@ class CachingItemIndexStore final : public ItemIndexStore {
   mutable ::shooting_star::utilities::LruCache<uint64_t, ItemIndexEntry> cache_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

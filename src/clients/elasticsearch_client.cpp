@@ -21,7 +21,7 @@ using ::google::protobuf::Struct;
 using ::google::protobuf::Value;
 using ::google::protobuf::util::JsonStringToMessage;
 using ::google::protobuf::util::MessageToJsonString;
-using ::recommendation_engine::Profile;
+using ::shooting_star::recommendation_engine::Profile;
 using ::shooting_star::clients::ElapsedMillisSince;
 using ::shooting_star::clients::ParseInt64Arg;
 using ::shooting_star::clients::ParseIntArg;

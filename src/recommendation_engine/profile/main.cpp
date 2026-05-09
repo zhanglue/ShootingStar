@@ -3,7 +3,7 @@
 
 namespace {
 
-using Service = ::recommendation_engine::ProfileServiceImpl;
+using Service = ::shooting_star::recommendation_engine::ProfileServiceImpl;
 using ::shooting_star::utilities::RunGrpcService;
 
 constexpr const char* kServiceName = "profile";

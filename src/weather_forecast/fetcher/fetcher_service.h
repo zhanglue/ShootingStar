@@ -9,7 +9,7 @@
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
 
-namespace weather_flow {
+namespace shooting_star::weather_flow {
 
 class FetcherServiceImpl final : public Fetcher::Service {
  public:
@@ -28,6 +28,6 @@ class FetcherServiceImpl final : public Fetcher::Service {
   WeatherDataMap weather_data_map_;
 };
 
-}  // namespace weather_flow
+}  // namespace shooting_star::weather_flow
 
 #endif  // FETCHER_SERVICE_H

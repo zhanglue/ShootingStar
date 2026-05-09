@@ -10,7 +10,7 @@
 #include "src/recommendation_engine/retrieval/retrievers/base/retriever_base.h"
 #include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RetrieverItemCf final : public RetrieverBase {
  public:
@@ -77,4 +77,4 @@ class RetrieverItemCf final : public RetrieverBase {
   double score_multiplier_ = 1.0;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

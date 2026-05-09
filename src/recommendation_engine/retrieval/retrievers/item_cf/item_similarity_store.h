@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 struct ItemNeighbor {
   uint64_t item_id = 0;
@@ -33,4 +33,4 @@ class ItemSimilarityStore {
   }
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

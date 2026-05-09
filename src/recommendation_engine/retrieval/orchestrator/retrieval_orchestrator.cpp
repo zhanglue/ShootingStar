@@ -15,7 +15,7 @@
 #include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
@@ -362,4 +362,4 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
   return Status::OK;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

@@ -3,7 +3,7 @@
 
 namespace {
 
-using Service = ::recommendation_engine::RankingServiceImpl;
+using Service = ::shooting_star::recommendation_engine::RankingServiceImpl;
 using ::shooting_star::utilities::RunGrpcService;
 
 constexpr const char* kServiceName = "ranking";

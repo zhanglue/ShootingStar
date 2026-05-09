@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package weather_flow;
+package shooting_star.weather_flow;
 
 import "protos/weather_forecast/weather_data.proto";
 

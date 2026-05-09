@@ -7,7 +7,7 @@
 
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/item_similarity_store.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class LocalFileItemSimilarityStore final : public ItemSimilarityStore {
  public:
@@ -22,4 +22,4 @@ class LocalFileItemSimilarityStore final : public ItemSimilarityStore {
   ::std::unordered_map<uint64_t, ::std::vector<ItemNeighbor>> neighbors_by_item_id_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

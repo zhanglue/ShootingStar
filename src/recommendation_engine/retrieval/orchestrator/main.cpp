@@ -3,7 +3,7 @@
 
 namespace {
 
-using Service = ::recommendation_engine::RetrievalOrchestrator;
+using Service = ::shooting_star::recommendation_engine::RetrievalOrchestrator;
 using ::shooting_star::utilities::RunGrpcService;
 
 constexpr const char* kServiceName = "retrieval_orchestrator";

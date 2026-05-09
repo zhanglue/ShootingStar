@@ -16,9 +16,9 @@ namespace {
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
-using ::recommendation_engine::Gateway;
-using ::recommendation_engine::RecommendRequest;
-using ::recommendation_engine::RecommendResponse;
+using ::shooting_star::recommendation_engine::Gateway;
+using ::shooting_star::recommendation_engine::RecommendRequest;
+using ::shooting_star::recommendation_engine::RecommendResponse;
 using ::shooting_star::clients::BuildTarget;
 using ::shooting_star::clients::CreateInsecureChannel;
 using ::shooting_star::clients::ElapsedMillisSince;

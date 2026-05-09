@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::grpc::Status;
@@ -171,4 +171,4 @@ TEST(RetrieverItemCfTest, LimitsTriggerSeedsByConfiguredMaximum) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

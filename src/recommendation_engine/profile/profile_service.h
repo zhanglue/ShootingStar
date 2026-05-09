@@ -8,7 +8,7 @@
 #include "src/recommendation_engine/profile/profile_store.h"
 #include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class ProfileServiceImpl final : public ProfileService::Service {
  public:
@@ -29,4 +29,4 @@ class ProfileServiceImpl final : public ProfileService::Service {
   ::std::unique_ptr<ProfileStore> profile_store_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

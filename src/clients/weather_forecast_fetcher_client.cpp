@@ -28,9 +28,9 @@ using ::std::endl;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::weather_flow::Fetcher;
-using ::weather_flow::GetWeatherRequest;
-using ::weather_flow::GetWeatherResponse;
+using ::shooting_star::weather_flow::Fetcher;
+using ::shooting_star::weather_flow::GetWeatherRequest;
+using ::shooting_star::weather_flow::GetWeatherResponse;
 
 struct Config {
   string ip = "127.0.0.1";
