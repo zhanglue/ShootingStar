@@ -193,17 +193,18 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
                                       const GetProfileRequest* request,
                                       GetProfileResponse* response) {
   const Logger& logger = LoggerRegistry::Get();
+  response->set_msg("");
   logger.Info(
     "get_profile_request_received",
     {
       {"user_id", to_string(request->user_id())},
     });
 
-  response->mutable_request()->CopyFrom(*request);
-
   if (profile_store_ == nullptr) {
     response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
-    return Status(StatusCode::INTERNAL, "Profile store is not initialized.");
+    const Status status = Status(StatusCode::INTERNAL, "Profile store is not initialized.");
+    response->set_msg(status.error_message());
+    return status;
   }
 
   optional<Profile> profile;
@@ -211,6 +212,7 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
     profile = profile_store_->FindByUserId(request->user_id());
   } catch (const ::std::exception& ex) {
     response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
+    response->set_msg(ex.what());
     logger.Info(
       "get_profile_request_failed",
       {
@@ -223,14 +225,14 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
 
   if (!profile.has_value()) {
     response->set_status(ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
+    const string message = format("User ID of {} not found.", request->user_id());
+    response->set_msg(message);
     logger.Info(
       "get_profile_user_not_found",
       {
         {"user_id", to_string(request->user_id())},
       });
-    return Status(
-        StatusCode::NOT_FOUND,
-        format("User ID of {} not found.", request->user_id()));
+    return Status(StatusCode::NOT_FOUND, message);
   }
 
   logger.Info(
@@ -247,6 +249,7 @@ Status ProfileServiceImpl::GetProfile(ServerContext* /*context*/,
     });
 
   response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
+  response->set_msg("");
   response->mutable_profile()->CopyFrom(*profile);
   return Status::OK;
 }
@@ -256,17 +259,18 @@ Status ProfileServiceImpl::BatchGetUserCfProfiles(
     const BatchGetUserCfProfilesRequest* request,
     BatchGetUserCfProfilesResponse* response) {
   const Logger& logger = LoggerRegistry::Get();
+  response->set_msg("");
   logger.Info(
     "batch_get_user_cf_profiles_request_received",
     {
       {"user_count", to_string(request->user_ids_size())},
     });
 
-  response->mutable_request()->CopyFrom(*request);
-
   if (profile_store_ == nullptr) {
     response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
-    return Status(StatusCode::INTERNAL, "Profile store is not initialized.");
+    const Status status = Status(StatusCode::INTERNAL, "Profile store is not initialized.");
+    response->set_msg(status.error_message());
+    return status;
   }
 
   for (const int64_t user_id : request->user_ids()) {
@@ -284,6 +288,7 @@ Status ProfileServiceImpl::BatchGetUserCfProfiles(
       profile = profile_store_->FindByUserId(static_cast<int>(user_id));
     } catch (const ::std::exception& ex) {
       response->set_status(ProfileServiceStatus::PROFILE_SYSTEM_ERROR);
+      response->set_msg(ex.what());
       logger.Info(
         "batch_get_user_cf_profiles_request_failed",
         {
@@ -304,6 +309,7 @@ Status ProfileServiceImpl::BatchGetUserCfProfiles(
   }
 
   response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
+  response->set_msg("");
   logger.Info(
     "batch_get_user_cf_profiles_request_succeeded",
     {

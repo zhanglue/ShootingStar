@@ -318,8 +318,10 @@ Status HeuristicRankTask::Run() {
   if (response_ == nullptr) {
     return Status(StatusCode::INTERNAL, "Rank response must not be null.");
   }
+  response_->set_msg("");
   if (item_index_store_ == nullptr) {
     response_->set_status(RankingServiceStatus::RANKING_SYSTEM_ERROR);
+    response_->set_msg("Item index store is not initialized.");
     return Status(StatusCode::INTERNAL,
                   "Item index store is not initialized.");
   }
@@ -327,6 +329,7 @@ Status HeuristicRankTask::Run() {
   vector<CandidateItem> candidates = NormalizeAndMergeCandidates(request_);
   if (candidates.empty()) {
     response_->set_status(RankingServiceStatus::RANKING_EMPTY_CANDIDATES);
+    response_->set_msg("No candidates available for ranking.");
     response_->set_ranked_candidate_count(0);
     return Status::OK;
   }
@@ -341,6 +344,9 @@ Status HeuristicRankTask::Run() {
       item_index_store_->FindByItemIds(item_ids);
   if (item_index_entries.size() != candidates.size()) {
     response_->set_status(RankingServiceStatus::RANKING_SYSTEM_ERROR);
+    response_->set_msg(
+        format("Item index store returned {} entries for {} candidates.",
+               item_index_entries.size(), candidates.size()));
     return Status(
         StatusCode::INTERNAL,
         format("Item index store returned {} entries for {} candidates.",
@@ -368,6 +374,7 @@ Status HeuristicRankTask::Run() {
   }
 
   response_->set_status(RankingServiceStatus::RANKING_SUCCESS);
+  response_->set_msg("");
   response_->set_ranked_candidate_count(response_->ranked_candidates_size());
   return Status::OK;
 }

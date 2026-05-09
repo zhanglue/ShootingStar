@@ -213,23 +213,31 @@ Status RetrievalOrchestrator::Retrieve(ServerContext* context,
                                        RetrieveResponse* response) {
   (void)context;
 
-  response->mutable_request()->CopyFrom(*request);
+  response->set_msg("");
   response->set_candidate_count(0);
 
   if (request->user_id() <= 0) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST);
-    return Status(StatusCode::INVALID_ARGUMENT,
-                  format("Invalid user_id {}.", request->user_id()));
+    const Status status = Status(StatusCode::INVALID_ARGUMENT,
+                                 format("Invalid user_id {}.", request->user_id()));
+    response->set_msg(status.error_message());
+    return status;
   }
 
   if (!request->has_profile()) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST);
-    return Status(
-      StatusCode::INVALID_ARGUMENT,
-      format("Profile is required for user {}.", request->user_id()));
+    const Status status = Status(
+        StatusCode::INVALID_ARGUMENT,
+        format("Profile is required for user {}.", request->user_id()));
+    response->set_msg(status.error_message());
+    return status;
   }
 
-  return DispatchToRetrievers(*request, response);
+  const Status status = DispatchToRetrievers(*request, response);
+  if (!status.ok() && response->msg().empty()) {
+    response->set_msg(status.error_message());
+  }
+  return status;
 }
 
 Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
@@ -257,10 +265,15 @@ Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
   }
 
   if (!IsRetrieverResponseStatusAccepted(retriever_response->status())) {
+    string message = format("{} retriever returned non-success status {}.",
+                            retriever_name,
+                            static_cast<int>(retriever_response->status()));
+    if (!retriever_response->msg().empty()) {
+      message += format(" reason: {}", retriever_response->msg());
+    }
     return Status(
       StatusCode::INTERNAL,
-      format("{} retriever returned non-success status {}.", retriever_name,
-        static_cast<int>(retriever_response->status())));
+      message);
   }
 
   return Status::OK;
@@ -300,7 +313,9 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
   if (retriever_responses.empty()) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_SYSTEM_ERROR);
     if (failure_messages.empty()) {
-      return Status(StatusCode::INTERNAL, "No retrievers configured.");
+      const Status status = Status(StatusCode::INTERNAL, "No retrievers configured.");
+      response->set_msg(status.error_message());
+      return status;
     }
 
     string error_message = "Failed to retrieve candidates from all retrievers.";
@@ -308,6 +323,7 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
       error_message += " ";
       error_message += failure_message;
     }
+    response->set_msg(error_message);
     return Status(StatusCode::INTERNAL, error_message);
   }
 
@@ -359,6 +375,7 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
 
   response->set_candidate_count(response->candidates_size());
   response->set_status(RetrievalServiceStatus::RETRIEVAL_SUCCESS);
+  response->set_msg("");
   return Status::OK;
 }
 

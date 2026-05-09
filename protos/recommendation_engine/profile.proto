@@ -20,7 +20,7 @@ message GetProfileRequest {
 
 message GetProfileResponse {
   ProfileServiceStatus status = 1;
-  GetProfileRequest request = 2;
+  string msg = 2;
   Profile profile = 3;
 }
 
@@ -148,6 +148,6 @@ message UserCfProfileResult {
 
 message BatchGetUserCfProfilesResponse {
   ProfileServiceStatus status = 1;
-  BatchGetUserCfProfilesRequest request = 2;
+  string msg = 2;
   repeated UserCfProfileResult results = 3;
 }

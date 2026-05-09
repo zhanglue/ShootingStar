@@ -84,28 +84,30 @@ unique_ptr<GatewayServiceImpl> GatewayServiceImpl::Create(
     const RecommendRequest* request,
     RecommendResponse* response) {
   (void)context;
-
-  response->mutable_request()->CopyFrom(*request);
-  response->set_candidate_count(0);
+  response->set_msg("");
 
   RecommendationStatus recommendation_status = RecommendationStatus::SYSTEM_ERROR;
-  Status status = FetchProfile(*request, response->mutable_profile(), &recommendation_status);
+  Profile profile;
+  Status status = FetchProfile(*request, &profile, &recommendation_status);
   if (!status.ok()) {
     response->set_status(recommendation_status);
+    response->set_msg(status.error_message());
     return status;
   }
 
   RetrieveResponse retrieval_response;
-  status = FetchCandidates(*request, response->profile(), &retrieval_response,
+  status = FetchCandidates(*request, profile, &retrieval_response,
                            &recommendation_status);
   if (!status.ok()) {
     response->set_status(recommendation_status);
+    response->set_msg(status.error_message());
     return status;
   }
 
-  status = FetchRankedCandidates(*request, response->profile(), retrieval_response, response,
+  status = FetchRankedCandidates(*request, profile, retrieval_response, response,
                                  &recommendation_status);
   response->set_status(recommendation_status);
+  response->set_msg(status.ok() ? "" : status.error_message());
   return status;
 }
 
@@ -143,11 +145,16 @@ unique_ptr<GatewayServiceImpl> GatewayServiceImpl::Create(
     *recommendation_status = profile_response.status() == ProfileServiceStatus::PROFILE_USER_NOT_FOUND
                                  ? RecommendationStatus::USER_NOT_FOUND
                                  : RecommendationStatus::SYSTEM_ERROR;
+    string error_message = format("Profile service returned non-success status {} for user {}.",
+                                  static_cast<int>(profile_response.status()),
+                                  request.user_id());
+    if (!profile_response.msg().empty()) {
+      error_message += format(" reason: {}", profile_response.msg());
+    }
     return Status(profile_response.status() == ProfileServiceStatus::PROFILE_USER_NOT_FOUND
                       ? StatusCode::NOT_FOUND
                       : StatusCode::INTERNAL,
-                  format("Profile service returned non-success status {} for user {}.",
-                         static_cast<int>(profile_response.status()), request.user_id()));
+                  error_message);
   }
 
   *recommendation_status = RecommendationStatus::SUCCESS;
@@ -191,11 +198,16 @@ unique_ptr<GatewayServiceImpl> GatewayServiceImpl::Create(
         retrieval_response->status() == RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST
             ? RecommendationStatus::INVALID_REQUEST
             : RecommendationStatus::SYSTEM_ERROR;
+    string error_message = format("Retrieval service returned non-success status {} for user {}.",
+                                  static_cast<int>(retrieval_response->status()),
+                                  request.user_id());
+    if (!retrieval_response->msg().empty()) {
+      error_message += format(" reason: {}", retrieval_response->msg());
+    }
     return Status(*recommendation_status == RecommendationStatus::INVALID_REQUEST
                       ? StatusCode::INVALID_ARGUMENT
                       : StatusCode::INTERNAL,
-                  format("Retrieval service returned non-success status {} for user {}.",
-                         static_cast<int>(retrieval_response->status()), request.user_id()));
+                  error_message);
   }
 
   *recommendation_status = RecommendationStatus::SUCCESS;
@@ -241,14 +253,18 @@ unique_ptr<GatewayServiceImpl> GatewayServiceImpl::Create(
         rank_response.status() == RankingServiceStatus::RANKING_INVALID_REQUEST
             ? RecommendationStatus::INVALID_REQUEST
             : RecommendationStatus::SYSTEM_ERROR;
+    string error_message = format("Ranking service returned non-success status {} for user {}.",
+                                  static_cast<int>(rank_response.status()),
+                                  request.user_id());
+    if (!rank_response.msg().empty()) {
+      error_message += format(" reason: {}", rank_response.msg());
+    }
     return Status(*recommendation_status == RecommendationStatus::INVALID_REQUEST
                       ? StatusCode::INVALID_ARGUMENT
                       : StatusCode::INTERNAL,
-                  format("Ranking service returned non-success status {} for user {}.",
-                         static_cast<int>(rank_response.status()), request.user_id()));
+                  error_message);
   }
 
-  response->set_candidate_count(rank_response.ranked_candidate_count());
   for (const RankedCandidateItem& ranked_candidate : rank_response.ranked_candidates()) {
     response->add_candidates()->CopyFrom(ranked_candidate.candidate());
   }

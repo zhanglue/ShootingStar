@@ -230,6 +230,7 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
   BuildTriggerSeeds(request, session);
   if (session->trigger_seeds.empty()) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
+    response->set_msg("No valid trigger seeds found from user profile.");
     logger.Debug(
         "item_cf_retrieve_early_return_empty_trigger_seeds",
         {
@@ -252,6 +253,7 @@ Status RetrieverItemCf::DoRetrieve(const RetrieverRequest& request,
   FillResponseCandidates(session, request, response);
 
   response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
+  response->set_msg("");
   logger.Debug(
       "item_cf_retrieve_finished",
       {
@@ -362,6 +364,7 @@ Status RetrieverItemCf::AggregateSimilarityCandidates(
         });
   } catch (const ::std::exception& ex) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
+    response->set_msg(ex.what());
     logger.Error(
         "item_cf_similarity_lookup_failed",
         {

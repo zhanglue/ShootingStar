@@ -18,7 +18,7 @@ message RetrieveRequest {
 
 message RetrieveResponse {
   RetrievalServiceStatus status = 1;
-  RetrieveRequest request = 2;
+  string msg = 2;
   int32 candidate_count = 3;
   repeated CandidateItem candidates = 4;
 }

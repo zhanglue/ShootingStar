@@ -271,6 +271,7 @@ Status RetrieverUserCf::DoRetrieve(const RetrieverRequest& request,
 
   // Mark success and emit completion logs.
   response->set_status(RetrieverServiceStatus::RETRIEVER_SUCCESS);
+  response->set_msg("");
   logger.Debug(
       "user_cf_retrieve_finished",
       {
@@ -295,6 +296,7 @@ Status RetrieverUserCf::LoadTriggerSeeds(
     session->trigger_seeds = CollectTriggerSeeds(request_user_id, user_neighbors);
   } catch (const ::std::exception& ex) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
+    response->set_msg(ex.what());
     logger.Error(
         "user_cf_similarity_lookup_failed",
         {
@@ -315,6 +317,7 @@ Status RetrieverUserCf::LoadTriggerSeeds(
 
   if (session->trigger_seeds.empty()) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_EMPTY_TRIGGER_SEEDS);
+    response->set_msg("No similar users available as trigger seeds.");
     logger.Debug(
         "user_cf_retrieve_early_return_empty_trigger_seeds",
         {
@@ -394,6 +397,7 @@ Status RetrieverUserCf::LoadTriggerUserProfiles(
     }
   } catch (const ::std::exception& ex) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
+    response->set_msg(ex.what());
     logger.Error(
         "user_cf_profile_lookup_failed",
         {

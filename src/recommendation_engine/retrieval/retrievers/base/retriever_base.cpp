@@ -63,6 +63,7 @@ Status RetrieverBase::Retrieve(ServerContext* context,
                                RetrieverResponse* response) {
   const auto logger = LoggerRegistry::Get();
   (void)context;
+  response->set_msg("");
   response->set_candidate_count(0);
 
   RetrieverRequest normalized_request;
@@ -70,10 +71,9 @@ Status RetrieverBase::Retrieve(ServerContext* context,
   if (normalized_request.max_candidate_count() <= 0) {
     normalized_request.set_max_candidate_count(default_max_candidate_count_);
   }
-  response->mutable_request()->CopyFrom(normalized_request);
-
   const Status request_status = IsRequestValid(normalized_request, response);
   if (!request_status.ok()) {
+    response->set_msg(request_status.error_message());
     logger.Info(
         "retriever_base_retrieve_response",
         {
@@ -86,8 +86,16 @@ Status RetrieverBase::Retrieve(ServerContext* context,
   }
 
   const Status retrieve_status = DoRetrieve(normalized_request, response);
-  if (retrieve_status.ok()) {
+  if (!retrieve_status.ok()) {
+    if (response->msg().empty()) {
+      response->set_msg(retrieve_status.error_message());
+    }
+  } else if (response->status() == RetrieverServiceStatus::RETRIEVER_SUCCESS) {
+    response->set_msg("");
     response->set_candidate_count(response->candidates_size());
+  } else if (response->msg().empty()) {
+    response->set_msg(format("Retriever finished with status {}.",
+                             static_cast<int>(response->status())));
   }
   logger.Info(
       "retriever_base_retrieve_response",

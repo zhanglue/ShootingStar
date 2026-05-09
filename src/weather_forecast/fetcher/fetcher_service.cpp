@@ -21,6 +21,7 @@ using ::std::string;
 using ::std::unique_ptr;
 using ::shooting_star::weather_flow::GetWeatherRequest;
 using ::shooting_star::weather_flow::GetWeatherResponse;
+using ::shooting_star::weather_flow::WeatherServiceStatus;
 
 namespace {
 
@@ -52,15 +53,21 @@ unique_ptr<FetcherServiceImpl> FetcherServiceImpl::Create() {
 Status FetcherServiceImpl::GetWeather(ServerContext* context,
                                       const GetWeatherRequest* request,
                                       GetWeatherResponse* response) {
+  (void)context;
+  response->set_msg("");
   string city = request->city();
   auto it = weather_data_map_.find(city);
   if (it == weather_data_map_.end()) {
+    response->set_status(WeatherServiceStatus::WEATHER_CITY_NOT_FOUND);
+    response->set_msg("City not found.");
     return Status(StatusCode::NOT_FOUND, "City not found.");
   }
 
   WeatherData* weather_data = response->mutable_data();
   weather_data->set_condition(it->second);
   weather_data->set_temperature(22.0f);
+  response->set_status(WeatherServiceStatus::WEATHER_SUCCESS);
+  response->set_msg("");
 
   cout << "Requested weather for city: " << city << endl;
 

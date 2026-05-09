@@ -76,7 +76,6 @@ class FakeProfileServiceStub final : public ProfileService::StubInterface {
     }
 
     response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
-    response->mutable_request()->CopyFrom(request);
 
     for (const int64_t user_id : request.user_ids()) {
       UserCfProfileResult* result = response->add_results();
