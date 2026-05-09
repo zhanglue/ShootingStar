@@ -6,7 +6,7 @@
 #include "src/recommendation_engine/profile/profile_store.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class LocalFileProfileStore final : public ProfileStore {
  public:
@@ -18,4 +18,4 @@ class LocalFileProfileStore final : public ProfileStore {
   ::shooting_star::utilities::UserIdProfileMap profiles_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

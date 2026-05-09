@@ -7,7 +7,7 @@
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RetrieverBase : public RetrieverService::Service {
  public:
@@ -50,4 +50,4 @@ class RetrieverBase : public RetrieverService::Service {
   int default_max_candidate_count_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

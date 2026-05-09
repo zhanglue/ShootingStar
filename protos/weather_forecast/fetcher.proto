@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package weather_flow;
+package shooting_star.weather_flow;
 
 import "protos/weather_forecast/weather_data.proto";
 
@@ -13,5 +13,13 @@ message GetWeatherRequest {
 }
 
 message GetWeatherResponse {
-  WeatherData data = 1;
+  WeatherServiceStatus status = 1;
+  string msg = 2;
+  WeatherData data = 3;
+}
+
+enum WeatherServiceStatus {
+  WEATHER_SUCCESS = 0;
+  WEATHER_CITY_NOT_FOUND = 1;
+  WEATHER_SYSTEM_ERROR = 2;
 }

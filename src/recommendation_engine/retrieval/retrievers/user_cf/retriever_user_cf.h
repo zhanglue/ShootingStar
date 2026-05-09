@@ -8,18 +8,27 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/recommendation_engine/retrieval/retrievers/user_cf/profile_store.h"
+#include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/recommendation_engine/retrieval/retrievers/base/retriever_base.h"
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/user_similarity_store.h"
+#include "src/utilities/global_config/global_config.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RetrieverUserCf final : public RetrieverBase {
  public:
-  explicit RetrieverUserCf(int default_max_candidate_count = 10);
-  RetrieverUserCf(::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
-                  ::std::unique_ptr<user_cf::ProfileStore> profile_store,
-                  int default_max_candidate_count = 10);
+  struct Options {
+    int default_max_candidate_count = 10;
+    int trigger_seed_user_count = 10;
+    double score_multiplier = 1.0;
+  };
+
+  RetrieverUserCf(::std::unique_ptr<UserSimilarityStore> user_similarity_store,
+                  ::std::unique_ptr<ProfileService::StubInterface> profile_stub,
+                  Options options);
+
+  static ::std::unique_ptr<RetrieverUserCf> Create(
+      const ::shooting_star::utilities::GlobalConfig& config);
 
  private:
   // Shared mutable state for one retrieval request.
@@ -64,10 +73,12 @@ class RetrieverUserCf final : public RetrieverBase {
   // Convert raw user neighbors into valid, deduplicated trigger seeds.
   static ::std::vector<RetrieverBase::TriggerSeed> CollectTriggerSeeds(
       uint64_t request_user_id,
-      const ::std::vector<user_cf::UserNeighbor>& user_neighbors);
+      const ::std::vector<UserNeighbor>& user_neighbors);
 
-  ::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store_;
-  ::std::unique_ptr<user_cf::ProfileStore> profile_store_;
+  ::std::unique_ptr<UserSimilarityStore> user_similarity_store_;
+  ::std::unique_ptr<ProfileService::StubInterface> profile_stub_;
+  int trigger_seed_user_count_ = 10;
+  double score_multiplier_ = 1.0;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

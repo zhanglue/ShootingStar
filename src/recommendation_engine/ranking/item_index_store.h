@@ -8,7 +8,7 @@
 
 #include <google/protobuf/struct.pb.h>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 struct ItemIndexWeightedTag {
   ::std::string tag;
@@ -74,4 +74,4 @@ class ItemIndexStore {
   }
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

@@ -19,7 +19,7 @@
 #include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::grpc::ServerContext;
 using ::grpc::Status;
@@ -44,6 +44,7 @@ namespace {
 Status InvalidRequest(RankResponse* response, string_view message) {
   if (response != nullptr) {
     response->set_status(RankingServiceStatus::RANKING_INVALID_REQUEST);
+    response->set_msg(string(message));
   }
   return Status(StatusCode::INVALID_ARGUMENT, string(message));
 }
@@ -152,16 +153,30 @@ unique_ptr<ItemIndexStore> CreateUncachedItemIndexStore(
 
 }  // namespace
 
-RankingServiceImpl::RankingServiceImpl(const GlobalConfig& config)
-    : config_(config) {
-  item_index_store_ = CreateItemIndexStore(config_);
-
-  vector<unique_ptr<Ranker>> rankers =
-      CreateRankers(config_, item_index_store_);
+RankingServiceImpl::RankingServiceImpl(
+    shared_ptr<const ItemIndexStore> item_index_store,
+    vector<unique_ptr<Ranker>> rankers,
+    string default_ranker_name)
+    : item_index_store_(::std::move(item_index_store)) {
+  if (item_index_store_ == nullptr) {
+    throw ::std::invalid_argument(
+        "RankingServiceImpl item_index_store must not be null.");
+  }
   RegisterRankers(::std::move(rankers));
+  RegisterDefaultRanker(::std::move(default_ranker_name));
+}
 
-  const string default_ranker_name = config_.GetRankingDefaultRanker();
-  RegisterDefaultRanker(default_ranker_name);
+unique_ptr<RankingServiceImpl> RankingServiceImpl::Create(
+    const GlobalConfig& config) {
+  shared_ptr<const ItemIndexStore> item_index_store =
+      CreateItemIndexStore(config);
+  vector<unique_ptr<Ranker>> rankers = CreateRankers(config, item_index_store);
+  const string default_ranker_name = config.GetRankingDefaultRanker();
+
+  unique_ptr<RankingServiceImpl> server = make_unique<RankingServiceImpl>(
+      ::std::move(item_index_store), ::std::move(rankers),
+      default_ranker_name);
+  return server;
 }
 
 shared_ptr<const ItemIndexStore> RankingServiceImpl::CreateItemIndexStore(
@@ -248,6 +263,10 @@ Status RankingServiceImpl::Rank(ServerContext* context,
 
   // Validate the raw RPC pointers before reading the protobuf payload.
   if (request == nullptr || response == nullptr) {
+    if (response != nullptr) {
+      response->set_status(RankingServiceStatus::RANKING_SYSTEM_ERROR);
+      response->set_msg("Rank request/response is null.");
+    }
     logger.Error(
         "ranking_request_pointer_invalid",
         {
@@ -270,7 +289,7 @@ Status RankingServiceImpl::Rank(ServerContext* context,
       });
 
   // Initialize response metadata before the ranking pipeline starts.
-  response->mutable_request()->CopyFrom(*request);
+  response->set_msg("");
   response->set_input_candidate_count(request->candidates_size());
   response->set_ranked_candidate_count(0);
 
@@ -296,6 +315,7 @@ Status RankingServiceImpl::Rank(ServerContext* context,
   const Ranker* ranker = FindRanker(ranker_name);
   if (ranker == nullptr) {
     response->set_status(RankingServiceStatus::RANKING_INVALID_REQUEST);
+    response->set_msg(format("Unknown ranker {}.", ranker_name));
     logger.Warning(
         "ranking_ranker_not_found",
         {
@@ -322,6 +342,7 @@ Status RankingServiceImpl::Rank(ServerContext* context,
     unique_ptr<RankTask> task = ranker->CreateTask(*request, response);
     if (task == nullptr) {
       response->set_status(RankingServiceStatus::RANKING_SYSTEM_ERROR);
+      response->set_msg(format("Ranker {} created a null task.", ranker_name));
       logger.Error(
           "ranking_task_create_failed",
           {
@@ -347,6 +368,9 @@ Status RankingServiceImpl::Rank(ServerContext* context,
     // Run the request-scoped ranking task and log the final outcome.
     const Status task_status = task->Run();
     if (!task_status.ok()) {
+      if (response->msg().empty()) {
+        response->set_msg(task_status.error_message());
+      }
       logger.Error(
           "ranking_task_failed",
           {
@@ -361,6 +385,13 @@ Status RankingServiceImpl::Rank(ServerContext* context,
                ::std::to_string(static_cast<int>(response->status()))},
           });
       return task_status;
+    }
+    if (response->status() == RankingServiceStatus::RANKING_SUCCESS) {
+      response->set_msg("");
+    } else if (response->msg().empty()) {
+      response->set_msg(
+          format("Ranking finished with status {}.",
+                 static_cast<int>(response->status())));
     }
 
     logger.Info(
@@ -380,6 +411,7 @@ Status RankingServiceImpl::Rank(ServerContext* context,
     return task_status;
   } catch (const ::std::exception& ex) {
     response->set_status(RankingServiceStatus::RANKING_SYSTEM_ERROR);
+    response->set_msg(ex.what());
     logger.Error(
         "ranking_request_failed",
         {
@@ -408,4 +440,4 @@ string RankingServiceImpl::ResolveRankerName(const RankRequest& request) const {
   return default_ranker_name_;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

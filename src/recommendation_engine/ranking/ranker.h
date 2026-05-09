@@ -7,7 +7,7 @@
 
 #include "protos/recommendation_engine/ranking.pb.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RankTask {
  public:
@@ -26,4 +26,4 @@ class Ranker {
       RankResponse* response) const = 0;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

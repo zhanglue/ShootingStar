@@ -5,7 +5,7 @@
 
 #include "protos/recommendation_engine/profile.pb.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class ProfileStore {
  public:
@@ -18,4 +18,4 @@ class ProfileStore {
 
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

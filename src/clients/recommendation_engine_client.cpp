@@ -1,69 +1,49 @@
 #include <getopt.h>
 #include <grpcpp/grpcpp.h>
 
+#include <chrono>
 #include <iostream>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
-#include <chrono>
 
 #include "protos/recommendation_engine/recommendation_engine.grpc.pb.h"
-#include "src/clients/client_runtime.h"
+#include "src/clients/common.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
+
+namespace {
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
-using ::recommendation_engine::RecommendRequest;
-using ::recommendation_engine::RecommendResponse;
+using ::shooting_star::recommendation_engine::Gateway;
+using ::shooting_star::recommendation_engine::RecommendRequest;
+using ::shooting_star::recommendation_engine::RecommendResponse;
+using ::shooting_star::clients::BuildTarget;
+using ::shooting_star::clients::CreateInsecureChannel;
+using ::shooting_star::clients::ElapsedMillisSince;
+using ::shooting_star::clients::ParseIntArg;
+using ::shooting_star::clients::PrintRpcElapsed;
+using ::shooting_star::clients::PrintRpcFailure;
+using ::shooting_star::clients::PrintTimestampUtc;
+using ::shooting_star::clients::ClientExitCode;
+using ::shooting_star::clients::PrintRunStartedAtUtc;
 using ::shooting_star::utilities::GenerateGuid;
-using ::std::chrono::duration_cast;
 using ::std::chrono::steady_clock;
 using ::std::cout;
+using ::std::endl;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
 using ::std::vector;
 
-namespace recommendation_engine {
-namespace {
+constexpr int kDefaultUserId = 85566;
 
-class RecommendationEngineClient {
- public:
-  explicit RecommendationEngineClient(shared_ptr<Channel> channel)
-      : stub_(Gateway::NewStub(channel)) {}
-
-  void Recommend(int user_id, int max_results) {
-    RecommendRequest request;
-    request.set_trace_id(GenerateGuid());
-    request.set_request_id(GenerateGuid());
-    request.set_user_id(user_id);
-    request.set_max_results(max_results);
-
-    RecommendResponse response;
-    ClientContext context;
-
-    const auto start = steady_clock::now();
-    const Status status = stub_->Recommend(&context, request, &response);
-    const auto elapsed_ms =
-        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
-            .count();
-    cout << "Recommend RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
-
-    if (status.ok()) {
-      cout << ::std::endl;
-      cout << "Recommend result: " << ::std::endl;
-      cout << response.DebugString() << ::std::endl;
-      cout << ::std::endl;
-    } else {
-      ::std::cerr << "RPC failed: " << status.error_code() << ", "
-                  << status.error_message() << ::std::endl;
-    }
-  }
-
- private:
-  unique_ptr<Gateway::Stub> stub_;
+struct Config {
+  string ip = "127.0.0.1";
+  string port = "50000";
+  vector<int> user_ids;
+  int max_results = 20;
 };
 
 void PrintUsage() {
@@ -78,91 +58,130 @@ void PrintUsage() {
           "(default: 20)\n";
 }
 
-}  // namespace
-}  // namespace recommendation_engine
-
-int main(int argc, char** argv) {
-  string ip = "127.0.0.1";
-  string port = "50000";
-  vector<int> user_ids = {};
-  int max_results = 20;
-  int default_user_id = 85566;
-
+bool ParseArgs(int argc, char** argv, Config* config) {
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
       {"ip", required_argument, nullptr, 'i'},
       {"port", required_argument, nullptr, 'p'},
       {"user-id", required_argument, nullptr, 'u'},
       {"max-results", required_argument, nullptr, 'm'},
-      {0, 0, 0, 0}};
+      {0, 0, 0, 0},
+  };
 
   int opt;
   int option_index = 0;
-
   while ((opt = getopt_long(argc, argv, "hi:p:u:m:", long_options,
                             &option_index)) != -1) {
     switch (opt) {
       case 'h':
-        recommendation_engine::PrintUsage();
-        return 0;
+        PrintUsage();
+        return false;
       case 'i':
-        ip = optarg;
+        config->ip = optarg;
         break;
       case 'p':
-        port = optarg;
+        config->port = optarg;
         break;
-      case 'u':
-        try {
-          user_ids.push_back(::std::stoi(optarg));
-        } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: user_id is not a valid integer: " << optarg
-                      << "\n";
-          return 1;
-        } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: user_id is out of range: " << optarg << "\n";
-          return 1;
+      case 'u': {
+        int user_id = 0;
+        if (!ParseIntArg(optarg, "user_id", &user_id)) {
+          return false;
         }
+        config->user_ids.push_back(user_id);
         break;
+      }
       case 'm':
-        try {
-          max_results = ::std::stoi(optarg);
-        } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: max_results is not a valid integer: " << optarg
-                      << "\n";
-          return 1;
-        } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: max_results is out of range: " << optarg
-                      << "\n";
-          return 1;
+        if (!ParseIntArg(optarg, "max_results", &config->max_results)) {
+          return false;
         }
         break;
       default:
-        recommendation_engine::PrintUsage();
-        return 1;
+        PrintUsage();
+        return false;
     }
   }
-
-  const string target_str = ip + ":" + port;
-  if (user_ids.empty()) {
-    user_ids.push_back(default_user_id);
+  if (config->user_ids.empty()) {
+    config->user_ids.push_back(kDefaultUserId);
   }
+  return true;
+}
 
-  ::shooting_star::clients::PrintRunStartedAtUtc();
-  cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
-  cout << "Recommend for users:";
-  for (int user_id : user_ids) {
+void PrintConfig(const Config& config) {
+  const string target = BuildTarget(config.ip, config.port);
+  cout << "Client config:" << endl;
+  cout << "  ip: " << config.ip << endl;
+  cout << "  port: " << config.port << endl;
+  cout << "  target: " << target << endl;
+  cout << "  user_ids:";
+  for (int user_id : config.user_ids) {
     cout << " " << user_id;
   }
-  cout << ::std::endl << ::std::endl;
-  cout << "Requested max results: " << max_results << ::std::endl
-       << ::std::endl;
+  cout << endl;
+  cout << "  max_results: " << config.max_results << endl;
+  cout << endl;
+}
 
-  recommendation_engine::RecommendationEngineClient client(
-      grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  for (int user_id : user_ids) {
-    cout << "Recommend for user: " << user_id << ::std::endl;
-    client.Recommend(user_id, max_results);
+class RecommendationEngineClient {
+ public:
+  static RecommendationEngineClient Create(const Config& config) {
+    const string target = BuildTarget(config.ip, config.port);
+    shared_ptr<Channel> channel =
+        CreateInsecureChannel(target);
+    return RecommendationEngineClient(channel);
   }
 
-  return 0;
+  explicit RecommendationEngineClient(shared_ptr<Channel> channel)
+      : stub_(Gateway::NewStub(channel)) {}
+
+  bool launch_request(int user_id, int max_results) {
+    RecommendRequest request;
+    request.set_trace_id(GenerateGuid());
+    request.set_request_id(GenerateGuid());
+    request.set_user_id(user_id);
+    request.set_max_results(max_results);
+
+    cout << "Recommend request:" << endl;
+    cout << request.DebugString() << endl;
+
+    RecommendResponse response;
+    ClientContext context;
+
+    PrintTimestampUtc("Recommend request started at UTC");
+    const auto start = steady_clock::now();
+    const Status status = stub_->Recommend(&context, request, &response);
+    PrintTimestampUtc("Recommend response received at UTC");
+    PrintRpcElapsed("Recommend", ElapsedMillisSince(start));
+
+    cout << "Recommend response:" << endl;
+    cout << response.DebugString() << endl;
+    if (!status.ok()) {
+      PrintRpcFailure(status);
+      return false;
+    }
+    return true;
+  }
+
+ private:
+  unique_ptr<Gateway::Stub> stub_;
+};
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  Config config;
+  if (!ParseArgs(argc, argv, &config)) {
+    return ClientExitCode::kArgs;
+  }
+
+  PrintRunStartedAtUtc();
+  PrintConfig(config);
+
+  RecommendationEngineClient client = RecommendationEngineClient::Create(config);
+  for (int user_id : config.user_ids) {
+    cout << "Launching Recommend for user: " << user_id << endl;
+    if (!client.launch_request(user_id, config.max_results)) {
+      return ClientExitCode::kErr;
+    }
+  }
+  return ClientExitCode::kOk;
 }

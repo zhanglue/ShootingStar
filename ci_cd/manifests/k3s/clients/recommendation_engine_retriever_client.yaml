@@ -25,3 +25,6 @@ spec:
         args:
         - --ip=retriever-item-cf.recommendation-engine.svc.cluster.local
         - --port=50210
+        # For retriever UserCF
+        # - --ip=retriever-user-cf.recommendation-engine.svc.cluster.local
+        # - --port=50220

@@ -14,7 +14,7 @@
 #include "absl/strings/str_format.h"
 #include "src/utilities/pb_data_handler/pb_data_handler.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::google::protobuf::Struct;
 using ::google::protobuf::Value;
@@ -133,4 +133,4 @@ bool ElasticsearchProfileStore::ParseProfileFromGetResponse(
   return true;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

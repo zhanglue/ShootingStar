@@ -1,29 +1,42 @@
 #include <getopt.h>
 #include <grpcpp/grpcpp.h>
 
-#include <cstdint>
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <memory>
-#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "protos/recommendation_engine/retriever.grpc.pb.h"
-#include "src/clients/client_runtime.h"
+#include "src/clients/common.h"
 #include "src/utilities/local_profile_loader/local_profile_loader.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
+
+namespace {
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
-using ::recommendation_engine::RetrieverRequest;
-using ::recommendation_engine::RetrieverResponse;
+using ::shooting_star::recommendation_engine::RetrieverRequest;
+using ::shooting_star::recommendation_engine::RetrieverResponse;
+using ::shooting_star::recommendation_engine::RetrieverService;
+using ::shooting_star::clients::BuildTarget;
+using ::shooting_star::clients::CreateInsecureChannel;
+using ::shooting_star::clients::ElapsedMillisSince;
+using ::shooting_star::clients::ParseInt64Arg;
+using ::shooting_star::clients::ParseIntArg;
+using ::shooting_star::clients::PrintRpcElapsed;
+using ::shooting_star::clients::PrintRpcFailure;
+using ::shooting_star::clients::PrintTimestampUtc;
+using ::shooting_star::clients::ClientExitCode;
+using ::shooting_star::clients::PrintRunStartedAtUtc;
 using ::shooting_star::utilities::GenerateGuid;
 using ::shooting_star::utilities::LoadProfileFromLocalFile;
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
-using ::std::chrono::duration_cast;
 using ::std::chrono::steady_clock;
 using ::std::cout;
+using ::std::endl;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
@@ -31,60 +44,14 @@ using ::std::vector;
 
 constexpr char kDefaultProfileDataPath[] =
     "tests/testdata/recommendation_engine/local_recommendation_fixture/profiles.jsonl";
+constexpr int64_t kDefaultUserId = 85566;
 
-namespace recommendation_engine {
-namespace {
-
-class RetrieverClient {
- public:
-  explicit RetrieverClient(shared_ptr<Channel> channel)
-      : stub_(RetrieverService::NewStub(channel)) {}
-
-  void Retrieve(int64_t user_id, int max_candidate_count,
-                const string& profile_data_path,
-                const string& executable_path) {
-    RetrieverRequest request;
-    request.set_trace_id(GenerateGuid());
-    request.set_request_id(GenerateGuid());
-    request.set_user_id(user_id);
-    request.set_max_candidate_count(max_candidate_count);
-
-    string error_msg;
-    const string resolved_profile_data_path =
-        ResolveWorkspaceRelativePath(profile_data_path, executable_path);
-    if (!LoadProfileFromLocalFile(resolved_profile_data_path, user_id,
-                                          request.mutable_profile(),
-                                          &error_msg)) {
-      ::std::cerr << "Failed to load profile: " << error_msg << ::std::endl;
-      return;
-    }
-
-    cout << "Retrieve request:" << ::std::endl;
-    cout << request.DebugString() << ::std::endl;
-
-    RetrieverResponse response;
-    ClientContext context;
-
-    const auto start = steady_clock::now();
-    const Status status = stub_->Retrieve(&context, request, &response);
-    const auto elapsed_ms =
-        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
-            .count();
-    cout << "Retrieve RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
-
-    if (status.ok()) {
-      cout << ::std::endl;
-      cout << "Retrieve result:" << ::std::endl;
-      cout << response.DebugString() << ::std::endl;
-      cout << ::std::endl;
-    } else {
-      ::std::cerr << "RPC failed: " << status.error_code() << ", "
-                  << status.error_message() << ::std::endl;
-    }
-  }
-
- private:
-  unique_ptr<RetrieverService::Stub> stub_;
+struct Config {
+  string ip = "127.0.0.1";
+  string port = "50210";
+  string profile_data_path = kDefaultProfileDataPath;
+  vector<int64_t> user_ids;
+  int max_candidate_count = 20;
 };
 
 void PrintUsage() {
@@ -104,17 +71,7 @@ void PrintUsage() {
        << kDefaultProfileDataPath << ")\n";
 }
 
-}  // namespace
-}  // namespace recommendation_engine
-
-int main(int argc, char** argv) {
-  string ip = "127.0.0.1";
-  string port = "50210";
-  string profile_data_path = kDefaultProfileDataPath;
-  vector<int64_t> user_ids = {};
-  int64_t default_user_id = 85566;
-  int max_candidate_count = 20;
-
+bool ParseArgs(int argc, char** argv, Config* config) {
   struct option long_options[] = {
       {"help", no_argument, nullptr, 'h'},
       {"ip", required_argument, nullptr, 'i'},
@@ -127,76 +84,137 @@ int main(int argc, char** argv) {
 
   int opt;
   int option_index = 0;
-
   while ((opt = getopt_long(argc, argv, "hi:p:u:c:f:", long_options,
                             &option_index)) != -1) {
     switch (opt) {
       case 'h':
-        recommendation_engine::PrintUsage();
-        return 0;
+        PrintUsage();
+        return false;
       case 'i':
-        ip = optarg;
+        config->ip = optarg;
         break;
       case 'p':
-        port = optarg;
+        config->port = optarg;
         break;
-      case 'u':
-        try {
-          user_ids.push_back(::std::stoll(optarg));
-        } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: user_id is not a valid integer: " << optarg
-                      << "\n";
-          return 1;
-        } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: user_id is out of range: " << optarg << "\n";
-          return 1;
+      case 'u': {
+        int64_t user_id = 0;
+        if (!ParseInt64Arg(optarg, "user_id", &user_id)) {
+          return false;
         }
+        config->user_ids.push_back(user_id);
         break;
+      }
       case 'c':
-        try {
-          max_candidate_count = ::std::stoi(optarg);
-        } catch (const ::std::invalid_argument&) {
-          ::std::cerr << "Error: max_candidate_count is not a valid integer: "
-                      << optarg << "\n";
-          return 1;
-        } catch (const ::std::out_of_range&) {
-          ::std::cerr << "Error: max_candidate_count is out of range: "
-                      << optarg << "\n";
-          return 1;
+        if (!ParseIntArg(optarg, "max_candidate_count",
+                         &config->max_candidate_count)) {
+          return false;
         }
         break;
       case 'f':
-        profile_data_path = optarg;
+        config->profile_data_path = optarg;
         break;
       default:
-        recommendation_engine::PrintUsage();
-        return 1;
+        PrintUsage();
+        return false;
     }
   }
-
-  const string target_str = ip + ":" + port;
-  if (user_ids.empty()) {
-    user_ids.push_back(default_user_id);
+  if (config->user_ids.empty()) {
+    config->user_ids.push_back(kDefaultUserId);
   }
+  return true;
+}
 
-  ::shooting_star::clients::PrintRunStartedAtUtc();
-  cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
-  cout << "Retrieving candidates for users:";
-  for (int64_t user_id : user_ids) {
+void PrintConfig(const Config& config) {
+  const string target = BuildTarget(config.ip, config.port);
+  cout << "Client config:" << endl;
+  cout << "  ip: " << config.ip << endl;
+  cout << "  port: " << config.port << endl;
+  cout << "  target: " << target << endl;
+  cout << "  user_ids:";
+  for (int64_t user_id : config.user_ids) {
     cout << " " << user_id;
   }
-  cout << ::std::endl;
-  cout << "Using profile data from: " << profile_data_path << ::std::endl;
-  cout << "Requested max candidate count: " << max_candidate_count
-       << ::std::endl
-       << ::std::endl;
+  cout << endl;
+  cout << "  max_candidate_count: " << config.max_candidate_count
+       << endl;
+  cout << "  profile_data_path: " << config.profile_data_path << endl;
+  cout << endl;
+}
 
-  recommendation_engine::RetrieverClient client(
-      grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  for (int64_t user_id : user_ids) {
-    cout << "Retrieving candidates for user: " << user_id << ::std::endl;
-    client.Retrieve(user_id, max_candidate_count, profile_data_path, argv[0]);
+class RetrieverClient {
+ public:
+  static RetrieverClient Create(const Config& config) {
+    const string target = BuildTarget(config.ip, config.port);
+    shared_ptr<Channel> channel =
+        CreateInsecureChannel(target);
+    return RetrieverClient(channel);
   }
 
-  return 0;
+  explicit RetrieverClient(shared_ptr<Channel> channel)
+      : stub_(RetrieverService::NewStub(channel)) {}
+
+  bool launch_request(int64_t user_id,
+                      int max_candidate_count,
+                      const string& profile_data_path,
+                      const string& executable_path) {
+    RetrieverRequest request;
+    request.set_trace_id(GenerateGuid());
+    request.set_request_id(GenerateGuid());
+    request.set_user_id(user_id);
+    request.set_max_candidate_count(max_candidate_count);
+
+    string error_msg;
+    const string resolved_profile_data_path =
+        ResolveWorkspaceRelativePath(profile_data_path, executable_path);
+    if (!LoadProfileFromLocalFile(resolved_profile_data_path, user_id,
+                                  request.mutable_profile(), &error_msg)) {
+      cout << "Failed to load profile: " << error_msg << endl;
+      return false;
+    }
+
+    cout << "Retrieve request:" << endl;
+    cout << request.DebugString() << endl;
+
+    RetrieverResponse response;
+    ClientContext context;
+
+    PrintTimestampUtc("Retrieve request started at UTC");
+    const auto start = steady_clock::now();
+    const Status status = stub_->Retrieve(&context, request, &response);
+    PrintTimestampUtc("Retrieve response received at UTC");
+    PrintRpcElapsed("Retrieve", ElapsedMillisSince(start));
+
+    cout << "Retrieve response:" << endl;
+    cout << response.DebugString() << endl;
+    if (!status.ok()) {
+      PrintRpcFailure(status);
+      return false;
+    }
+    return true;
+  }
+
+ private:
+  unique_ptr<RetrieverService::Stub> stub_;
+};
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  Config config;
+  if (!ParseArgs(argc, argv, &config)) {
+    return ClientExitCode::kArgs;
+  }
+
+  PrintRunStartedAtUtc();
+  PrintConfig(config);
+
+  RetrieverClient client = RetrieverClient::Create(config);
+  for (int64_t user_id : config.user_ids) {
+    cout << "Launching Retrieve for user: " << user_id << endl;
+    if (!client.launch_request(user_id, config.max_candidate_count,
+                               config.profile_data_path, argv[0])) {
+      return ClientExitCode::kErr;
+    }
+  }
+  return ClientExitCode::kOk;
 }

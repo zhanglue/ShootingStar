@@ -1,8 +1,7 @@
 syntax = "proto3";
 
-package recommendation_engine;
+package shooting_star.recommendation_engine;
 
-import "protos/recommendation_engine/profile.proto";
 import "protos/recommendation_engine/retrieval.proto";
 
 service Gateway {
@@ -18,10 +17,8 @@ message RecommendRequest {
 
 message RecommendResponse {
   RecommendationStatus status = 1;
-  RecommendRequest request = 2;
-  Profile profile = 3;
-  int32 candidate_count = 4;
-  repeated CandidateItem candidates = 5;
+  string msg = 2;
+  repeated CandidateItem candidates = 3;
 }
 
 enum RecommendationStatus {

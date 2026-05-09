@@ -8,7 +8,7 @@
 #include "src/recommendation_engine/profile/profile_store.h"
 #include "src/utilities/lru_cache/lru_cache.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class CachingProfileStore final : public ProfileStore {
  public:
@@ -32,4 +32,4 @@ class CachingProfileStore final : public ProfileStore {
   mutable ::shooting_star::utilities::LruCache<int, Profile> cache_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

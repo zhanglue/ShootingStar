@@ -3,48 +3,75 @@
 #include <grpcpp/grpcpp.h>
 
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
-#include "protos/weather_forecast/fetcher.grpc.pb.h"
+namespace shooting_star::weather_flow {
 
-namespace weather_flow {
-
-using ::grpc::Server;
-using ::grpc::ServerBuilder;
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::std::cout;
 using ::std::endl;
+using ::std::invalid_argument;
+using ::std::make_unique;
 using ::std::string;
-using ::weather_flow::Fetcher;
-using ::weather_flow::GetWeatherRequest;
-using ::weather_flow::GetWeatherResponse;
+using ::std::unique_ptr;
+using ::shooting_star::weather_flow::GetWeatherRequest;
+using ::shooting_star::weather_flow::GetWeatherResponse;
+using ::shooting_star::weather_flow::WeatherServiceStatus;
 
-// Hardcoded weather data for cities.
-FetcherServiceImpl::FetcherServiceImpl() {
-  weather_data_map_["San Francisco"] = WeatherData::SUNNY;
-  weather_data_map_["New York"] = WeatherData::CLOUDY;
-  weather_data_map_["Seattle"] = WeatherData::RAINY;
-  weather_data_map_["Denver"] = WeatherData::SNOWY;
+namespace {
+
+FetcherServiceImpl::WeatherDataMap CreateDefaultWeatherDataMap() {
+  FetcherServiceImpl::WeatherDataMap weather_data_map;
+  weather_data_map["San Francisco"] = WeatherData::SUNNY;
+  weather_data_map["New York"] = WeatherData::CLOUDY;
+  weather_data_map["Seattle"] = WeatherData::RAINY;
+  weather_data_map["Denver"] = WeatherData::SNOWY;
+  return weather_data_map;
+}
+
+}  // namespace
+
+FetcherServiceImpl::FetcherServiceImpl(WeatherDataMap weather_data_map)
+    : weather_data_map_(::std::move(weather_data_map)) {
+  if (weather_data_map_.empty()) {
+    throw invalid_argument("FetcherServiceImpl weather_data_map must not be empty.");
+  }
+}
+
+unique_ptr<FetcherServiceImpl> FetcherServiceImpl::Create() {
+  WeatherDataMap weather_data_map = CreateDefaultWeatherDataMap();
+  unique_ptr<FetcherServiceImpl> server =
+      make_unique<FetcherServiceImpl>(::std::move(weather_data_map));
+  return server;
 }
 
 Status FetcherServiceImpl::GetWeather(ServerContext* context,
                                       const GetWeatherRequest* request,
                                       GetWeatherResponse* response) {
+  (void)context;
+  response->set_msg("");
   string city = request->city();
   auto it = weather_data_map_.find(city);
   if (it == weather_data_map_.end()) {
+    response->set_status(WeatherServiceStatus::WEATHER_CITY_NOT_FOUND);
+    response->set_msg("City not found.");
     return Status(StatusCode::NOT_FOUND, "City not found.");
   }
 
   WeatherData* weather_data = response->mutable_data();
   weather_data->set_condition(it->second);
   weather_data->set_temperature(22.0f);
+  response->set_status(WeatherServiceStatus::WEATHER_SUCCESS);
+  response->set_msg("");
 
   cout << "Requested weather for city: " << city << endl;
 
   return Status::OK;
 }
 
-}  // namespace weather_flow
+}  // namespace shooting_star::weather_flow

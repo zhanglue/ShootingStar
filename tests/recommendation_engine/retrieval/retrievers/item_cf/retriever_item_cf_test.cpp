@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::grpc::Status;
@@ -81,7 +81,8 @@ TEST(RetrieverItemCfTest, RetrievesAndRanksRedisItemSimilarityNeighbors) {
       {100, {{101, 0.9}, {300, 0.8}, {102, 0.4}}},
       {200, {{101, 0.8}, {201, 0.7}, {400, 0.6}}},
   };
-  RetrieverItemCf retriever(::std::move(fake_store));
+  RetrieverItemCf retriever(::std::move(fake_store),
+                            RetrieverItemCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 
@@ -110,7 +111,8 @@ TEST(RetrieverItemCfTest, RetrievesAndRanksRedisItemSimilarityNeighbors) {
 TEST(RetrieverItemCfTest, ReturnsSystemErrorWhenSimilarityStoreFails) {
   auto fake_store = ::std::make_unique<FakeItemSimilarityStore>();
   fake_store->should_throw = true;
-  RetrieverItemCf retriever(::std::move(fake_store));
+  RetrieverItemCf retriever(::std::move(fake_store),
+                            RetrieverItemCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
 
@@ -123,7 +125,8 @@ TEST(RetrieverItemCfTest, ReturnsSystemErrorWhenSimilarityStoreFails) {
 
 TEST(RetrieverItemCfTest, ReturnsEmptyTriggerSeedsWhenNoValidTriggerItems) {
   auto fake_store = ::std::make_unique<FakeItemSimilarityStore>();
-  RetrieverItemCf retriever(::std::move(fake_store));
+  RetrieverItemCf retriever(::std::move(fake_store),
+                            RetrieverItemCf::Options{});
 
   RetrieverRequest request;
   request.set_request_id("request-empty");
@@ -144,7 +147,8 @@ TEST(RetrieverItemCfTest, ReturnsEmptyTriggerSeedsWhenNoValidTriggerItems) {
 TEST(RetrieverItemCfTest, LimitsTriggerSeedsByConfiguredMaximum) {
   auto fake_store = ::std::make_unique<FakeItemSimilarityStore>();
   FakeItemSimilarityStore* raw_store = fake_store.get();
-  RetrieverItemCf retriever(::std::move(fake_store));
+  RetrieverItemCf retriever(::std::move(fake_store),
+                            RetrieverItemCf::Options{});
 
   RetrieverRequest request;
   request.set_request_id("request-top-k");
@@ -167,4 +171,4 @@ TEST(RetrieverItemCfTest, LimitsTriggerSeedsByConfiguredMaximum) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

@@ -8,7 +8,7 @@
 
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
@@ -72,4 +72,4 @@ TEST_F(LocalFileProfileStoreTest, ThrowsWhenJsonlFileDoesNotExist) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

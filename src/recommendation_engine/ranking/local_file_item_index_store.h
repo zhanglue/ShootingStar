@@ -7,7 +7,7 @@
 
 #include "src/recommendation_engine/ranking/item_index_store.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ItemIdIndexEntryMap = ::std::unordered_map<uint64_t, ItemIndexEntry>;
 
@@ -24,4 +24,4 @@ class LocalFileItemIndexStore final : public ItemIndexStore {
   ItemIdIndexEntryMap entries_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

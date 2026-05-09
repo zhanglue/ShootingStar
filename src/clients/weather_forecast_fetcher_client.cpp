@@ -1,58 +1,41 @@
 #include <getopt.h>
 #include <grpcpp/grpcpp.h>
 
+#include <chrono>
 #include <iostream>
 #include <memory>
-#include <chrono>
+#include <string>
 
 #include "protos/weather_forecast/fetcher.grpc.pb.h"
-#include "src/clients/client_runtime.h"
+#include "src/clients/common.h"
+
+namespace {
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
 using ::grpc::Status;
-using ::std::chrono::duration_cast;
+using ::shooting_star::clients::BuildTarget;
+using ::shooting_star::clients::CreateInsecureChannel;
+using ::shooting_star::clients::ElapsedMillisSince;
+using ::shooting_star::clients::PrintRpcElapsed;
+using ::shooting_star::clients::PrintRpcFailure;
+using ::shooting_star::clients::PrintTimestampUtc;
+using ::shooting_star::clients::ClientExitCode;
+using ::shooting_star::clients::PrintRunStartedAtUtc;
 using ::std::chrono::steady_clock;
 using ::std::cout;
+using ::std::endl;
 using ::std::shared_ptr;
 using ::std::string;
 using ::std::unique_ptr;
-using ::weather_flow::GetWeatherRequest;
-using ::weather_flow::GetWeatherResponse;
+using ::shooting_star::weather_flow::Fetcher;
+using ::shooting_star::weather_flow::GetWeatherRequest;
+using ::shooting_star::weather_flow::GetWeatherResponse;
 
-namespace weather_flow {
-namespace {
-
-class FetcherClient {
- public:
-  explicit FetcherClient(shared_ptr<Channel> channel)
-      : stub_(Fetcher::NewStub(channel)) {}
-
-  void GetWeather(const string& city) {
-    GetWeatherRequest request;
-    request.set_city(city);
-
-    GetWeatherResponse response;
-    ClientContext context;
-
-    const auto start = steady_clock::now();
-    const Status status = stub_->GetWeather(&context, request, &response);
-    const auto elapsed_ms =
-        duration_cast<::std::chrono::milliseconds>(steady_clock::now() - start)
-            .count();
-    cout << "GetWeather RPC elapsed: " << elapsed_ms << " ms" << ::std::endl;
-
-    if (status.ok()) {
-      cout << "Weather in " << city << ": " << response.data().DebugString()
-           << ::std::endl;
-    } else {
-      ::std::cerr << "RPC failed: " << status.error_code() << ", "
-                  << status.error_message() << ::std::endl;
-    }
-  }
-
- private:
-  unique_ptr<Fetcher::Stub> stub_;
+struct Config {
+  string ip = "127.0.0.1";
+  string port = "40000";
+  string city = "Denver";
 };
 
 void PrintUsage() {
@@ -65,53 +48,104 @@ void PrintUsage() {
           "Denver)\n";
 }
 
-}  // namespace
-}  // namespace weather_flow
-
-int main(int argc, char** argv) {
-  string ip = "127.0.0.1";
-  string port = "40000";
-  string city = "Denver";
-
-  struct option long_options[] = {{"help", no_argument, nullptr, 'h'},
-                                  {"ip", required_argument, nullptr, 'i'},
-                                  {"port", required_argument, nullptr, 'p'},
-                                  {"city", required_argument, nullptr, 'c'},
-                                  {0, 0, 0, 0}};
+bool ParseArgs(int argc, char** argv, Config* config) {
+  struct option long_options[] = {
+      {"help", no_argument, nullptr, 'h'},
+      {"ip", required_argument, nullptr, 'i'},
+      {"port", required_argument, nullptr, 'p'},
+      {"city", required_argument, nullptr, 'c'},
+      {0, 0, 0, 0},
+  };
 
   int opt;
   int option_index = 0;
-
   while ((opt = getopt_long(argc, argv, "hi:p:c:", long_options,
                             &option_index)) != -1) {
     switch (opt) {
       case 'h':
-        weather_flow::PrintUsage();
-        return 0;
+        PrintUsage();
+        return false;
       case 'i':
-        ip = optarg;
+        config->ip = optarg;
         break;
       case 'p':
-        port = optarg;
+        config->port = optarg;
         break;
       case 'c':
-        city = optarg;
+        config->city = optarg;
         break;
       default:
-        weather_flow::PrintUsage();
-        return 1;
+        PrintUsage();
+        return false;
     }
   }
+  return true;
+}
 
-  const string target_str = ip + ":" + port;
+void PrintConfig(const Config& config) {
+  const string target = BuildTarget(config.ip, config.port);
+  cout << "Client config:" << endl;
+  cout << "  ip: " << config.ip << endl;
+  cout << "  port: " << config.port << endl;
+  cout << "  target: " << target << endl;
+  cout << "  city: " << config.city << endl;
+  cout << endl;
+}
 
-  ::shooting_star::clients::PrintRunStartedAtUtc();
-  cout << "Connecting to gRPC server at: " << target_str << ::std::endl;
-  cout << "Fetching weather for city: " << city << ::std::endl << ::std::endl;
+class FetcherClient {
+ public:
+  static FetcherClient Create(const Config& config) {
+    const string target = BuildTarget(config.ip, config.port);
+    shared_ptr<Channel> channel = CreateInsecureChannel(target);
+    return FetcherClient(channel);
+  }
 
-  weather_flow::FetcherClient client(
-      grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.GetWeather(city);
+  explicit FetcherClient(shared_ptr<Channel> channel)
+      : stub_(Fetcher::NewStub(channel)) {}
 
-  return 0;
+  bool launch_request(const string& city) {
+    GetWeatherRequest request;
+    request.set_city(city);
+
+    cout << "GetWeather request:" << endl;
+    cout << request.DebugString() << endl;
+
+    GetWeatherResponse response;
+    ClientContext context;
+
+    PrintTimestampUtc("GetWeather request started at UTC");
+    const auto start = steady_clock::now();
+    const Status status = stub_->GetWeather(&context, request, &response);
+    PrintTimestampUtc("GetWeather response received at UTC");
+    PrintRpcElapsed("GetWeather", ElapsedMillisSince(start));
+
+    cout << "GetWeather response:" << endl;
+    cout << response.DebugString() << endl;
+    if (!status.ok()) {
+      PrintRpcFailure(status);
+      return false;
+    }
+    return true;
+  }
+
+ private:
+  unique_ptr<Fetcher::Stub> stub_;
+};
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  Config config;
+  if (!ParseArgs(argc, argv, &config)) {
+    return ClientExitCode::kArgs;
+  }
+
+  PrintRunStartedAtUtc();
+  PrintConfig(config);
+
+  FetcherClient client = FetcherClient::Create(config);
+  if (!client.launch_request(config.city)) {
+    return ClientExitCode::kErr;
+  }
+  return ClientExitCode::kOk;
 }

@@ -3,15 +3,19 @@ package(default_visibility = ["//src/clients:__pkg__"])
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_library(
-    name = "client_runtime",
-    hdrs = ["client_runtime.h"],
+    name = "common",
+    srcs = ["common.cpp"],
+    hdrs = ["common.h"],
+    deps = [
+        "@grpc//:grpc++",
+    ],
 )
 
 cc_binary(
     name = "weather_forecast_fetcher_client",
     srcs = ["weather_forecast_fetcher_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/weather_forecast:fetcher_cc",
         "//protos/weather_forecast:fetcher_cc_grpc",
         "@grpc//:grpc++",
@@ -23,7 +27,7 @@ cc_binary(
     name = "elasticsearch_client",
     srcs = ["elasticsearch_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/recommendation_engine:profile_cc",
         "//src/utilities/elasticsearch_client:elasticsearch_client",
         "//src/utilities/pb_data_handler:pb_data_handler",
@@ -36,7 +40,7 @@ cc_binary(
     name = "redis_client",
     srcs = ["redis_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//src/utilities/redis_client:redis_client",
     ],
 )
@@ -45,7 +49,7 @@ cc_binary(
     name = "recommendation_engine_client",
     srcs = ["recommendation_engine_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/recommendation_engine:recommendation_engine_cc",
         "//protos/recommendation_engine:recommendation_engine_cc_grpc",
         "//src/utilities/runtime_utilities:runtime_utilities",
@@ -58,7 +62,7 @@ cc_binary(
     name = "recommendation_engine_profile_client",
     srcs = ["recommendation_engine_profile_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/recommendation_engine:profile_cc",
         "//protos/recommendation_engine:profile_cc_grpc",
         "//src/utilities/runtime_utilities:runtime_utilities",
@@ -71,7 +75,7 @@ cc_binary(
     name = "recommendation_engine_retrieval_client",
     srcs = ["recommendation_engine_retrieval_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/recommendation_engine:retrieval_cc",
         "//protos/recommendation_engine:retrieval_cc_grpc",
         "//src/utilities/local_profile_loader:local_profile_loader",
@@ -85,7 +89,7 @@ cc_binary(
     name = "recommendation_engine_retriever_client",
     srcs = ["recommendation_engine_retriever_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/recommendation_engine:retriever_cc",
         "//protos/recommendation_engine:retriever_cc_grpc",
         "//src/utilities/local_profile_loader:local_profile_loader",
@@ -99,7 +103,7 @@ cc_binary(
     name = "recommendation_engine_ranking_client",
     srcs = ["recommendation_engine_ranking_client.cpp"],
     deps = [
-        ":client_runtime",
+        ":common",
         "//protos/recommendation_engine:ranking_cc",
         "//protos/recommendation_engine:ranking_cc_grpc",
         "//src/utilities/json_parser:json_parser",

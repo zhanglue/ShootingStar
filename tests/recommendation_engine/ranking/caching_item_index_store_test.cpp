@@ -9,7 +9,7 @@
 #include <thread>
 #include <unordered_map>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::std::chrono::milliseconds;
@@ -80,4 +80,4 @@ TEST(CachingItemIndexStoreTest, DoesNotCacheMissingEntry) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

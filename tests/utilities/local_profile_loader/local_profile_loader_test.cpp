@@ -12,7 +12,7 @@ namespace shooting_star {
 namespace utilities {
 namespace {
 
-using ::recommendation_engine::Profile;
+using ::shooting_star::recommendation_engine::Profile;
 using ::std::numeric_limits;
 using ::std::string;
 

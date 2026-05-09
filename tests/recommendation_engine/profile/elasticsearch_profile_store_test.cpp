@@ -10,7 +10,7 @@
 #include "src/utilities/elasticsearch_client/elasticsearch_client.h"
 #include "src/utilities/http_client/http_client.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::ElasticsearchClient;
@@ -74,4 +74,4 @@ TEST(ElasticsearchProfileStoreTest, ReturnsNullptrWhenDocumentIsMissing) {
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

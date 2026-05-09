@@ -6,7 +6,7 @@
 #include "src/recommendation_engine/retrieval/retrievers/item_cf/item_similarity_store.h"
 #include "src/utilities/redis_client/redis_client.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 class RedisItemSimilarityStore final : public ItemSimilarityStore {
  public:
@@ -24,4 +24,4 @@ class RedisItemSimilarityStore final : public ItemSimilarityStore {
   ::std::string key_prefix_;
 };
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

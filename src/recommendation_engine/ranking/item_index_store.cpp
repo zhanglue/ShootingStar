@@ -8,7 +8,7 @@
 
 #include "src/utilities/json_parser/json_parser.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::google::protobuf::Map;
@@ -140,4 +140,4 @@ ItemIndexEntry ItemIndexStore::ParseEntryFromJsonObject(
   return entry;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

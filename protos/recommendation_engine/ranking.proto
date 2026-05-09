@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package recommendation_engine;
+package shooting_star.recommendation_engine;
 
 import "protos/recommendation_engine/profile.proto";
 import "protos/recommendation_engine/retrieval.proto";
@@ -27,7 +27,7 @@ message RankingOptions {
 
 message RankResponse {
   RankingServiceStatus status = 1;
-  RankRequest request = 2;
+  string msg = 2;
   int32 input_candidate_count = 3;
   int32 ranked_candidate_count = 4;
   repeated RankedCandidateItem ranked_candidates = 5;

@@ -25,7 +25,7 @@ class GlobalConfigTestAccess {
 }  // namespace utilities
 }  // namespace shooting_star
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::shooting_star::utilities::ConfigYAML;
@@ -105,8 +105,8 @@ TEST(ProfileServiceImplTest, LogsLocalCacheConfigWhenEnabled) {
   InstallProfileTestLogger();
 
   ::testing::internal::CaptureStdout();
-  ProfileServiceImpl service(config);
-  (void)service;
+  auto server = ProfileServiceImpl::Create(config);
+  (void)server;
   const string logs = ::testing::internal::GetCapturedStdout();
 
   EXPECT_NE(logs.find("\"event\":\"profile_local_cache_initialized\""),
@@ -121,8 +121,8 @@ TEST(ProfileServiceImplTest, LogsReasonWhenLocalCacheIsNotConfigured) {
   InstallProfileTestLogger();
 
   ::testing::internal::CaptureStdout();
-  ProfileServiceImpl service(config);
-  (void)service;
+  auto server = ProfileServiceImpl::Create(config);
+  (void)server;
   const string logs = ::testing::internal::GetCapturedStdout();
 
   EXPECT_NE(logs.find("\"event\":\"profile_local_cache_disabled\""),
@@ -135,7 +135,7 @@ TEST(ProfileServiceImplTest, LogsReasonWhenLocalCacheIsNotConfigured) {
 TEST(ProfileServiceImplTest, BatchGetUserCfProfilesReturnsFocusedProfiles) {
   const GlobalConfig& config = CreateBaseConfig();
   InstallProfileTestLogger();
-  ProfileServiceImpl service(config);
+  auto server = ProfileServiceImpl::Create(config);
 
   BatchGetUserCfProfilesRequest request;
   request.set_request_id("request-user-cf");
@@ -145,7 +145,7 @@ TEST(ProfileServiceImplTest, BatchGetUserCfProfilesReturnsFocusedProfiles) {
   BatchGetUserCfProfilesResponse response;
 
   const ::grpc::Status status =
-      service.BatchGetUserCfProfiles(nullptr, &request, &response);
+      server->BatchGetUserCfProfiles(nullptr, &request, &response);
 
   EXPECT_TRUE(status.ok());
   EXPECT_EQ(response.status(), ProfileServiceStatus::PROFILE_SUCCESS);
@@ -197,8 +197,8 @@ TEST(ProfileServiceImplTest, LogsExplicitElasticsearchHttpClientConfigChain) {
   InstallProfileTestLogger();
 
   ::testing::internal::CaptureStdout();
-  ProfileServiceImpl service(config);
-  (void)service;
+  auto server = ProfileServiceImpl::Create(config);
+  (void)server;
   const string logs = ::testing::internal::GetCapturedStdout();
 
   EXPECT_NE(logs.find("\"event\":\"profile_store_initialized\""), string::npos);
@@ -252,8 +252,8 @@ TEST(ProfileServiceImplTest, UsesDefaultElasticsearchTimeoutBudget) {
   InstallProfileTestLogger();
 
   ::testing::internal::CaptureStdout();
-  ProfileServiceImpl service(config);
-  (void)service;
+  auto server = ProfileServiceImpl::Create(config);
+  (void)server;
   const string logs = ::testing::internal::GetCapturedStdout();
 
   EXPECT_NE(logs.find("\"profile_es_request_timeout_ms\":\"100\""),
@@ -299,7 +299,8 @@ TEST(ProfileServiceImplTest,
       "      acquire_timeout_ms: 7001\n");
   InstallProfileTestLogger();
 
-  EXPECT_THROW(ProfileServiceImpl service(config), ::std::invalid_argument);
+  EXPECT_THROW({ (void)ProfileServiceImpl::Create(config); },
+               ::std::invalid_argument);
 }
 
 TEST(ProfileServiceImplTest,
@@ -315,7 +316,8 @@ TEST(ProfileServiceImplTest,
       "    request_timeout_ms: 7001\n");
   InstallProfileTestLogger();
 
-  EXPECT_THROW(ProfileServiceImpl service(config), ::std::invalid_argument);
+  EXPECT_THROW({ (void)ProfileServiceImpl::Create(config); },
+               ::std::invalid_argument);
 }
 
 TEST(ProfileServiceImplTest,
@@ -332,7 +334,8 @@ TEST(ProfileServiceImplTest,
       "    connect_timeout_ms: 6001\n");
   InstallProfileTestLogger();
 
-  EXPECT_THROW(ProfileServiceImpl service(config), ::std::invalid_argument);
+  EXPECT_THROW({ (void)ProfileServiceImpl::Create(config); },
+               ::std::invalid_argument);
 }
 
 TEST(ProfileServiceImplTest,
@@ -351,8 +354,9 @@ TEST(ProfileServiceImplTest,
       "    connect_timeout_ms: 20\n");
   InstallProfileTestLogger();
 
-  EXPECT_THROW(ProfileServiceImpl service(config), ::std::invalid_argument);
+  EXPECT_THROW({ (void)ProfileServiceImpl::Create(config); },
+               ::std::invalid_argument);
 }
 
 }  // namespace
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

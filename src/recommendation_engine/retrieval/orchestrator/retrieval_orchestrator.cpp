@@ -3,25 +3,36 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "src/utilities/global_config/global_config.h"
+#include "src/utilities/logger/logger_registry.h"
 #include "src/utilities/runtime_utilities/runtime_utilities.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 using ::grpc::Channel;
 using ::grpc::ClientContext;
+using ::grpc::CreateChannel;
+using ::grpc::InsecureChannelCredentials;
 using ::grpc::ServerContext;
 using ::grpc::Status;
 using ::grpc::StatusCode;
 using ::shooting_star::utilities::GlobalConfig;
+using ::shooting_star::utilities::LoggerRegistry;
 using ::std::format;
+using ::std::invalid_argument;
+using ::std::make_unique;
 using ::std::shared_ptr;
 using ::std::string;
+using ::std::to_string;
+using ::std::unique_ptr;
 using ::std::unordered_map;
 using ::std::unordered_set;
 using ::std::vector;
@@ -137,12 +148,64 @@ void MergeCandidate(const CandidateItem& source_candidate,
 }
 
 RetrievalOrchestrator::RetrievalOrchestrator(
-  shared_ptr<Channel> item_cf_channel, shared_ptr<Channel> user_cf_channel)
-    : retriever_stubs_() {
-  retriever_stubs_.emplace_back(
-    "item_cf", RetrieverService::NewStub(::std::move(item_cf_channel)));
-  retriever_stubs_.emplace_back(
-    "user_cf", RetrieverService::NewStub(::std::move(user_cf_channel)));
+    RetrieverStubList retriever_stubs, double recall_candidate_expand_ratio)
+    : retriever_stubs_(::std::move(retriever_stubs)),
+      recall_candidate_expand_ratio_(recall_candidate_expand_ratio) {
+  if (retriever_stubs_.empty()) {
+    throw invalid_argument(
+        "RetrievalOrchestrator retriever_stubs must not be empty.");
+  }
+  if (recall_candidate_expand_ratio_ <= 0.0) {
+    throw invalid_argument(
+        "RetrievalOrchestrator recall_candidate_expand_ratio must be "
+        "positive.");
+  }
+  for (const auto& [retriever_name, retriever_stub] : retriever_stubs_) {
+    if (retriever_name.empty()) {
+      throw invalid_argument(
+          "RetrievalOrchestrator retriever name must not be empty.");
+    }
+    if (retriever_stub == nullptr) {
+      throw invalid_argument(
+          format("RetrievalOrchestrator {} retriever_stub must not be null.",
+                 retriever_name));
+    }
+  }
+}
+
+unique_ptr<RetrievalOrchestrator> RetrievalOrchestrator::Create(
+    const GlobalConfig& config) {
+  const string item_cf_service_address = config.GetRetrieverItemCfAddress();
+  const string user_cf_service_address = config.GetRetrieverUserCfAddress();
+  const double recall_candidate_expand_ratio =
+      config.GetRetrievalRecallCandidateExpandRatio();
+
+  LoggerRegistry::Get().Info(
+      "retrieval_orchestrator_downstream_clients_configured",
+      {
+          {"retriever_item_cf_address", item_cf_service_address},
+          {"retriever_user_cf_address", user_cf_service_address},
+          {"recall_candidate_expand_ratio",
+           to_string(recall_candidate_expand_ratio)},
+      });
+
+  shared_ptr<Channel> item_cf_channel =
+      CreateChannel(item_cf_service_address, InsecureChannelCredentials());
+  shared_ptr<Channel> user_cf_channel =
+      CreateChannel(user_cf_service_address, InsecureChannelCredentials());
+
+  unique_ptr<RetrieverService::Stub> item_cf_stub =
+      RetrieverService::NewStub(::std::move(item_cf_channel));
+  unique_ptr<RetrieverService::Stub> user_cf_stub =
+      RetrieverService::NewStub(::std::move(user_cf_channel));
+
+  RetrieverStubList retriever_stubs;
+  retriever_stubs.emplace_back("item_cf", ::std::move(item_cf_stub));
+  retriever_stubs.emplace_back("user_cf", ::std::move(user_cf_stub));
+
+  unique_ptr<RetrievalOrchestrator> server = make_unique<RetrievalOrchestrator>(
+      ::std::move(retriever_stubs), recall_candidate_expand_ratio);
+  return server;
 }
 
 Status RetrievalOrchestrator::Retrieve(ServerContext* context,
@@ -150,23 +213,31 @@ Status RetrievalOrchestrator::Retrieve(ServerContext* context,
                                        RetrieveResponse* response) {
   (void)context;
 
-  response->mutable_request()->CopyFrom(*request);
+  response->set_msg("");
   response->set_candidate_count(0);
 
   if (request->user_id() <= 0) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST);
-    return Status(StatusCode::INVALID_ARGUMENT,
-                  format("Invalid user_id {}.", request->user_id()));
+    const Status status = Status(StatusCode::INVALID_ARGUMENT,
+                                 format("Invalid user_id {}.", request->user_id()));
+    response->set_msg(status.error_message());
+    return status;
   }
 
   if (!request->has_profile()) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_INVALID_REQUEST);
-    return Status(
-      StatusCode::INVALID_ARGUMENT,
-      format("Profile is required for user {}.", request->user_id()));
+    const Status status = Status(
+        StatusCode::INVALID_ARGUMENT,
+        format("Profile is required for user {}.", request->user_id()));
+    response->set_msg(status.error_message());
+    return status;
   }
 
-  return DispatchToRetrievers(*request, response);
+  const Status status = DispatchToRetrievers(*request, response);
+  if (!status.ok() && response->msg().empty()) {
+    response->set_msg(status.error_message());
+  }
+  return status;
 }
 
 Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
@@ -194,10 +265,15 @@ Status RetrievalOrchestrator::FetchCandidatesFromRetriever(
   }
 
   if (!IsRetrieverResponseStatusAccepted(retriever_response->status())) {
+    string message = format("{} retriever returned non-success status {}.",
+                            retriever_name,
+                            static_cast<int>(retriever_response->status()));
+    if (!retriever_response->msg().empty()) {
+      message += format(" reason: {}", retriever_response->msg());
+    }
     return Status(
       StatusCode::INTERNAL,
-      format("{} retriever returned non-success status {}.", retriever_name,
-        static_cast<int>(retriever_response->status())));
+      message);
   }
 
   return Status::OK;
@@ -213,7 +289,7 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
   retriever_request.set_max_candidate_count(
       ComputeRetrieverMaxCandidateCount(
           request.max_candidate_count(),
-          GlobalConfig::Get().GetRetrievalRecallCandidateExpandRatio()));
+          recall_candidate_expand_ratio_));
 
   vector<string> failure_messages;
   vector<RetrieverResponse> retriever_responses;
@@ -237,7 +313,9 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
   if (retriever_responses.empty()) {
     response->set_status(RetrievalServiceStatus::RETRIEVAL_SYSTEM_ERROR);
     if (failure_messages.empty()) {
-      return Status(StatusCode::INTERNAL, "No retrievers configured.");
+      const Status status = Status(StatusCode::INTERNAL, "No retrievers configured.");
+      response->set_msg(status.error_message());
+      return status;
     }
 
     string error_message = "Failed to retrieve candidates from all retrievers.";
@@ -245,6 +323,7 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
       error_message += " ";
       error_message += failure_message;
     }
+    response->set_msg(error_message);
     return Status(StatusCode::INTERNAL, error_message);
   }
 
@@ -296,7 +375,8 @@ Status RetrievalOrchestrator::DispatchToRetrievers(const RetrieveRequest& reques
 
   response->set_candidate_count(response->candidates_size());
   response->set_status(RetrievalServiceStatus::RETRIEVAL_SUCCESS);
+  response->set_msg("");
   return Status::OK;
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

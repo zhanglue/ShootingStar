@@ -94,6 +94,7 @@ cc_binary(
     deps = [
         ":ranking_service_lib",
         "//src/utilities/global_config:global_config",
+        "//src/utilities/grpc_service_runner:grpc_service_runner",
         "//src/utilities/logger:logger",
         "@grpc//:grpc++",
         "@grpc//:grpc++_reflection",

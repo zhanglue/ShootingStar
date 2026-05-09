@@ -26,7 +26,7 @@ bool IsBlank(string_view value) {
 bool AddProfileFromJsonLine(const string& profile_json,
                             UserIdProfileMap* loaded_profiles,
                             string* error_msg) {
-  ::recommendation_engine::Profile profile;
+  ::shooting_star::recommendation_engine::Profile profile;
   if (!PBDataHandler::JsonToPB(profile_json, &profile, error_msg)) {
     return false;
   }
@@ -85,7 +85,7 @@ bool LoadProfilesFromJsonlFile(const string& file_path,
 
 bool LoadProfileFromLocalFile(const string& file_path,
                               int64_t user_id,
-                              ::recommendation_engine::Profile* profile,
+                              ::shooting_star::recommendation_engine::Profile* profile,
                               string* error_msg) {
   if (profile == nullptr) {
     if (error_msg != nullptr) {

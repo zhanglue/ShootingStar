@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package recommendation_engine;
+package shooting_star.recommendation_engine;
 
 import "protos/recommendation_engine/profile.proto";
 import "protos/recommendation_engine/retrieval.proto";
@@ -19,7 +19,7 @@ message RetrieverRequest {
 
 message RetrieverResponse {
   RetrieverServiceStatus status = 1;
-  RetrieverRequest request = 2;
+  string msg = 2;
   int32 candidate_count = 3;
   repeated CandidateItem candidates = 4;
 }

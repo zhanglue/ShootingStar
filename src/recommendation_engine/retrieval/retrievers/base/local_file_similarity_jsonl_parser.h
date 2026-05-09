@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 
 struct LocalFileSimilarityNeighbor {
   uint64_t id = 0;
@@ -22,4 +22,4 @@ LocalFileSimilarityRow ParseLocalFileSimilarityJsonlLine(
     ::std::string_view neighbor_id_field,
     ::std::string_view context);
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine

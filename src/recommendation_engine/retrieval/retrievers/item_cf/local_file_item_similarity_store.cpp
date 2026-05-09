@@ -10,7 +10,7 @@
 
 #include "src/recommendation_engine/retrieval/retrievers/base/local_file_similarity_jsonl_parser.h"
 
-namespace recommendation_engine {
+namespace shooting_star::recommendation_engine {
 namespace {
 
 using ::std::format;
@@ -81,4 +81,4 @@ vector<ItemNeighbor> LocalFileItemSimilarityStore::FindNeighborsByItemId(
   return vector<ItemNeighbor>(iter->second.begin(), iter->second.begin() + count);
 }
 
-}  // namespace recommendation_engine
+}  // namespace shooting_star::recommendation_engine
