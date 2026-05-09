@@ -19,13 +19,13 @@ using ::std::runtime_error;
 using ::std::unordered_map;
 using ::std::vector;
 
-class FakeUserSimilarityStore final : public user_cf::UserSimilarityStore {
+class FakeUserSimilarityStore final : public UserSimilarityStore {
  public:
-  unordered_map<uint64_t, vector<user_cf::UserNeighbor>> neighbors_by_user_id;
+  unordered_map<uint64_t, vector<UserNeighbor>> neighbors_by_user_id;
   mutable vector<pair<uint64_t, int>> requests;
   bool should_throw = false;
 
-  vector<user_cf::UserNeighbor> FindNeighborsByUserId(
+  vector<UserNeighbor> FindNeighborsByUserId(
       uint64_t user_id, int max_neighbor_count) const override {
     requests.emplace_back(user_id, max_neighbor_count);
     if (should_throw) {
@@ -37,8 +37,8 @@ class FakeUserSimilarityStore final : public user_cf::UserSimilarityStore {
       return {};
     }
 
-    vector<user_cf::UserNeighbor> neighbors;
-    for (const user_cf::UserNeighbor& neighbor : iter->second) {
+    vector<UserNeighbor> neighbors;
+    for (const UserNeighbor& neighbor : iter->second) {
       if (static_cast<int>(neighbors.size()) >= max_neighbor_count) {
         break;
       }

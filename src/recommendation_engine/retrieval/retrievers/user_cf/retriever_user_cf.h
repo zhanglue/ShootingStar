@@ -23,7 +23,7 @@ class RetrieverUserCf final : public RetrieverBase {
     double score_multiplier = 1.0;
   };
 
-  RetrieverUserCf(::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
+  RetrieverUserCf(::std::unique_ptr<UserSimilarityStore> user_similarity_store,
                   ::std::unique_ptr<ProfileService::StubInterface> profile_stub,
                   Options options);
 
@@ -73,9 +73,9 @@ class RetrieverUserCf final : public RetrieverBase {
   // Convert raw user neighbors into valid, deduplicated trigger seeds.
   static ::std::vector<RetrieverBase::TriggerSeed> CollectTriggerSeeds(
       uint64_t request_user_id,
-      const ::std::vector<user_cf::UserNeighbor>& user_neighbors);
+      const ::std::vector<UserNeighbor>& user_neighbors);
 
-  ::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store_;
+  ::std::unique_ptr<UserSimilarityStore> user_similarity_store_;
   ::std::unique_ptr<ProfileService::StubInterface> profile_stub_;
   int trigger_seed_user_count_ = 10;
   double score_multiplier_ = 1.0;

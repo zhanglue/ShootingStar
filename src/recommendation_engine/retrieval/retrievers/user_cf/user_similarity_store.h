@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace recommendation_engine::user_cf {
+namespace recommendation_engine {
 
 struct UserNeighbor {
   uint64_t user_id = 0;
@@ -22,4 +22,4 @@ class UserSimilarityStore {
       uint64_t user_id, int max_neighbor_count) const = 0;
 };
 
-}  // namespace recommendation_engine::user_cf
+}  // namespace recommendation_engine

@@ -27,9 +27,6 @@ using ::grpc::CreateChannel;
 using ::grpc::InsecureChannelCredentials;
 using ::grpc::Status;
 using ::grpc::StatusCode;
-using ::recommendation_engine::user_cf::LocalFileUserSimilarityStore;
-using ::recommendation_engine::user_cf::RedisUserSimilarityStore;
-using ::recommendation_engine::user_cf::UserSimilarityStore;
 using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::RedisClient;
@@ -150,7 +147,7 @@ vector<CandidateScore> SortCandidates(
   return sorted_candidates;
 }
 
-unique_ptr<user_cf::UserSimilarityStore> CreateUserSimilarityStore(
+unique_ptr<UserSimilarityStore> CreateUserSimilarityStore(
     const GlobalConfig& config) {
   const string store_type = config.GetSimilarityStoreType();
   if (store_type == UserSimilarityStore::kRedisStoreType) {
@@ -174,7 +171,7 @@ unique_ptr<user_cf::UserSimilarityStore> CreateUserSimilarityStore(
 }  // namespace
 
 RetrieverUserCf::RetrieverUserCf(
-    unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
+    unique_ptr<UserSimilarityStore> user_similarity_store,
     unique_ptr<ProfileService::StubInterface> profile_stub,
     Options options)
     : RetrieverBase(options.default_max_candidate_count),
@@ -207,7 +204,7 @@ unique_ptr<RetrieverUserCf> RetrieverUserCf::Create(
   options.trigger_seed_user_count = config.GetUserCfTriggerSeedUserCount();
   options.score_multiplier = config.GetRetrieverUserCfScoreMultiplier();
 
-  unique_ptr<user_cf::UserSimilarityStore> user_similarity_store =
+  unique_ptr<UserSimilarityStore> user_similarity_store =
       CreateUserSimilarityStore(config);
   shared_ptr<::grpc::Channel> profile_channel =
       CreateChannel(config.GetProfileServiceAddress(),
@@ -292,7 +289,7 @@ Status RetrieverUserCf::LoadTriggerSeeds(
   try {
     // Query top-N similar users and convert them into trigger seeds.
     const uint64_t request_user_id = static_cast<uint64_t>(request.user_id());
-    const vector<user_cf::UserNeighbor> user_neighbors =
+    const vector<UserNeighbor> user_neighbors =
         user_similarity_store_->FindNeighborsByUserId(request_user_id,
                                                       trigger_seed_user_count_);
     session->trigger_seeds = CollectTriggerSeeds(request_user_id, user_neighbors);
@@ -474,12 +471,12 @@ void RetrieverUserCf::FillResponseCandidates(
 
 vector<TriggerSeed> RetrieverUserCf::CollectTriggerSeeds(
     uint64_t request_user_id,
-    const vector<user_cf::UserNeighbor>& user_neighbors) {
+    const vector<UserNeighbor>& user_neighbors) {
   // Keep valid similar users only and deduplicate by user id.
   vector<TriggerSeed> trigger_seeds;
   trigger_seeds.reserve(user_neighbors.size());
   unordered_set<uint64_t> seen_user_ids;
-  for (const user_cf::UserNeighbor& user_neighbor : user_neighbors) {
+  for (const UserNeighbor& user_neighbor : user_neighbors) {
     if (user_neighbor.user_id == 0 || user_neighbor.user_id == request_user_id ||
         user_neighbor.score <= 0.0) {
       continue;

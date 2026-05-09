@@ -7,7 +7,7 @@
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/user_similarity_store.h"
 #include "src/utilities/redis_client/redis_client.h"
 
-namespace recommendation_engine::user_cf {
+namespace recommendation_engine {
 
 class RedisUserSimilarityStore final : public UserSimilarityStore {
  public:
@@ -22,4 +22,4 @@ class RedisUserSimilarityStore final : public UserSimilarityStore {
   ::std::string key_prefix_;
 };
 
-}  // namespace recommendation_engine::user_cf
+}  // namespace recommendation_engine
