@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/recommendation_engine/retrieval/retrievers/user_cf/profile_store.h"
+#include "protos/recommendation_engine/profile.grpc.pb.h"
 #include "src/recommendation_engine/retrieval/retrievers/base/retriever_base.h"
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/user_similarity_store.h"
 #include "src/utilities/global_config/global_config.h"
@@ -24,7 +24,7 @@ class RetrieverUserCf final : public RetrieverBase {
   };
 
   RetrieverUserCf(::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
-                  ::std::unique_ptr<user_cf::ProfileStore> profile_store,
+                  ::std::unique_ptr<ProfileService::StubInterface> profile_stub,
                   Options options);
 
   static ::std::unique_ptr<RetrieverUserCf> Create(
@@ -76,7 +76,7 @@ class RetrieverUserCf final : public RetrieverBase {
       const ::std::vector<user_cf::UserNeighbor>& user_neighbors);
 
   ::std::unique_ptr<user_cf::UserSimilarityStore> user_similarity_store_;
-  ::std::unique_ptr<user_cf::ProfileStore> profile_store_;
+  ::std::unique_ptr<ProfileService::StubInterface> profile_stub_;
   int trigger_seed_user_count_ = 10;
   double score_multiplier_ = 1.0;
 };

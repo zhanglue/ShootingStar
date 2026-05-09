@@ -4,7 +4,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -15,7 +14,6 @@ namespace {
 
 using ::grpc::Status;
 using ::grpc::StatusCode;
-using ::std::optional;
 using ::std::pair;
 using ::std::runtime_error;
 using ::std::unordered_map;
@@ -50,23 +48,79 @@ class FakeUserSimilarityStore final : public user_cf::UserSimilarityStore {
   }
 };
 
-class FakeProfileStore final : public user_cf::ProfileStore {
+class FakeProfileServiceStub final : public ProfileService::StubInterface {
  public:
-  unordered_map<uint64_t, UserCfProfile> profiles_by_user_id;
-  mutable vector<uint64_t> requests;
-  bool should_throw = false;
+  unordered_map<int64_t, UserCfProfile> profiles_by_user_id;
+  mutable vector<vector<int64_t>> batch_requests;
+  bool should_fail_rpc = false;
 
-  optional<UserCfProfile> FindByUserId(uint64_t user_id) const override {
-    requests.emplace_back(user_id);
-    if (should_throw) {
-      throw runtime_error("profile unavailable");
+  Status GetProfile(::grpc::ClientContext* /*context*/,
+                    const GetProfileRequest& /*request*/,
+                    GetProfileResponse* /*response*/) override {
+    return Status(StatusCode::UNIMPLEMENTED, "unused in this test");
+  }
+
+  Status BatchGetUserCfProfiles(
+      ::grpc::ClientContext* /*context*/,
+      const BatchGetUserCfProfilesRequest& request,
+      BatchGetUserCfProfilesResponse* response) override {
+    vector<int64_t> user_ids;
+    user_ids.reserve(static_cast<size_t>(request.user_ids_size()));
+    for (const int64_t user_id : request.user_ids()) {
+      user_ids.emplace_back(user_id);
+    }
+    batch_requests.emplace_back(::std::move(user_ids));
+
+    if (should_fail_rpc) {
+      return Status(StatusCode::INTERNAL, "profile unavailable");
     }
 
-    const auto iter = profiles_by_user_id.find(user_id);
-    if (iter == profiles_by_user_id.end()) {
-      return ::std::nullopt;
+    response->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
+    response->mutable_request()->CopyFrom(request);
+
+    for (const int64_t user_id : request.user_ids()) {
+      UserCfProfileResult* result = response->add_results();
+      result->set_user_id(user_id);
+      const auto iter = profiles_by_user_id.find(user_id);
+      if (iter == profiles_by_user_id.end()) {
+        result->set_status(ProfileServiceStatus::PROFILE_USER_NOT_FOUND);
+        continue;
+      }
+
+      result->set_status(ProfileServiceStatus::PROFILE_SUCCESS);
+      result->mutable_profile()->CopyFrom(iter->second);
     }
-    return iter->second;
+    return Status::OK;
+  }
+
+  ::grpc::ClientAsyncResponseReaderInterface<GetProfileResponse>*
+  AsyncGetProfileRaw(::grpc::ClientContext* /*context*/,
+                     const GetProfileRequest& /*request*/,
+                     ::grpc::CompletionQueue* /*cq*/) override {
+    return nullptr;
+  }
+
+  ::grpc::ClientAsyncResponseReaderInterface<GetProfileResponse>*
+  PrepareAsyncGetProfileRaw(::grpc::ClientContext* /*context*/,
+                            const GetProfileRequest& /*request*/,
+                            ::grpc::CompletionQueue* /*cq*/) override {
+    return nullptr;
+  }
+
+  ::grpc::ClientAsyncResponseReaderInterface<BatchGetUserCfProfilesResponse>*
+  AsyncBatchGetUserCfProfilesRaw(
+      ::grpc::ClientContext* /*context*/,
+      const BatchGetUserCfProfilesRequest& /*request*/,
+      ::grpc::CompletionQueue* /*cq*/) override {
+    return nullptr;
+  }
+
+  ::grpc::ClientAsyncResponseReaderInterface<BatchGetUserCfProfilesResponse>*
+  PrepareAsyncBatchGetUserCfProfilesRaw(
+      ::grpc::ClientContext* /*context*/,
+      const BatchGetUserCfProfilesRequest& /*request*/,
+      ::grpc::CompletionQueue* /*cq*/) override {
+    return nullptr;
   }
 };
 
@@ -120,9 +174,9 @@ TEST(RetrieverUserCfTest, RetrievesAndRanksSimilarUserProfileItems) {
       {42, {{10, 0.9}, {20, 0.5}}},
   };
 
-  auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
-  FakeProfileStore* raw_profile_store = fake_profile_store.get();
-  fake_profile_store->profiles_by_user_id = {
+  auto fake_profile_stub = ::std::make_unique<FakeProfileServiceStub>();
+  FakeProfileServiceStub* raw_profile_stub = fake_profile_stub.get();
+  fake_profile_stub->profiles_by_user_id = {
       {10, BuildNeighborProfile(10, {{101, 2.0F}, {300, 1.0F}},
                                 {{102, 1.0F}})},
       {20, BuildNeighborProfile(20, {{101, 1.0F}},
@@ -130,7 +184,7 @@ TEST(RetrieverUserCfTest, RetrievesAndRanksSimilarUserProfileItems) {
   };
 
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store),
+                            ::std::move(fake_profile_stub),
                             RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
@@ -158,15 +212,16 @@ TEST(RetrieverUserCfTest, RetrievesAndRanksSimilarUserProfileItems) {
 
   ASSERT_EQ(raw_similarity_store->requests.size(), 1);
   EXPECT_EQ(raw_similarity_store->requests[0], (pair<uint64_t, int>{42, 10}));
-  EXPECT_EQ(raw_profile_store->requests, (vector<uint64_t>{10, 20}));
+  ASSERT_EQ(raw_profile_stub->batch_requests.size(), 1);
+  EXPECT_EQ(raw_profile_stub->batch_requests[0], (vector<int64_t>{10, 20}));
 }
 
 TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenSimilarityStoreFails) {
   auto fake_similarity_store = ::std::make_unique<FakeUserSimilarityStore>();
   fake_similarity_store->should_throw = true;
-  auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
+  auto fake_profile_stub = ::std::make_unique<FakeProfileServiceStub>();
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store),
+                            ::std::move(fake_profile_stub),
                             RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
@@ -178,15 +233,15 @@ TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenSimilarityStoreFails) {
   EXPECT_EQ(response.status(), RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
 }
 
-TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenProfileStoreFails) {
+TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenProfileRpcFails) {
   auto fake_similarity_store = ::std::make_unique<FakeUserSimilarityStore>();
   fake_similarity_store->neighbors_by_user_id = {
       {42, {{10, 0.9}}},
   };
-  auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
-  fake_profile_store->should_throw = true;
+  auto fake_profile_stub = ::std::make_unique<FakeProfileServiceStub>();
+  fake_profile_stub->should_fail_rpc = true;
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store),
+                            ::std::move(fake_profile_stub),
                             RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
@@ -200,9 +255,9 @@ TEST(RetrieverUserCfTest, ReturnsSystemErrorWhenProfileStoreFails) {
 
 TEST(RetrieverUserCfTest, ReturnsEmptyTriggerSeedsWhenNoSimilarUsers) {
   auto fake_similarity_store = ::std::make_unique<FakeUserSimilarityStore>();
-  auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
+  auto fake_profile_stub = ::std::make_unique<FakeProfileServiceStub>();
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store),
+                            ::std::move(fake_profile_stub),
                             RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;
@@ -221,12 +276,12 @@ TEST(RetrieverUserCfTest, SkipsMissingSimilarUserProfiles) {
   fake_similarity_store->neighbors_by_user_id = {
       {42, {{10, 0.9}, {20, 0.5}}},
   };
-  auto fake_profile_store = ::std::make_unique<FakeProfileStore>();
-  fake_profile_store->profiles_by_user_id = {
+  auto fake_profile_stub = ::std::make_unique<FakeProfileServiceStub>();
+  fake_profile_stub->profiles_by_user_id = {
       {20, BuildNeighborProfile(20, {{101, 1.0F}}, {})},
   };
   RetrieverUserCf retriever(::std::move(fake_similarity_store),
-                            ::std::move(fake_profile_store),
+                            ::std::move(fake_profile_stub),
                             RetrieverUserCf::Options{});
   RetrieverRequest request = BuildRequest();
   RetrieverResponse response;

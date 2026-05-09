@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "src/recommendation_engine/retrieval/retrievers/user_cf/grpc_profile_store.h"
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/local_file_user_similarity_store.h"
 #include "src/recommendation_engine/retrieval/retrievers/user_cf/redis_user_similarity_store.h"
 #include "src/utilities/global_config/global_config.h"
@@ -28,13 +27,13 @@ using ::grpc::CreateChannel;
 using ::grpc::InsecureChannelCredentials;
 using ::grpc::Status;
 using ::grpc::StatusCode;
-using ::recommendation_engine::user_cf::GrpcProfileStore;
 using ::recommendation_engine::user_cf::LocalFileUserSimilarityStore;
 using ::recommendation_engine::user_cf::RedisUserSimilarityStore;
 using ::recommendation_engine::user_cf::UserSimilarityStore;
 using ::shooting_star::utilities::GlobalConfig;
 using ::shooting_star::utilities::LoggerRegistry;
 using ::shooting_star::utilities::RedisClient;
+using ::shooting_star::utilities::GenerateGuid;
 using ::shooting_star::utilities::ResolveWorkspaceRelativePath;
 using ::std::format;
 using ::std::invalid_argument;
@@ -176,18 +175,18 @@ unique_ptr<user_cf::UserSimilarityStore> CreateUserSimilarityStore(
 
 RetrieverUserCf::RetrieverUserCf(
     unique_ptr<user_cf::UserSimilarityStore> user_similarity_store,
-    unique_ptr<user_cf::ProfileStore> profile_store,
+    unique_ptr<ProfileService::StubInterface> profile_stub,
     Options options)
     : RetrieverBase(options.default_max_candidate_count),
       user_similarity_store_(::std::move(user_similarity_store)),
-      profile_store_(::std::move(profile_store)),
+      profile_stub_(::std::move(profile_stub)),
       trigger_seed_user_count_(options.trigger_seed_user_count),
       score_multiplier_(options.score_multiplier) {
   if (user_similarity_store_ == nullptr) {
     throw runtime_error("RetrieverUserCf user_similarity_store must not be null");
   }
-  if (profile_store_ == nullptr) {
-    throw runtime_error("RetrieverUserCf profile_store must not be null");
+  if (profile_stub_ == nullptr) {
+    throw runtime_error("RetrieverUserCf profile_stub must not be null");
   }
   if (options.default_max_candidate_count <= 0) {
     throw invalid_argument(
@@ -213,14 +212,12 @@ unique_ptr<RetrieverUserCf> RetrieverUserCf::Create(
   shared_ptr<::grpc::Channel> profile_channel =
       CreateChannel(config.GetProfileServiceAddress(),
                     InsecureChannelCredentials());
-  unique_ptr<ProfileService::Stub> profile_stub =
+  unique_ptr<ProfileService::StubInterface> profile_stub =
       ProfileService::NewStub(::std::move(profile_channel));
-  unique_ptr<user_cf::ProfileStore> profile_store =
-      make_unique<GrpcProfileStore>(::std::move(profile_stub));
 
   unique_ptr<RetrieverUserCf> server = make_unique<RetrieverUserCf>(
       ::std::move(user_similarity_store),
-      ::std::move(profile_store),
+      ::std::move(profile_stub),
       options);
   return server;
 }
@@ -350,12 +347,53 @@ Status RetrieverUserCf::LoadTriggerUserProfiles(
   }
 
   try {
-    // ProfileStore must return one entry per requested user id.
-    session->trigger_user_profiles =
-        profile_store_->FindByUserIds(session->trigger_user_ids);
-    if (session->trigger_user_profiles.size() !=
-        session->trigger_user_ids.size()) {
-      throw runtime_error("ProfileStore batch lookup returned mismatched result size");
+    session->trigger_user_profiles.assign(session->trigger_user_ids.size(),
+                                          ::std::nullopt);
+    BatchGetUserCfProfilesRequest profile_request;
+    profile_request.set_trace_id(request.trace_id());
+    profile_request.set_request_id(GenerateGuid());
+
+    vector<size_t> valid_indexes;
+    valid_indexes.reserve(session->trigger_user_ids.size());
+    for (size_t i = 0; i < session->trigger_user_ids.size(); ++i) {
+      const uint64_t user_id = session->trigger_user_ids[i];
+      if (user_id == 0 ||
+          user_id > static_cast<uint64_t>(::std::numeric_limits<int64_t>::max())) {
+        continue;
+      }
+      profile_request.add_user_ids(static_cast<int64_t>(user_id));
+      valid_indexes.emplace_back(i);
+    }
+
+    if (!valid_indexes.empty()) {
+      BatchGetUserCfProfilesResponse profile_response;
+      ::grpc::ClientContext context;
+      const Status status = profile_stub_->BatchGetUserCfProfiles(
+          &context, profile_request, &profile_response);
+      if (!status.ok()) {
+        throw runtime_error(format("Failed to fetch user_cf profiles: {}",
+                                   status.error_message()));
+      }
+      if (profile_response.status() !=
+          ProfileServiceStatus::PROFILE_SUCCESS) {
+        throw runtime_error(
+            format("Profile service returned status {} for user_cf profile batch.",
+                   static_cast<int>(profile_response.status())));
+      }
+      if (profile_response.results_size() !=
+          static_cast<int>(valid_indexes.size())) {
+        throw runtime_error(
+            "Profile service user_cf batch returned mismatched result size");
+      }
+
+      for (int i = 0; i < profile_response.results_size(); ++i) {
+        const UserCfProfileResult& result = profile_response.results(i);
+        if (result.status() != ProfileServiceStatus::PROFILE_SUCCESS) {
+          continue;
+        }
+        session->trigger_user_profiles[valid_indexes[static_cast<size_t>(i)]] =
+            result.profile();
+      }
     }
   } catch (const ::std::exception& ex) {
     response->set_status(RetrieverServiceStatus::RETRIEVER_SYSTEM_ERROR);
